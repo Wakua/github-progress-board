@@ -1,0 +1,83 @@
+import assert from 'node:assert/strict';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { startCloudPreview } from './cloud-preview.mjs';
+import { cloudDatabase } from '../server/cloud-db.mjs';
+import { planPreparedEstimates, isProvisionalEstimate } from '../dist/estimate-proposals.mjs';
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const baseline = JSON.parse(await readFile(new URL('../samples/prepared-workspace.json', import.meta.url)));
+const proposal = JSON.parse(await readFile(new URL('../dist/prepared-estimates.json', import.meta.url)));
+const preview = await startCloudPreview();
+const artifacts = process.env.ESTIMATE_QA_ARTIFACT_DIR || path.join(process.cwd(), 'node_modules/.qa-estimates');
+await mkdir(artifacts, { recursive: true });
+const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined });
+const context = await browser.newContext({ viewport: { width: 390, height: 844 } });
+const errors = [], checks = [];
+const user = 'qa-estimate-ui';
+await context.addCookies([{ name: 'qa-user', value: user, url: preview.origin }]);
+context.on('page', page => page.on('pageerror', e => errors.push(e.message)));
+const db = cloudDatabase(preview.DB);
+const initial = structuredClone(baseline);
+// This isolated fixture changes only checks/status; its scope still matches the prepared record.
+const review = initial.projects[0].data.tasks[0];
+review.status = 'review'; review.criteria.forEach(c => c.checked = true);
+await db.save(user, { baseVersion: 0, operationId: 'estimate-browser-seed', workspace: initial });
+const page = await context.newPage();
+const ready = async () => page.waitForFunction(() => document.querySelector('#storage-label').textContent === 'クラウド保存');
+const saved = async () => page.waitForFunction(() => !document.querySelector('main').hasAttribute('aria-busy'));
+const close = async () => { if (await page.locator('#detail-dialog').isVisible()) await page.locator('#close-dialog').click(); };
+try {
+ await page.goto(preview.origin); await ready();
+ await page.locator('#prepared-estimates').click();
+ await page.locator('[data-form=apply-prepared-estimates]').waitFor();
+ const planned = planPreparedEstimates(initial, baseline, proposal);
+ assert.equal(await page.locator('.estimate-proposal').count(), planned.changes.length);
+ assert.match(await page.locator('#drawer-body').innerText(), /20\.25pt/);
+ assert.equal((await db.load(user)).version, 1);
+ await page.locator('.estimate-proposal details').first().click();
+ assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+ await page.screenshot({ path: path.join(artifacts, '01-phone-preview.png'), fullPage: true, style: "#toast { visibility: hidden !important; }" });
+ await page.getByRole('button', { name: 'この仮見積を未入力の作業に登録', exact: true }).click(); await saved();
+ const record = await db.load(user);
+ assert.equal(record.version, 2);
+ assert.equal(record.workspace.projects.flatMap(p => p.data.tasks).filter(isProvisionalEstimate).length, 18);
+ for (const project of record.workspace.projects) {
+  const before = initial.projects.find(p => p.id === project.id);
+  for (const task of project.data.tasks) {
+   const old = before.data.tasks.find(t => t.id === task.id);
+   for (const key of ['status', 'criteria', 'evidence', 'owner', 'deps']) assert.deepEqual(task[key], old[key]);
+  }
+ }
+ await page.locator('#project-switch').selectOption(initial.projects[0].id); await saved();
+ await page.getByRole('tab', { name: 'イテレーション', exact: true }).click();
+ const row = page.locator(`[data-period-task="${review.id}"]`);
+ assert.match(await row.innerText(), /完了条件 100%/); assert.match(await row.innerText(), /確認待ち/);
+ assert.match(await row.innerText(), /仮見積/);
+ assert.match(await page.locator('#estimate-scope').innerText(), /暫定/);
+ assert.match(await page.locator('.period-goal-progress').first().innerText(), /暫定/);
+ await page.screenshot({ path: path.join(artifacts, '02-phone-progress.png'), fullPage: true, style: "#toast { visibility: hidden !important; }" });
+ assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+ checks.push('390px: preview writes nothing; explicit confirmation adds 18 provisional estimates; original status/checks/evidence/dependencies/owner are preserved; review with 100% criteria remains review; aggregates say provisional');
+ await row.getByRole('button', { name: review.title, exact: true }).click();
+ await page.locator('.panel-note summary').click();
+ assert.match(await page.locator('#drawer-body').innerText(), /実績時間ではありません/);
+ await page.locator('#task-estimate').fill('2.25');
+ await page.getByRole('button', { name: 'Estimateを更新', exact: true }).click(); await saved();
+ const updated = (await db.load(user)).workspace.projects[0].data.tasks[0];
+ assert.equal(updated.estimatePoints, 2.25); assert.equal(updated.estimateProvenance, undefined);
+ assert.equal(await page.locator('.estimate-section .estimate-provisional').count(), 0);
+ assert.equal(await page.locator('.panel-note').count(), 0);
+ await page.screenshot({ path: path.join(artifacts, '03-phone-manual-estimate.png'), fullPage: true, style: "#toast { visibility: hidden !important; }" });
+ checks.push('Manual estimate change clears only this task’s prepared provenance and rationale immediately');
+ await close(); await page.setViewportSize({ width: 1440, height: 1000 });
+ await page.reload(); await ready();
+ await page.locator('#prepared-estimates').click();
+ await page.getByText('追加できる未入力の見積はありません。既存データは変更しません。', { exact: true }).waitFor();
+ assert.equal(await page.locator('[data-form=apply-prepared-estimates]').count(), 0);
+ assert.equal((await db.load(user)).version, 3);
+ await page.screenshot({ path: path.join(artifacts, '04-desktop-no-repeat.png'), fullPage: true, style: "#toast { visibility: hidden !important; }" });
+ checks.push('1440px: reload preserves changes, skips every existing estimate and exposes no duplicate apply form');
+ assert.deepEqual(errors, []);
+ const result = { checkedAt: new Date().toISOString(), checks, pageErrors: errors, scope: 'ephemeral SQLite and fresh browser context; simulated authentication; no production writes' };
+ await writeFile(path.join(artifacts, 'results.json'), JSON.stringify(result, null, 2)); console.log(JSON.stringify(result, null, 2));
+} finally { await context.close(); await browser.close(); await preview.stop(); }

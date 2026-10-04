@@ -1,0 +1,158 @@
+// Optional UI acceptance checks and before/after screenshots for Issue #10.
+import assert from 'node:assert/strict';
+import { mkdir, mkdtemp, readFile, writeFile } from 'node:fs/promises';
+import path from 'node:path';
+import { tmpdir } from 'node:os';
+import { execFileSync } from 'node:child_process';
+import { STORAGE_KEY, validateWorkspace, emptyWorkspace, registerProject } from '../dist/workspace.mjs';
+const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
+const before = process.argv.includes('--before');
+const sourceFiles = ['dist/app.mjs', 'dist/engine.mjs', 'dist/workspace.mjs', 'dist/index.html', 'dist/list.css', 'dist/projects.css', 'tests/iteration-browser-qa.mjs', 'tests/fixtures/iteration-workspace.json', 'package.json'];
+const testedHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+const testedBlobs = Object.fromEntries(execFileSync('git', ['hash-object', ...sourceFiles], { encoding: 'utf8' }).trim().split('\n').map((hash, index) => [sourceFiles[index], hash]));
+const artifacts = process.env.QA_ARTIFACT_DIR || await mkdtemp(path.join(tmpdir(), 'progress-tool-iteration-qa-'));
+await mkdir(artifacts, { recursive: true });
+const browser = await chromium.launch({ headless: true, executablePath: process.env.CHROMIUM_PATH || undefined });
+const context = await browser.newContext({ viewport: { width: 1280, height: 720 }, deviceScaleFactor: 1 });
+// 手動保存・取込のQAは外部取得を停止し、gh経路は専用の模擬応答QAで検証する。
+await context.route(/\/api\/(?:local-github|github\/refresh)(?:\?|$)/, route => route.fulfill({ status: 503, contentType: 'application/json', body: JSON.stringify({ error: 'gh_unavailable' }) }));
+const page = await context.newPage();
+const errors = [], checks = [];
+page.on('pageerror', error => errors.push(error.message));
+await page.clock.install({ time: new Date('2026-10-04T03:00:00Z') });
+const fixture = JSON.parse(await readFile(new URL('./fixtures/iteration-workspace.json', import.meta.url), 'utf8'));
+fixture.selectedProjectId = fixture.projects[0].id;
+const period = id => page.locator(`#iterations-board [data-period-id="${id}"]`);
+const capture = name => page.screenshot({ path: path.join(artifacts, name), animations: 'disabled', style: '#toast { visibility: hidden !important; }' });
+async function load(value = fixture) {
+  validateWorkspace(value);
+  await page.evaluate(({ key, value }) => {
+    localStorage.clear(); localStorage.setItem(key, JSON.stringify(value));
+    localStorage.setItem('progress-tool.view.v1', JSON.stringify({ tab: 'iterations' }));
+  }, { key: STORAGE_KEY, value });
+  await page.reload(); await page.locator('#project-detail').waitFor(); await page.evaluate(() => scrollTo(0, 0));
+}
+const close = () => page.getByRole('button', { name: '詳細を閉じる' }).click();
+try {
+  await page.goto(process.env.QA_BASE_URL || 'http://127.0.0.1:4319/');
+  await load();
+  await capture(before ? '01-before-upcoming.png' : '05-after-upcoming.png');
+  if (before) {
+    await period('it1').locator(':scope > summary').click();
+    await capture('02-before-expanded.png');
+  } else {
+    assert.doesNotMatch(await page.locator('main').innerText(), /詰まり|ブロッカー/);
+    assert.equal(await period('it1').getAttribute('open'), '');
+    assert.equal(await page.locator('#iterations-board .period-group[open]').count(), 1);
+    assert.equal(await page.locator('#iterations-board .period-completed-points').count(), 0);
+    assert.equal(await period('it1').locator('.period-goal-deadline').count(), 0);
+    assert.equal(await page.locator('main [data-action="add-goal"], main [data-action="add-task"], main [data-action="import-snapshot"], main #github-snapshot').count(), 0);
+    checks.push('採用済みの用語で表示し、進行中がない場合は次に始まるIt1だけを展開し、一覧の完了/合計・同日の作業期限・登録/取込/snapshot欄を外す');
+    await period('it1').locator(':scope > summary').click();
+    await page.getByRole('tab', { name: '自分の作業', exact: true }).click();
+    await page.getByRole('tab', { name: 'イテレーション', exact: true }).click();
+    assert.equal(await period('it1').getAttribute('open'), null);
+    await period('it1').locator(':scope > summary').click();
+    checks.push('人が閉じた期間をタブの切り替えで開き直さない');
+    const scoped = structuredClone(fixture);
+    const goalId = scoped.projects[0].data.goals[0].id;
+    scoped.projects[0].data.iterations[0].startDate = '2026-10-04';
+    scoped.projects[0].data.tasks.filter(t => t.goalId === goalId).forEach(t => { t.iterationId = 'it3'; });
+    await load(scoped);
+    await page.locator('#goal-list [data-action="overview"]').first().click();
+    await page.getByRole('button', { name: '期間の内訳', exact: true }).click();
+    assert.deepEqual(await page.locator('#drawer-body .period-group[open]').evaluateAll(periods => periods.map(p => p.dataset.periodId)), ['it3']);
+    await close(); await load();
+    checks.push('目標の期間の内訳では、作業がない進行中の期間を開かず、その目標の次の期間だけを開く');
+    await period('it1').locator('.period-task-name').first().scrollIntoViewIfNeeded();
+    await capture('11-after-tasks.png');
+  }
+  await period('it1').getByRole('button', { name: '予約受付の目標全体を確認' }).click();
+  await page.getByRole('button', { name: '期間の内訳', exact: true }).click();
+  if (!before) assert.equal(await page.locator('#drawer-body .period-completed-points').count(), 4);
+  await capture(before ? '03-before-detail.png' : '06-after-detail.png');
+  await close();
+  const past = structuredClone(fixture);
+  past.projects[0].data.iterations[0].startDate = '2026-09-27';
+  await load(past);
+  await period('it1').locator(':scope > summary').click();
+  await capture(before ? '04-before-overdue.png' : '08-after-overdue.png');
+  if (!before) {
+    assert.equal(await period('it2').getAttribute('open'), '');
+    assert.match(await period('it1').locator('.period-goal-deadline').innerText(), /10\/3.*期限超過/s);
+    checks.push('終了した期間の未完了作業に期限超過を表示し、次に始まるIt2を初期展開する');
+    for (const task of past.projects[0].data.tasks.filter(t => t.iterationId === 'it1')) {
+      task.status = 'done'; task.criteria.forEach(c => { c.checked = true; }); task.evidence = 'QA確認済み';
+    }
+    await load(past); await period('it1').locator(':scope > summary').click();
+    assert.equal(await period('it1').locator('.period-goal-deadline').count(), 0);
+    const active = structuredClone(fixture);
+    active.projects[0].data.iterations[0].startDate = '2026-10-04';
+    await load(active);
+    assert.equal(await page.locator('#iterations-board .period-group[open]').count(), 1);
+    assert.equal(await period('it1').getAttribute('open'), '');
+    await capture('09-after-active.png');
+    checks.push('進行中の期間を優先して展開し、完了済みの過去の作業には期限超過を付けない');
+    const unassigned = structuredClone(fixture);
+    unassigned.projects[0].data.tasks[0].iterationId = null;
+    await load(unassigned);
+    assert.match(await page.locator('.period-unassigned .period-goal-deadline').innerText(), /要確認/);
+    await load(); await page.getByRole('button', { name: '登録・取込', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: '目標を登録', exact: true }).isVisible(), true);
+    assert.equal(await page.getByRole('button', { name: '作業を登録', exact: true }).isEnabled(), true);
+    assert.equal(await page.locator('#github-snapshot').isVisible(), true);
+    await capture('07-after-management.png');
+    await page.getByRole('button', { name: '目標を登録', exact: true }).click();
+    await page.getByLabel('目標名', { exact: true }).fill('QA追加目標');
+    assert.equal(await page.getByRole('button', { name: '登録・取込へ戻る', exact: true }).isVisible(), true);
+    await capture('15-review-after-goal-form.png');
+    await page.getByRole('button', { name: '登録・取込へ戻る', exact: true }).click();
+    await page.getByRole('button', { name: '目標を登録', exact: true }).click();
+    assert.equal(await page.getByLabel('目標名', { exact: true }).inputValue(), 'QA追加目標');
+    await page.getByRole('button', { name: '登録して保存', exact: true }).click();
+    await page.waitForFunction(() => !document.querySelector('main').hasAttribute('aria-busy'));
+    assert.equal(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).projects[0].data.goals.length, STORAGE_KEY), 3);
+    assert.equal(await page.locator('#drawer-title').innerText(), '登録・取込');
+    await capture('16-review-after-goal-saved.png');
+    await page.getByRole('button', { name: '作業を登録', exact: true }).click();
+    await page.getByLabel('作業名', { exact: true }).fill('QA追加作業');
+    await page.getByLabel('目標', { exact: true }).selectOption({ label: 'QA追加目標' });
+    await page.getByRole('button', { name: '登録して保存', exact: true }).click();
+    await page.waitForFunction(() => !document.querySelector('main').hasAttribute('aria-busy'));
+    assert.equal(await page.locator('#drawer-title').innerText(), '登録・取込');
+    assert.equal(await page.evaluate(key => JSON.parse(localStorage.getItem(key)).projects[0].data.tasks.at(-1).title, STORAGE_KEY), 'QA追加作業');
+    checks.push('未確認の期限は要確認を残し、登録の入力を戻る操作で保持し、目標保存後に同じパネルから続けて作業を登録できる');
+    const snapshotWorkspace = structuredClone(fixture);
+    const snapshot = JSON.parse(await readFile(new URL('../dist/github-snapshot.json', import.meta.url), 'utf8')).snapshots.find(s => s.repositoryUrl === snapshotWorkspace.projects[0].repositoryUrl);
+    snapshotWorkspace.projects[0].githubSnapshot = { ...snapshot, projectId: snapshotWorkspace.projects[0].id };
+    await load(snapshotWorkspace); await page.getByRole('button', { name: '登録・取込', exact: true }).click();
+    for (const history of await page.locator('.snapshot-history').all()) await history.locator('summary').click();
+    await page.locator('[data-action="github-item"]').first().click();
+    await capture('17-review-after-snapshot-detail.png');
+    await page.getByRole('button', { name: '登録・取込へ戻る', exact: true }).click();
+    assert.equal(await page.locator('#github-snapshot').isVisible(), true);
+    assert.deepEqual(await page.evaluate(key => JSON.parse(localStorage.getItem(key)), STORAGE_KEY), snapshotWorkspace);
+    checks.push('snapshotのIssue・PR詳細から登録・取込の一覧へ戻り、保存済みデータを変えない');
+    const empty = emptyWorkspace();
+    registerProject(empty, { name: 'QA空のプロジェクト' }, () => 'qa-empty');
+    await load(empty);
+    assert.match(await page.locator('#goal-list').innerText(), /登録・取込.*目標を登録/);
+    await page.getByRole('button', { name: '登録・取込', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: '目標を登録', exact: true }).isEnabled(), true);
+    assert.equal(await page.getByRole('button', { name: '作業を登録', exact: true }).isDisabled(), true);
+    checks.push('目標未登録の案内は登録・取込の入口を示し、目標登録後に作業を登録する順を保つ');
+    await load(); await page.setViewportSize({ width: 390, height: 844 });
+    await capture('10-after-mobile.png');
+    assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
+    await page.getByRole('button', { name: '登録・取込', exact: true }).click();
+    assert.equal(await page.evaluate(() => document.querySelector('#detail-dialog').scrollWidth <= document.querySelector('#detail-dialog').clientWidth), true);
+    await page.getByRole('button', { name: '目標を登録', exact: true }).click();
+    assert.equal(await page.getByRole('button', { name: '登録・取込へ戻る', exact: true }).isVisible(), true);
+    assert.equal(await page.evaluate(() => document.querySelector('#detail-dialog').scrollWidth <= document.querySelector('#detail-dialog').clientWidth), true);
+    await capture('18-review-after-mobile-registration.png');
+    checks.push('390px幅で一覧と登録・取込パネルに横方向のはみ出しがない');
+  }
+  assert.deepEqual(errors, []);
+  await writeFile(path.join(artifacts, before ? 'before-results.json' : 'results.json'), JSON.stringify({ date: '2026-10-04', testedHead, testedBlobs, browser: await browser.version(), viewport: { width: 1280, height: 720 }, time: '2026-10-04T03:00:00Z', checks, errors }, null, 2) + '\n');
+  console.log(`${before ? 'Before screenshots' : 'Issue #10 UI QA'}: ${checks.length} checks; ${artifacts}`);
+} finally { await browser.close(); }

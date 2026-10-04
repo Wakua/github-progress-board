@@ -1,0 +1,502 @@
+{
+  "schemaVersion": 1,
+  "selectedProjectId": null,
+  "projects": [
+    {
+      "id": "booking-iteration-qa",
+      "name": "予約管理アプリ（QA用）",
+      "repositoryUrl": "https://github.com/example/booking-app",
+      "data": {
+        "project": "予約管理アプリ（QA用）",
+        "goals": [
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "registration",
+            "shortTitle": "予約受付",
+            "title": "予約受付を使えるようにする",
+            "issueNumber": 100,
+            "issueState": "open"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "changes",
+            "shortTitle": "予約後の管理",
+            "title": "予約の変更と取消を使えるようにする",
+            "issueNumber": 200,
+            "issueState": "open"
+          }
+        ],
+        "parentIssues": [],
+        "tasks": [
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-1",
+            "title": "受付項目を決める",
+            "goalId": "registration",
+            "parentId": "registration",
+            "issueNumber": 101,
+            "status": "active",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "必要な入力項目を列挙している",
+                "checked": true
+              },
+              {
+                "text": "項目ごとの入力形式を決めている",
+                "checked": false
+              },
+              {
+                "text": "必須項目と任意項目を分けている",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 1,
+            "iterationId": "it1"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-2",
+            "title": "申込手順を整理する",
+            "goalId": "registration",
+            "parentId": "registration",
+            "issueNumber": 102,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-1"
+            ],
+            "criteria": [
+              {
+                "text": "入力から送信までの手順を記録している",
+                "checked": false
+              },
+              {
+                "text": "確認が必要な操作を決めている",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 0.5,
+            "iterationId": "it1"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-3",
+            "title": "予約申込の入力欄を作る",
+            "goalId": "registration",
+            "parentId": "registration",
+            "issueNumber": 103,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-2"
+            ],
+            "criteria": [
+              {
+                "text": "申込情報を入力できる",
+                "checked": false
+              },
+              {
+                "text": "必須項目の不足を表示する",
+                "checked": false
+              },
+              {
+                "text": "テストが通る",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 2,
+            "iterationId": "it1"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-4",
+            "title": "予約の確認画面を作る",
+            "goalId": "registration",
+            "parentId": "registration",
+            "issueNumber": 104,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-2"
+            ],
+            "criteria": [
+              {
+                "text": "入力内容を確認できる",
+                "checked": false
+              },
+              {
+                "text": "入力画面へ戻れる",
+                "checked": false
+              },
+              {
+                "text": "狭い画面でも確認できる",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 1,
+            "iterationId": "it1"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-5",
+            "title": "予約一覧を作る",
+            "goalId": "registration",
+            "parentId": "registration",
+            "issueNumber": 105,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-2"
+            ],
+            "criteria": [
+              {
+                "text": "予約を日時順に表示する",
+                "checked": false
+              },
+              {
+                "text": "空き枠を表示する",
+                "checked": false
+              },
+              {
+                "text": "テストが通る",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 1,
+            "iterationId": "it2"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-6",
+            "title": "受付の手順を確かめる",
+            "goalId": "registration",
+            "parentId": "registration",
+            "issueNumber": 106,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-3",
+              "qa-task-4",
+              "qa-task-5"
+            ],
+            "criteria": [
+              {
+                "text": "申込から一覧表示まで操作している",
+                "checked": false
+              },
+              {
+                "text": "確認できなかった操作を記録している",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 0.5,
+            "iterationId": "it2"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-7",
+            "title": "受付の案内を書く",
+            "goalId": "registration",
+            "parentId": "registration",
+            "issueNumber": 107,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-6"
+            ],
+            "criteria": [
+              {
+                "text": "入力と確認の手順を案内している",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 0.5,
+            "iterationId": "it2"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-8",
+            "title": "変更の受付条件を決める",
+            "goalId": "changes",
+            "parentId": "changes",
+            "issueNumber": 201,
+            "status": "todo",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "変更できる項目を列挙している",
+                "checked": false
+              },
+              {
+                "text": "変更できる期限を決めている",
+                "checked": false
+              },
+              {
+                "text": "利用者へ条件を案内している",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 1,
+            "iterationId": "it3"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-9",
+            "title": "変更の手順を整理する",
+            "goalId": "changes",
+            "parentId": "changes",
+            "issueNumber": 202,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-8"
+            ],
+            "criteria": [
+              {
+                "text": "変更前後の情報を確認できる",
+                "checked": false
+              },
+              {
+                "text": "確認が必要な操作を決めている",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 0.5,
+            "iterationId": "it3"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-10",
+            "title": "変更予定を一覧にする",
+            "goalId": "changes",
+            "parentId": "changes",
+            "issueNumber": 203,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-9"
+            ],
+            "criteria": [
+              {
+                "text": "変更の対象を表示する",
+                "checked": false
+              },
+              {
+                "text": "変更前後の時刻を表示する",
+                "checked": false
+              },
+              {
+                "text": "テストが通る",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 1,
+            "iterationId": "it3"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-11",
+            "title": "取消の完了を記録する",
+            "goalId": "changes",
+            "parentId": "changes",
+            "issueNumber": 204,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-9"
+            ],
+            "criteria": [
+              {
+                "text": "取消した予約を表示する",
+                "checked": false
+              },
+              {
+                "text": "空き枠へ戻す",
+                "checked": false
+              },
+              {
+                "text": "テストが通る",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 2,
+            "iterationId": "it3"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-12",
+            "title": "利用者へ通知する",
+            "goalId": "changes",
+            "parentId": "changes",
+            "issueNumber": 205,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-10"
+            ],
+            "criteria": [
+              {
+                "text": "受付の通知を表示する",
+                "checked": false
+              },
+              {
+                "text": "変更の通知を表示する",
+                "checked": false
+              },
+              {
+                "text": "取消の通知を表示する",
+                "checked": false
+              },
+              {
+                "text": "テストが通る",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 2,
+            "iterationId": "it4"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-13",
+            "title": "予約後の手順を確かめる",
+            "goalId": "changes",
+            "parentId": "changes",
+            "issueNumber": 206,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-11",
+              "qa-task-12"
+            ],
+            "criteria": [
+              {
+                "text": "変更と取消の操作を確認している",
+                "checked": false
+              },
+              {
+                "text": "未確認の操作を記録している",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 0.5,
+            "iterationId": "it4"
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "qa-task-14",
+            "title": "予約後の案内を書く",
+            "goalId": "changes",
+            "parentId": "changes",
+            "issueNumber": 207,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "qa-task-13"
+            ],
+            "criteria": [
+              {
+                "text": "変更と取消の手順を案内している",
+                "checked": false
+              }
+            ],
+            "evidence": "",
+            "waitReason": "",
+            "owner": "QA担当A",
+            "estimatePoints": 0.5,
+            "iterationId": "it4"
+          }
+        ],
+        "iterations": [
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "it1",
+            "title": "It1",
+            "startDate": "2026-10-05",
+            "durationDays": 7
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "it2",
+            "title": "It2",
+            "startDate": "2026-10-12",
+            "durationDays": 7
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "it3",
+            "title": "It3",
+            "startDate": "2026-10-19",
+            "durationDays": 7
+          },
+          {
+            "projectId": "booking-iteration-qa",
+            "id": "it4",
+            "title": "It4",
+            "startDate": "2026-10-26",
+            "durationDays": 7
+          }
+        ],
+        "decisions": [],
+        "order": [
+          "qa-task-1",
+          "qa-task-2",
+          "qa-task-3",
+          "qa-task-4",
+          "qa-task-5",
+          "qa-task-6",
+          "qa-task-7",
+          "qa-task-8",
+          "qa-task-9",
+          "qa-task-10",
+          "qa-task-11",
+          "qa-task-12",
+          "qa-task-13",
+          "qa-task-14"
+        ],
+        "history": []
+      }
+    }
+  ]
+}

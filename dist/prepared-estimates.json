@@ -1,0 +1,189 @@
+{
+  "source": "prepared-estimates-2026-10-04-v1",
+  "unit": "point",
+  "pointsPerWorkday": 1,
+  "scopeAt": "2026-10-04T03:22:29Z",
+  "confidence": "low",
+  "entries": [
+    {
+      "projectId": "recipe-app",
+      "taskId": "ingredient-search",
+      "points": 1.5,
+      "range": [
+        1,
+        3
+      ],
+      "rationale": "検索APIと一覧画面、表記ゆれの辞書を含む。過去の実績時間は不明。"
+    },
+    {
+      "projectId": "recipe-app",
+      "taskId": "nutrition-data-terms",
+      "points": 0.5,
+      "range": [
+        0.25,
+        1.5
+      ],
+      "rationale": "利用規約の確認と取得方法の決定。回答を待つ時間は含めない。"
+    },
+    {
+      "projectId": "recipe-app",
+      "taskId": "weekly-menu-generator",
+      "points": 3,
+      "range": [
+        2,
+        5
+      ],
+      "rationale": "献立の組み立てと6つの条件の確認。データ形式によって広がる可能性がある。"
+    },
+    {
+      "projectId": "recipe-app",
+      "taskId": "family-trial",
+      "points": 1,
+      "range": [
+        0.5,
+        2
+      ],
+      "rationale": "1週間の利用と記録の整理。見つかった問題の修正は含めない。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "placement-audit",
+      "points": 1.5,
+      "range": [
+        1,
+        3
+      ],
+      "rationale": "3つの操作の確認、再現、原因の特定、修正案の提出。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "monthly-capacity",
+      "points": 0.25,
+      "range": [
+        0.25,
+        0.5
+      ],
+      "rationale": "登録範囲は統合の確認。受付上限の機能の実装量ではない。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "plan-history-view",
+      "points": 0.5,
+      "range": [
+        0.25,
+        1
+      ],
+      "rationale": "表示の分離と編集の制限の確認。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "usage-memo",
+      "points": 0.25,
+      "range": [
+        0.25,
+        0.5
+      ],
+      "rationale": "メモの記録と読み返しの確認。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "capacity-display",
+      "points": 0.25,
+      "range": [
+        0.25,
+        0.5
+      ],
+      "rationale": "表示の修正と合計の照合。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "resource-sync-fix",
+      "points": 0.75,
+      "range": [
+        0.5,
+        1.5
+      ],
+      "rationale": "修正と既存の予約データでの確認。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "capacity-user-trial",
+      "points": 1,
+      "range": [
+        0.5,
+        2
+      ],
+      "rationale": "3か月分の予約入力と記録。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "annual-user-trial",
+      "points": 3,
+      "range": [
+        2,
+        5
+      ],
+      "rationale": "12か月分の予約操作と7つの条件の評価。修正は含めない。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "combined-qa",
+      "points": 1.5,
+      "range": [
+        1,
+        3
+      ],
+      "rationale": "4つのPRを重ねた検証と予約の自動入力。"
+    },
+    {
+      "projectId": "booking-app",
+      "taskId": "merge-decision",
+      "points": 0.25,
+      "range": [
+        0.25,
+        0.5
+      ],
+      "rationale": "検証結果の確認と判断。"
+    },
+    {
+      "projectId": "progress-board",
+      "taskId": "local-foundation",
+      "points": 2,
+      "range": [
+        1,
+        3
+      ],
+      "rationale": "保存・復旧・検証を含むローカルモード。"
+    },
+    {
+      "projectId": "progress-board",
+      "taskId": "shared-storage",
+      "points": 1,
+      "range": [
+        0.5,
+        2
+      ],
+      "rationale": "共有保存の実装とレビュー対応。"
+    },
+    {
+      "projectId": "progress-board",
+      "taskId": "private-hosting",
+      "points": 0.5,
+      "range": [
+        0.25,
+        1
+      ],
+      "rationale": "公開先の設定と確認。待ち時間は含めない。"
+    },
+    {
+      "projectId": "progress-board",
+      "taskId": "device-migration-check",
+      "points": 1.5,
+      "range": [
+        1,
+        3
+      ],
+      "rationale": "2台の端末での移行と更新の確認。"
+    }
+  ]
+}

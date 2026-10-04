@@ -1,0 +1,62 @@
+# 認証付きの共有workspace
+
+## 実装と確認範囲
+
+最新mainの操作と公開差分をPR4へ統合した。用意済み取込・仮見積・MCPの仕様は[README](../README.md#クラウド共有保存の実装と確認範囲)を参照する。
+
+本番への反映条件と復旧判断は[反映前の検証](cloud-release-verification.md)に従う。本番の認証・D1・実端末をローカル模擬QAの成功で確認済みとはしない。
+
+## 採用済み仕様
+
+手動計画とGitHub snapshotを含むschema v1のworkspaceを、Sites dispatchが付与する`oai-authenticated-user-id`ごとに保存する。URLのquery、JSONの任意のuser ID、ブラウザのlocalStorageを保存先の根拠にはしない。`expectedUserId`は読込後のアカウント変更を検出する照合値であり、認証情報ではない。
+
+Sitesのowner-privateポリシーがサイトへのアクセスを制限し、Workerは画面・APIの両方でdispatchの認証ヘッダーを要求する。匿名のHTML要求はSitesのサインイン入口へ移し、匿名APIは401になる。APIにCORSを付けず、PUTには同一Originと専用ヘッダーを要求する。別ユーザーのデータは同じSQLでもuser IDで分離する。別アカウントを招待する機能は追加しない。
+
+Worker自体は任意のHTTPヘッダーの真正性を暗号的に証明しない。上記はSites dispatchだけから到達することを前提とする。公開前に、外部から付けた同名ヘッダーがdispatchで破棄・置換されること、匿名の偽造ヘッダーで利用できないこと、別ユーザーのヘッダーへ上書きできないこと、dispatchを迂回する直接Worker URLが公開されないことを実環境で確認する。この信頼境界はloopback模擬認証の成功で確認済みにしない。
+
+build出力のassetsは`run_worker_first: true`として画面・JS・同梱snapshotの前にWorkerの認証を通す。標準Cloudflareの直接入口を作らないよう`workers_dev: false`と`preview_urls: false`を出力する。公式Sites packagerがこの意図を保ち、dispatchだけから到達できることは公開前に実環境で確認する。[Cloudflareのassets routing](https://developers.cloudflare.com/workers/static-assets/routing/worker-script/)では、この指定なしの標準動作はassetsを先に返す。[Wrangler設定](https://developers.cloudflare.com/workers/wrangler/configuration/)の直接URL設定も参照する。
+
+同じアカウントのPC・スマートフォンは、同じサーバーworkspaceを読む。読込時点の全体versionをPUTの条件にし、他端末が更新していれば409で停止する。異なるプロジェクトへの同時編集も全体versionで競合する。自動マージは行わない。表示選択は端末別の設定であり、切替だけでクラウドversionを更新しない。常時リアルタイム更新ではなく、明示的な再読込で最新状態を取得する。
+
+変更は複製・検証し、サーバーから同じユーザー・次version・同じ内容の応答を受けてから表示する。失敗や応答喪失、タイムアウトでは最後に確認した表示を保持して編集を止める。保存がサーバーで完了した後に応答だけ失われる場合も、保存成功とは表示しない。自動再送せず、変更候補を退避して再読込で結果を確認する。保存待ち中は詳細を閉じられるが、別の入力詳細やプロジェクト切替を開かない。送信候補が残っていれば、詳細を閉じた後も画面内の再読込ボタンは退避確認を要求する。
+
+全プロジェクト合計6MiBまでを、surrogate pairを切らない小さなchunkに分けてD1に保存する。SHA-256、chunk数・順序、schema、projectId、依存、Issue番号を検証する。head・各chunk・履歴保持を一回のtransactionalな`DB.batch`に含め、失敗時にheadだけ進めない。最新と直前5版を保持する。raw退避APIは最新と直前版のmetadata・chunkを返す。破損時は空データへの自動置換や自動復旧をせず、上書きを停止する。
+
+同じ操作IDを同じ内容で再送した場合だけ、同じ保存として扱う。異なる内容の再送や競合した書込はdigestまで照合し、headだけでなくchunk・履歴にも変更を加えない。JSONのデータが後のコピー時にprototypeへ変わらないよう、`__proto__`・`constructor`・`prototype`キーと64階層を超えるobjectを検証時に拒否する。原本は書出しで保持でき、無害な追加metadataは保持する。HTML風の文字列は名前・条件・証拠として受け付け、文字列として表示する。
+
+## 実装状況と保存の範囲
+
+| モード | 正本 | 共有・再読込 | 現状 |
+| --- | --- | --- | --- |
+| `npm start` | 同ブラウザ・同OriginのlocalStorage | 同ブラウザ内。別端末に共有しない | mainの既存機能。今回も回帰確認済み |
+| `npm run preview:cloud` | 独立したローカルSQLite | 隔離context間の模擬共有 | 開発QA専用。loopbackのcookie認証は模擬 |
+| Sitesのクラウドモード | dispatch認証ID別のD1 | 同じアカウントの別端末から共有 | ソース実装済み。実環境provision・公開・認証は未確認 |
+
+`server/worker.mjs`がAPIと認証境界、`server/cloud-db.mjs`が保存境界、`dist/cloud-workspace.mjs`が画面側の保存確認と移行を担当する。既存`workspace.mjs`の検証と`engine.mjs`のプロジェクト別集計を再利用する。実行時のnpm依存は0件、開発依存はesbuild・drizzle-kit・drizzle-ormの固定3件である。
+
+WebMCPの`read_progress`は対応ブラウザでのみ登録する読み取り専用の補助機能である。手動計画の状態と根拠を返し、変更やGitHub取得はしない。非対応環境で画面を妨げない。登録契約はmockで確認したが、ネイティブWebMCPでの利用は未確認である。
+
+## 既存ブラウザ保存を移す
+
+1. 以前のURLで「データを書き出す」を使いworkspace JSONを保存する。破損の疑いがあれば「保存データを退避」で原本も保存する。URLが異なると新サイトから以前のlocalStorageを直接読めない。
+2. クラウド画面の読込成功後に「ブラウザ保存から移行」を開く。同Originの旧保存なら「このブラウザの保存を確認」、別URLなら書き出したworkspace JSONを指定する。
+3. 表示されたproject ID・名前・repository URL・追加件数を確認する。移行元バックアップを書き出し、チェックを付けてから「確認したデータをクラウドに追加」を押す。
+4. 保存確認後に別端末で再読込し、プロジェクト・目標・作業・依存・証拠・unknown値を確認する。以前のブラウザ保存は削除されない。
+
+入力ファイルは整形JSONを考慮して12MiBまで、保存後の全workspaceは6MiBまでとする。同一ID・同一内容は保持し、同一ID・異なる内容は移行全体を拒否する。repository URLが同じでもIDが異なれば別プロジェクトとして追加する。既存の実計画に重ねる場合は両方の書出しを確認し、同じ仕事の二重登録を避ける。異なる内容の既存IDを更新する一括import機能は今回の範囲外である。
+
+移行元を選び直すと、その時点で以前の候補とバックアップ確認を解除する。不正なfileや破損したlocal保存の読込失敗で以前の候補を保存できない。遅れて完了した以前のfileも、新しいpreviewへ戻さない。
+
+## 競合・失敗・破損時
+
+「変更候補・未保存入力を退避」は、最後に確認したworkspace、送信候補、開いている入力欄・他パネルの入力を区別して書き出す。サーバーからraw版を取得できなければその失敗も記録する。書出しはクラウド保存成功の代わりにはならない。変更候補と未保存入力はメモリ上だけに保持するため、再読込やタブを閉じる前に退避する。退避後に「最新データを読み込む」またはページ再読込を行い、実際の保存結果を比較する。競合した内容は確認して手動で反映する。
+
+未保存入力は退避ボタンを押した時点で複製し、サーバーraw取得の通信待ち中に詳細を閉じても、その時点の入力を保持する。ブラウザ自体の再読込・タブ終了を自動保存で保護する機能はないため、画面内の退避操作を先に行う。
+
+クラウド破損時もraw chunkを退避できるが、画面からクラウドの旧版を自動復旧する機能はない。保存先をlocalStorageへ切り替えず、復旧の確認が終わるまで編集を停止する。旧localStorageモードの明示復旧は従来どおり利用できる。
+
+## 変更履歴
+
+- 2026-10-04: 公開差分の取込・仮見積・MCPをPR4へ統合した。
+
+2026-10-03：main `01f73f13304579f4ece06da69da85117137b82db`から共有保存を追加した。PR1・PR2・PR3は既にMergedであり、この変更はmainをbaseにする。架空の進捗の投入、GitHubへの書込、新credential、main直接push、Ready化、mergeは行っていない。

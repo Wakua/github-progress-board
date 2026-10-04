@@ -1,0 +1,28 @@
+.github-work,.github-plan-section{margin:20px 0}.github-plan-section>h3{font-size:19px;margin-bottom:10px}.github-period{border:1px solid var(--line);border-radius:7px;background:var(--bg);margin:10px 0;padding:14px 17px}.github-period>summary{cursor:pointer;font-size:14px}.github-period-goal{margin-top:18px}.github-period-goal h4{margin:0 0 5px;font-size:15px}.github-project-meta{color:var(--muted);font-size:12px;margin-top:4px}.github-description{white-space:pre-wrap;font-size:14px;margin:8px 0}.github-work .my-work-section{margin-top:20px}.github-work .my-work-section>h3{font-size:16px}.manual-work{border-top:1px solid var(--line);margin-top:30px;padding-top:16px}.manual-work>summary{cursor:pointer;margin-bottom:12px}.github-plan-section .tree button{font-size:14px;text-align:left}.github-plan-section .tree{margin-top:12px}.github-work .my-work-row,.github-period .my-work-row{align-items:flex-start}@media(max-width:520px){.github-period{padding:12px}.github-project-meta{overflow-wrap:anywhere}.github-work .snapshot-heading{flex-wrap:wrap}}
+
+.github-module{border:1px solid var(--line);border-radius:8px;background:var(--bg);margin:12px 0;overflow:hidden}
+.github-module>summary,.github-period>summary{display:grid;grid-template-columns:minmax(180px,1fr) minmax(280px,1.1fr);align-items:center;gap:20px;list-style:none;cursor:pointer}
+.github-module>summary{padding:20px}
+.github-module>summary::-webkit-details-marker,.github-period>summary::-webkit-details-marker{display:none}
+.github-scope-name{font-size:16px;font-weight:650;overflow-wrap:anywhere}
+.github-scope-name:before{content:'›';display:inline-block;width:17px;color:var(--muted)}
+details[open]>summary>.github-scope-name:before{transform:rotate(90deg)}
+.github-scope-name>small{display:block;font-size:12px;font-weight:400;color:var(--muted);margin:5px 0 0 17px}
+.github-progress{display:grid;grid-template-columns:120px minmax(60px,1fr) 80px;gap:16px;align-items:center;font-variant-numeric:tabular-nums}
+.github-progress-value>strong{display:block;font-size:28px;font-weight:650;line-height:1.15}
+.github-progress-value>small,.github-progress-remaining>small{display:block;font-size:12px;color:var(--muted);margin-top:5px}
+.github-progress-track{height:11px;border-radius:4px;background:var(--line);overflow:hidden}
+.github-progress-track>span{display:block;height:100%;background:var(--blue)}
+.github-progress-remaining{justify-self:end}
+.github-progress-remaining>strong{display:block;font-size:19px}
+.github-progress.unknown{grid-template-columns:1fr 80px}
+.github-progress.unknown .github-progress-value>strong{font-size:15px}
+.github-module-body{padding:0 20px 16px;border-top:1px solid var(--line)}
+.github-module-body .github-period>summary{grid-template-columns:minmax(140px,1fr) minmax(260px,1.1fr);gap:12px}
+.github-module-body .github-scope-name{font-size:14px}
+.github-plan-section>h4{font-size:15px;margin:14px 0 6px}
+.github-period-browse{margin:24px 0}.github-period-browse>summary{cursor:pointer;font-size:16px;font-weight:650;margin-bottom:12px}
+@media(max-width:850px){.github-module>summary,.github-period>summary,.github-module-body .github-period>summary{grid-template-columns:1fr;gap:14px}.github-progress{grid-template-columns:110px minmax(60px,1fr) 80px}.github-module>summary{padding:16px}}
+@media(max-width:440px){.github-module-body{padding:0 12px 12px}.github-progress{grid-template-columns:1fr 80px;gap:8px}.github-progress-track{grid-column:1/-1;grid-row:2}.github-progress-value>strong{font-size:25px}}
+
+.local-github-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}.local-github-line .text-button{font-size:13px;min-height:24px}

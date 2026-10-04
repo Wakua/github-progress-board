@@ -1,0 +1,315 @@
+.app { max-width: 1420px; padding: 0 36px 28px; }
+.topbar { height: 58px; }
+.project-bar { margin: 28px 0 25px; }
+.project-bar h1 { font-size: 24px; font-weight: 650; letter-spacing: -.02em; }
+.project-bar .button { min-height: 36px; font-size: 13px; padding: 7px 12px; font-weight: 500; }
+.board-heading { margin-bottom: 14px; }
+.board-heading h2 { font-size: 14px; font-weight: 600; }
+.board-heading-main { gap: 14px; }
+.overdue-alert { min-height: 28px; padding: 2px 9px; border-radius: 4px; background: #3b292b; text-decoration: none; font-weight: 500; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+.work-table { border: 1px solid #343d4a; border-radius: 7px; overflow: hidden; background: #1a2029; }
+.goal-list-head, .goal-row { display: grid; grid-template-columns: minmax(135px, .75fr) 118px 86px minmax(300px, 2fr) minmax(210px, 1.15fr); gap: 20px; align-items: start; padding: 0 20px; }
+.goal-list-head { min-height: 40px; align-items: center; color: #92a0b3; font-size: 12px; background: #1c232d; }
+.goals-board { display: block; }
+.goal-row { min-height: 108px; padding-top: 19px; padding-bottom: 17px; border-top: 1px solid #303947; }
+.goal-row:hover { background: #1d2530; }
+.goal-row > div { min-width: 0; }
+.goal-name, .issue-name, .wait-entry, .reason-button, .list-extra, .list-warning { border: 0; background: transparent; color: inherit; padding: 0; text-align: left; }
+.goal-name { display: flex; align-items: center; gap: 10px; min-height: 30px; width: 100%; font-size: 15px; font-weight: 600; }
+.goal-name > span:nth-child(2) { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.goal-symbol { font-size: 25px; width: 24px; flex-shrink: 0; color: #a6b5de; line-height: 1; }
+.goal-symbol-1 { color: #9bbfb2; }
+.goal-symbol-2 { color: #b7aad3; }
+.row-chevron { color: #8290a4; margin-left: auto; font-size: 20px; font-weight: 400; }
+.goal-name:hover, .issue-name:hover, .wait-entry:hover .wait-name { color: #e5ebf5; }
+.list-progress { min-height: 30px; display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.list-progress strong { font-size: 15px; font-weight: 600; font-variant-numeric: tabular-nums; min-width: 35px; }
+.list-progress > small { color: var(--amber); font-size: 11px; }
+.list-progress-track { height: 5px; width: 66px; background: #35404f; border-radius: 3px; overflow: hidden; }
+.list-progress-track > span { display: block; height: 100%; background: #8bb4a0; border-radius: inherit; }
+.goal-task-cells { grid-column: 3 / 5; }
+.work-line-row { display: grid; grid-template-columns: 86px minmax(0, 1fr); gap: 20px; }
+.goal-task-cells > .list-extra { margin-left: 106px; }
+.work-line-row + .work-line-row { margin-top: 10px; }
+.work-item { min-height: 54px; min-width: 0; }
+.work-item-line { min-height: 30px; display: flex; align-items: center; gap: 8px; }
+.work-item-line .badge { font-size: 11px; font-weight: 500; padding: 2px 6px; flex-shrink: 0; }
+.issue-name { font-size: 15px; font-weight: 500; line-height: 1.5; min-width: 0; }
+.reason-button { width: 25px; height: 30px; color: #8495ac; font-size: 17px; text-align: center; flex-shrink: 0; margin-left: auto; }
+.reason-button:hover { color: var(--blue); }
+.work-successor { display: block; font-size: 12px; color: #94a2b6; padding-left: 66px; line-height: 1.7; }
+.work-successor > span { color: #71849e; }
+.work-hold { color: var(--amber); font-size: 12px; padding-left: 66px; }
+.work-due { min-height: 54px; display: flex; flex-direction: column; justify-content: flex-start; padding-top: 3px; font-variant-numeric: tabular-nums; }
+.work-due strong { font-size: 14px; line-height: 24px; font-weight: 500; }
+.work-due small { font-size: 11px; color: #8494aa; line-height: 21px; }
+.work-due.overdue strong, .work-due.overdue small { color: #e4a9a1; }
+.work-due.unknown strong { color: var(--amber); }
+.wait-entry { display: flex; align-items: center; min-height: 28px; gap: 7px; width: 100%; }
+.wait-state { color: #d2b78d; border: 1px solid #554733; border-radius: 4px; font-size: 11px; line-height: 18px; padding: 0 5px; flex-shrink: 0; }
+.wait-name { font-size: 13px; line-height: 1.5; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.list-extra { color: #8da0bd; font-size: 11px; min-height: 24px; margin-top: 3px; }
+.list-extra:hover, .list-warning:hover { text-decoration: underline; text-underline-offset: 3px; }
+.list-warning { color: var(--amber); font-size: 11px; min-height: 24px; margin-left: 34px; }
+.list-empty { color: #7d8da3; font-size: 13px; line-height: 30px; }
+.bottom-line { margin-top: 16px; font-size: 12px; }
+.bottom-line .text-button { font-size: 12px; min-height: 25px; text-decoration: none; }
+.footnote { font-size: 11px; color: #78879c; margin-top: 5px; }
+.iterations-section { margin-top: 0; }
+.iterations-section .board-heading > .text-button { font-size: 12px; min-height: 28px; text-decoration: none; font-weight: 500; }
+.period-list { border: 1px solid #343d4a; border-radius: 7px; overflow: hidden; background: #1a2029; }
+.period-list-head, .period-summary { display: grid; grid-template-columns: minmax(140px, 1fr) 118px 100px minmax(130px, 1fr) 65px; gap: 20px; padding: 0 20px; align-items: center; }
+.period-list-head { min-height: 38px; background: #1c232d; color: #92a0b3; font-size: 12px; }
+.period-group { border-top: 1px solid #303947; }
+.period-summary { min-height: 68px; cursor: pointer; list-style: none; font-size: 14px; font-variant-numeric: tabular-nums; }
+.period-summary::-webkit-details-marker { display: none; }
+.period-summary:hover { background: #222b37; }
+.period-summary:focus-visible { outline: 2px solid #a2b7ef; outline-offset: -3px; }
+.period-summary > * { min-width: 0; }
+.period-name, .period-status { display: flex; flex-direction: column; gap: 2px; align-items: flex-start; }
+.period-name strong { font-size: 15px; font-weight: 600; }
+.period-name small, .period-status small { font-size: 11px; color: #92a0b3; }
+.period-completed-points, .period-remaining-points { font-size: 14px; }
+.period-completed-points small { display: block; font-size: 11px; color: var(--amber); }
+.period-separator { padding: 0 3px; color: #78879c; }
+.period-phase { font-size: 11px; padding: 0 6px; line-height: 20px; border-radius: 4px; }
+.period-phase.active { color: #b1c2f2; background: #2c3952; }
+.period-phase.past { color: #a1adbf; background: #2a323f; }
+.period-phase.upcoming { color: #a0bbad; background: #263a35; }
+.period-phase.unknown { color: var(--amber); background: #3a3228; }
+.period-status .period-overdue { color: #e4a9a1; }
+.period-disclosure { display: flex; align-items: center; gap: 16px; justify-content: flex-end; color: #9cabc0; font-size: 12px; white-space: nowrap; }
+.period-chevron { font-size: 23px; line-height: 1; }
+.period-group[open] .period-chevron { transform: rotate(90deg); }
+.current-period > summary { box-shadow: inset 3px 0 #859dce; background: #202a39; }
+.period-body { padding: 0 20px 12px; background: #181e27; border-top: 1px solid #303947; }
+.period-goals { padding-top: 7px; }
+.period-goals-heading { display: flex; align-items: baseline; gap: 12px; margin: 0 0 10px; }
+.period-goals-heading h3 { font-size: 13px; font-weight: 600; margin: 0; }
+.period-goals-heading > span { font-size: 11px; color: #8e9eb4; }
+.period-goal-group { border: 1px solid #303b4b; border-radius: 5px; overflow: hidden; margin-bottom: 10px; }
+.period-goal-summary { display: grid; grid-template-columns: minmax(170px, 1fr) 160px 90px; gap: 20px; align-items: center; padding: 10px 14px; list-style: none; cursor: pointer; background: #222b37; }
+.period-goal-summary.has-deadline { grid-template-columns: minmax(170px, 1fr) 160px minmax(110px, auto) 90px; }
+.period-goal-deadline.overdue strong { color: #e4a9a1; }
+.period-goal-summary::-webkit-details-marker { display: none; }
+.period-goal-summary:hover { background: #293445; }
+.period-goal-summary:focus-visible { outline: 2px solid #a2b7ef; outline-offset: -3px; }
+.period-goal-name { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.period-goal-name strong { font-size: 13px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.period-goal-name small { color: #8e9eb4; font-size: 11px; white-space: nowrap; }
+.period-goal-overview { flex-shrink: 0; display: inline-flex; align-items: center; gap: 4px; border: 0; padding: 2px 0; margin-left: 6px; background: transparent; font-size: 10px; color: #9cacc7; }
+.period-goal-overview:hover { color: #d4e0f2; text-decoration: underline; text-underline-offset: 3px; }
+.period-goal-chevron { font-size: 19px; color: #8e9eb4; line-height: 1; }
+.period-goal-group[open] > summary .period-goal-chevron { transform: rotate(90deg); }
+.period-goal-progress, .period-goal-deadline, .period-goal-remaining { display: flex; align-items: center; gap: 12px; }
+.period-goal-progress > small, .period-goal-deadline > small, .period-goal-remaining > small { font-size: 11px; color: #8e9eb4; white-space: nowrap; }
+.period-goal-progress .list-progress { min-height: 24px; gap: 8px; }
+.period-goal-progress .list-progress strong, .period-goal-deadline strong, .period-goal-remaining strong { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.period-goal-progress .list-progress-track { width: 45px; height: 4px; }
+.period-goal-remaining { justify-content: flex-end; }
+.period-goal-body { padding: 0 14px 3px; }
+.period-tasks { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 13px; }
+.period-tasks th { color: #8393aa; font-size: 11px; font-weight: 400; text-align: left; height: 32px; }
+.period-tasks td { padding: 8px 0; border-top: 1px solid #293340; vertical-align: middle; }
+.period-task-owner { width: 85px; color: #94a2b6; overflow-wrap: anywhere; }
+.period-task-state { width: 85px; }
+.period-tasks .period-task-points { width: 70px; text-align: right; font-variant-numeric: tabular-nums; }
+.period-tasks .period-task-blocker { width: 29%; padding-left: 24px; }
+.period-task-name { padding-right: 16px !important; }
+.period-task-name .issue-name { font-size: 13px; }
+.period-task-criteria { display: block; margin-top: 5px; min-width: 0; overflow-wrap: anywhere; }
+.period-task-criteria .task-progress-summary { display: flex; align-items: flex-start; gap: 3px; white-space: normal; line-height: 1.5; }
+.period-goal-progress .list-progress small { white-space: normal; overflow-wrap: anywhere; }
+.period-mobile-owner, .period-mobile-blocker { display: none; }
+.period-blocker-link { display: flex; align-items: center; gap: 6px; max-width: 100%; background: transparent; border: 0; padding: 0; color: #cbb597; font-size: 12px; text-align: left; }
+.period-blocker-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.period-blocker-link > small { flex-shrink: 0; color: #a79883; }
+.period-blocker-link:hover .period-blocker-name { text-decoration: underline; text-underline-offset: 3px; }
+.period-no-blocker { color: #66758a; }
+.period-task-state .badge { font-size: 10px; font-weight: 500; padding: 2px 6px; white-space: nowrap; }
+.period-task-state .badge.ready { color: #a8c6b3; background: #283c35; }
+.period-task-done .period-task-name .issue-name { color: #8795a8; }
+.period-task-overdue { font-size: 10px; color: #e4a9a1; margin-left: 10px; white-space: nowrap; }
+.period-empty { margin: 16px 0; font-size: 12px; color: var(--muted); }
+.period-unassigned { border-top: 1px solid #303947; padding: 16px 20px; }
+.period-unassigned h3 { font-size: 13px; color: var(--amber); margin-bottom: 8px; }
+.period-unassigned h3 > span { font-size: 11px; margin-left: 10px; font-weight: 400; }
+#detail-dialog .period-list-head { display: none; }
+#detail-dialog .period-summary { grid-template-columns: minmax(100px, 1fr) 100px 65px; gap: 8px 12px; padding: 12px 16px; }
+#detail-dialog .period-name { grid-column: 1; grid-row: 1; }
+#detail-dialog .period-progress { grid-column: 2; grid-row: 1; }
+#detail-dialog .period-disclosure { grid-column: 3; grid-row: 1; }
+#detail-dialog .period-completed-points { grid-column: 1; grid-row: 2; }
+#detail-dialog .period-remaining-points { grid-column: 2; grid-row: 2; }
+#detail-dialog .period-status { grid-column: 1 / -1; grid-row: 3; flex-direction: row; gap: 8px; align-items: center; }
+#detail-dialog .period-completed-points, #detail-dialog .period-remaining-points { font-size: 12px; }
+#detail-dialog .period-completed-points::before, #detail-dialog .period-remaining-points::before { content: attr(data-label); display: block; color: #8494aa; font-size: 10px; }
+#detail-dialog .period-body { padding-left: 16px; padding-right: 16px; }
+#detail-dialog .period-goal-summary, #detail-dialog .period-goal-summary.has-deadline { grid-template-columns: minmax(0, 1fr) 100px 80px; gap: 6px 12px; padding: 10px; }
+#detail-dialog .period-goal-name { grid-column: 1 / -1; }
+#detail-dialog .period-goal-deadline { grid-column: 1 / -1; grid-row: 3; }
+#detail-dialog .period-goal-remaining { grid-column: 3; }
+#detail-dialog .period-task-owner, #detail-dialog .period-task-blocker { display: none; }
+#detail-dialog .period-task-state { width: 75px; }
+#detail-dialog .period-tasks .period-task-points { width: 55px; }
+#detail-dialog .period-mobile-owner { display: block; color: #8494aa; font-size: 10px; margin-top: 2px; }
+#detail-dialog .period-mobile-blocker { display: block; margin-top: 5px; }
+#detail-dialog .period-blocker-name { white-space: normal; }
+.workload-section { padding: 14px 0 16px; border-bottom: 1px solid #34404f; margin-bottom: 8px; }
+.workload-heading { display: flex; align-items: baseline; gap: 12px; margin-bottom: 8px; }
+.workload-heading h3 { font-size: 13px; font-weight: 600; margin: 0; }
+.workload-heading > span { font-size: 11px; color: #8e9eb4; }
+.workload-table { width: 100%; border-collapse: collapse; table-layout: fixed; font-size: 12px; font-variant-numeric: tabular-nums; }
+.workload-table thead th { text-align: right; color: #8e9eb4; font-size: 11px; font-weight: 400; padding: 2px 10px 6px; }
+.workload-table th:first-child { width: 23%; text-align: left; padding-left: 0; }
+.workload-table td, .workload-table tbody th { padding: 6px 10px; border-top: 1px solid #293340; text-align: right; }
+.workload-table tbody th { font-weight: 500; }
+.workload-table td:last-child, .workload-table thead th:last-child { padding-right: 0; }
+.workload-owner { display: inline-flex; align-items: center; gap: 12px; border: 0; background: transparent; color: #c3cfdf; padding: 0; text-align: left; font-size: 12px; }
+.workload-owner:hover { color: #e5ebf5; text-decoration: underline; text-underline-offset: 3px; }
+.workload-owner > span { color: #8d9eb8; font-size: 17px; }
+.workload-total { font-weight: 650; color: #cbd8f2; }
+.workload-bar { display: inline-block; width: 58px; height: 3px; margin-left: 10px; vertical-align: middle; background: #303b4c; }
+.workload-bar > span { display: block; height: 100%; background: #8ca4cf; }
+.workload-unknown { color: var(--amber); font-size: 11px; }
+.workload-unknown > small { margin-left: 3px; }
+.workload-detail-total { font-size: 28px; color: #bdcff3; font-weight: 650; margin-top: 20px; }
+.workload-detail-total > small { display: block; font-size: 12px; color: var(--muted); font-weight: 400; }
+#detail-dialog .workload-bar { display: none; }
+@media (min-width: 1001px) and (max-height: 800px) {
+  .topbar { height: 52px; }
+  .project-bar { margin: 25px 0 22px; }
+  .project-bar h1 { font-size: 24px; }
+  .board-heading { margin-bottom: 13px; }
+  .bottom-line { margin-top: 15px; }
+}
+@media (max-width: 1100px) {
+  .app { padding-left: 24px; padding-right: 24px; }
+  .goal-list-head, .goal-row { grid-template-columns: 112px 94px 76px minmax(235px, 1.7fr) minmax(175px, 1fr); gap: 12px; padding-left: 16px; padding-right: 16px; }
+  .work-line-row { grid-template-columns: 76px minmax(0, 1fr); gap: 12px; }
+  .goal-task-cells > .list-extra { margin-left: 88px; }
+  .list-progress-track { width: 43px; }
+  .work-successor { padding-left: 0; }
+  .period-list-head, .period-summary { grid-template-columns: minmax(110px, 1fr) 94px 75px minmax(100px, 1fr) 55px; gap: 12px; padding-left: 16px; padding-right: 16px; }
+}
+@media (max-width: 850px) {
+  .period-goal-summary, .period-goal-summary.has-deadline { grid-template-columns: minmax(0, 1fr) 100px 80px; gap: 6px 12px; }
+  .period-goal-name { grid-column: 1 / -1; }
+  .period-goal-deadline { grid-column: 1 / -1; grid-row: 3; }
+  .period-goal-remaining { grid-column: 3; }
+  .goal-list-head { display: none; }
+  .goal-row { grid-template-columns: 1fr 112px; gap: 12px 18px; padding: 18px; }
+  .goal-name-cell { grid-column: 1; }
+  .goal-progress-cell { grid-column: 2; grid-row: 1; justify-self: end; }
+  .goal-task-cells { grid-column: 1 / -1; grid-row: 2; }
+  .work-line-row { grid-template-columns: 112px minmax(0, 1fr); gap: 18px; }
+  .work-due { position: relative; padding-top: 22px; padding-right: 20px; border-right: 1px solid #303947; }
+  .work-due::before { content: '作業期限'; position: absolute; top: 0; left: 0; color: #8494aa; font-size: 10px; }
+  .goal-task-cells > .list-extra { margin-left: 130px; }
+  .goal-wait-cell { grid-column: 1 / -1; border-top: 1px solid #303947; padding-top: 10px; }
+  .goal-wait-cell::before { content: attr(data-label); display: block; color: #8494aa; font-size: 11px; margin-bottom: 4px; }
+  .goal-wait-cell .wait-name { white-space: normal; }
+  .board-heading { align-items: flex-start; }
+  .board-heading-main { flex-shrink: 0; }
+  .iteration-controls { gap: 4px 10px; }
+  .work-successor { padding-left: 0; }
+  .period-list-head { display: none; }
+  .period-summary { grid-template-columns: minmax(100px, 1fr) 100px 65px; gap: 8px 12px; padding: 12px 16px; }
+  .period-name { grid-column: 1; grid-row: 1; }
+  .period-progress { grid-column: 2; grid-row: 1; }
+  .period-disclosure { grid-column: 3; grid-row: 1; }
+  .period-completed-points { grid-column: 1; grid-row: 2; }
+  .period-remaining-points { grid-column: 1; grid-row: 2; }
+  .period-status { grid-column: 1 / -1; grid-row: 3; flex-direction: row; gap: 8px; align-items: center; }
+  .period-completed-points, .period-remaining-points { font-size: 12px; }
+  .period-completed-points::before, .period-remaining-points::before { content: attr(data-label); display: block; color: #8494aa; font-size: 10px; }
+}
+@media (max-width: 520px) {
+  .app { padding-left: 16px; padding-right: 16px; }
+  .project-bar { margin: 22px 0; gap: 14px; flex-direction: row; align-items: center; }
+  .project-bar h1 { font-size: 20px; }
+  .project-bar .button { padding: 6px 9px; font-size: 11px; flex-shrink: 0; }
+  .board-heading { flex-direction: column; gap: 10px; }
+  .iteration-controls { justify-content: flex-start; margin-top: 0; }
+  .goal-row { grid-template-columns: minmax(0, 1fr) 78px; gap: 12px 8px; padding: 16px; }
+  .goal-progress-cell { max-width: 78px; }
+  .list-progress { gap: 6px; }
+  .list-progress-track { width: 35px; }
+  .work-line-row { grid-template-columns: 78px minmax(0, 1fr); gap: 8px; }
+  .work-due { padding-right: 12px; }
+  .goal-task-cells > .list-extra { margin-left: 86px; }
+  .work-item-line { flex-wrap: wrap; gap: 4px 6px; }
+  .work-item-line .issue-name { flex-basis: calc(100% - 33px); order: 2; }
+  .work-item-line .reason-button { order: 3; }
+  .work-item-line .badge { order: 1; flex-basis: auto; margin-right: calc(100% - 70px); }
+  .work-item, .work-due { min-height: 93px; }
+  .work-due { padding-top: 26px; }
+  .work-successor { margin-top: 5px; }
+  .iterations-section { margin-top: 0; }
+  .iterations-section .board-heading { flex-direction: row; align-items: center; gap: 6px; }
+  .iterations-section .board-heading-main { flex-wrap: wrap; gap: 6px 10px; flex-shrink: 1; }
+  .iterations-section .board-heading > .text-button { flex-shrink: 0; }
+  .period-summary, #detail-dialog .period-summary { grid-template-columns: minmax(75px, 1fr) 78px 47px; gap: 8px; padding: 12px; }
+  .period-body, #detail-dialog .period-body { padding-left: 12px; padding-right: 12px; }
+  .period-goals-heading { gap: 8px; }
+  .period-goals-heading > span { font-size: 10px; }
+  .period-goal-summary, .period-goal-summary.has-deadline, #detail-dialog .period-goal-summary, #detail-dialog .period-goal-summary.has-deadline { grid-template-columns: minmax(0, 1fr) 90px 65px; gap: 6px; padding: 10px; }
+  .period-goal-name { grid-column: 1 / -1; }
+  .period-goal-deadline { grid-column: 1 / -1; grid-row: 3; }
+  .period-goal-remaining { grid-column: 3; }
+  .period-goal-body { padding: 0 9px 3px; }
+  .period-goal-progress, .period-goal-deadline, .period-goal-remaining { gap: 6px; }
+  .period-goal-progress > small, .period-goal-deadline > small, .period-goal-remaining > small { font-size: 10px; }
+  .period-goal-progress .list-progress-track { display: none; }
+  .period-task-owner, .period-task-blocker { display: none; }
+  .period-task-state, #detail-dialog .period-task-state { width: 65px; }
+  .period-tasks .period-task-points, #detail-dialog .period-tasks .period-task-points { width: 50px; }
+  .period-task-name .issue-name { font-size: 12px; }
+  .period-mobile-owner { display: block; color: #8494aa; font-size: 10px; margin-top: 2px; }
+  .period-mobile-blocker { display: block; margin-top: 5px; }
+  .period-blocker-link { font-size: 10px; }
+  .period-blocker-name { white-space: normal; }
+  .period-task-points { font-size: 12px; }
+  .period-task-overdue { display: block; margin-left: 0; }
+  .period-disclosure { gap: 6px; }
+  .workload-heading { gap: 8px; }
+  .workload-heading > span { font-size: 10px; }
+  .workload-table { font-size: 11px; }
+  .workload-table th:first-child { width: 25%; }
+  .workload-table td, .workload-table thead th, .workload-table tbody th { padding-left: 3px; padding-right: 3px; }
+  .workload-table thead th { font-size: 10px; }
+  .workload-owner { font-size: 11px; gap: 4px; overflow-wrap: anywhere; }
+  .workload-bar { display: none; }
+  .workload-unknown > small { display: block; margin-left: 0; }
+}
+
+/* Operation-based revision: summaries stay in context; details open on demand. */
+.workload-strip{display:flex;align-items:center;gap:18px;padding:12px 0;border-bottom:1px solid var(--line);margin-bottom:6px}
+.workload-strip h3{font-size:11px;font-weight:500;color:var(--muted);white-space:nowrap;margin:0}
+.workload-chips{display:flex;flex-wrap:wrap;gap:8px}
+.workload-chip{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:6px;background:#1b222c;color:var(--ink);padding:6px 9px;font:inherit;font-size:12px;cursor:pointer}
+.workload-chip:hover{border-color:#7188ae;background:#252e3d}
+.workload-chip strong{font-weight:600;font-variant-numeric:tabular-nums;margin-left:4px}
+.workload-avatar{display:grid;place-items:center;width:20px;height:20px;border-radius:50%;background:#354155;color:#d1dbee;font-size:10px}
+.workload-chevron{color:var(--muted)}
+.workload-chip .workload-unknown{display:flex;gap:4px}
+.workload-detail-total{margin:18px 0 24px}
+.compact-task-list{list-style:none;padding:0;margin:0}
+.compact-task{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:start;padding:12px 0;border-bottom:1px solid var(--line)}
+.compact-task:last-child{border-bottom:0}
+.compact-task .text-button{font-size:13px;text-align:left}
+.compact-task-goal{display:block;font-size:11px;color:var(--muted);margin-top:5px}
+.compact-task-values{display:flex;align-items:flex-end;flex-direction:column;gap:7px;font-size:13px;font-variant-numeric:tabular-nums}
+.compact-task-blocker{margin-top:7px}
+.compact-task-blocker .period-blocker-link{font-size:11px}
+.workload-detail-section h3{display:flex;justify-content:space-between;margin-bottom:4px}
+.panel-note{border-top:1px solid var(--line);padding:14px 0;margin-top:14px;color:var(--muted);font-size:12px}
+.panel-note summary{cursor:pointer;color:var(--muted)}
+.panel-note p{font-size:12px;line-height:1.8;margin:12px 0}
+.panel-note .button{margin-top:4px}
+#drawer-body>.overview-goal:first-child{padding-top:0;border-top:0}
+.panel-back{margin-bottom:12px;text-align:left}
+@media(max-width:520px){.workload-strip{align-items:flex-start;flex-direction:column;gap:8px}.workload-chip{padding:6px 7px}.workload-chips{gap:6px}}
+
+.list-progress strong > small { display: block; font-size: 10px; white-space: nowrap; }

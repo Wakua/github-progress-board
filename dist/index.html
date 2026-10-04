@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>今日の進捗 — プロジェクト</title>
+  <meta name="description" content="プロジェクトごとの次の作業、要対応、確認待ちを把握する進捗管理ツール。">
+  <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232746c7'/%3E%3Cpath d='M9 16l5 5 10-11' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="dark.css"><link rel="stylesheet" href="goals.css"><link rel="stylesheet" href="list.css"><link rel="stylesheet" href="projects.css"><link rel="stylesheet" href="my-work.css"><link rel="stylesheet" href="github-planning.css"><script type="module" src="app.mjs"></script>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar"><a class="brand" href="./" aria-label="今日の進捗 ホーム"><span class="brand-mark" aria-hidden="true">✓</span>今日の進捗</a><span class="sample-label" id="storage-label">ブラウザ保存</span></header>
+    <main>
+      <div class="workspace-toolbar"><label class="field">表示するプロジェクト<select id="project-switch"><option value="">全体一覧</option></select></label><div class="actions"><button class="button primary" data-action="prepared-workspace" id="prepared-workspace" hidden>用意済みの3プロジェクトを取り込む</button><button class="button secondary" data-action="prepared-estimates" id="prepared-estimates" hidden>未入力の見積を登録</button><button class="button secondary" data-action="manage">登録・取込</button><button class="button secondary" data-action="migrate-workspace" id="migrate-workspace" hidden>ブラウザ保存から移行</button><button class="text-button" id="refresh-cloud" hidden>最新データを読み込む</button><button class="text-button" id="export-workspace">データを書き出す</button><button class="text-button" id="export-cloud-backup" hidden>保存データ・変更候補を退避</button></div></div>
+      <section id="storage-warning" class="storage-warning" role="alert" hidden><p id="storage-problem"></p><div class="actions"><button class="button secondary" id="recover-backup" hidden>バックアップから復旧</button><label id="recovery-file-label" class="field" hidden>復旧用JSONを読み込む<input id="recovery-file" type="file" accept="application/json,.json"></label><button class="text-button" id="export-raw">保存データを退避</button><button class="text-button" id="reload-workspace">再読み込み</button></div></section>
+      <div class="project-bar"><h1 id="project-name">プロジェクト一覧</h1><button class="button secondary" id="open-overview" hidden>Issueツリー</button></div>
+      <section id="projects-overview" aria-label="プロジェクトごとの次の作業・要対応・確認待ち"></section>
+      <section id="project-detail" hidden aria-label="選択したプロジェクト">
+      <p id="project-meta" class="footnote"></p><p class="footnote" id="estimate-scope"></p>
+      <section id="approval-queue" class="approval-queue" aria-label="承認待ちのPR"></section>
+      <div class="view-tabs" role="tablist" aria-label="表示する画面"><button type="button" role="tab" class="view-tab" id="tab-my-work" data-view="my-work" aria-controls="my-work-panel">自分の作業</button><button type="button" role="tab" class="view-tab" id="tab-iterations" data-view="iterations" aria-controls="iterations-panel">イテレーション</button></div>
+      <section id="my-work-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-my-work"></section>
+      <div id="iterations-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-iterations">
+      <section id="github-planning" class="github-snapshot" aria-label="GitHubの計画"></section>
+      <section id="manual-periods"><h2 class="manual-heading">手動の目標・作業</h2>
+      <section id="goal-list" aria-label="目標一覧"></section>
+      <section class="iterations-section" aria-labelledby="iterations-heading">
+        <div class="board-heading"><div class="board-heading-main"><h2 id="iterations-heading">イテレーション <span id="iteration-count"></span></h2><button class="text-button overdue-alert" id="open-overdue" hidden></button></div><button class="text-button" id="expand-iterations">すべて展開</button></div>
+        <div id="iterations-board"></div>
+      </section>
+      <div class="bottom-line"><p id="board-status"></p></div>
+      </section>
+      </div>
+      </section>
+      <p class="footnote storage-scope">このブラウザ・このURLの保存領域に保存します。手動の計画をサーバーやGitHubに書き込みません。ブラウザのデータ削除で失われるため、必要なデータは書き出してください。</p>
+    </main>
+  </div>
+  <dialog id="detail-dialog" aria-labelledby="drawer-title"><div class="drawer-head"><div><button class="text-button panel-back" id="back-manage" aria-label="登録・取込へ戻る" hidden>← 登録・取込へ戻る</button><button class="text-button panel-back" id="back-workload" hidden>← 担当別一覧へ戻る</button><p class="eyebrow" id="drawer-kicker">作業の詳細</p><h2 id="drawer-title"></h2><p id="drawer-project"></p></div><button class="close-button" id="close-dialog" aria-label="詳細を閉じる">×</button></div><div id="drawer-body"></div></dialog>
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+</body>
+</html>

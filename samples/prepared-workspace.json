@@ -1,0 +1,719 @@
+{
+  "schemaVersion": 1,
+  "selectedProjectId": null,
+  "projects": [
+    {
+      "id": "recipe-app",
+      "name": "レシピアプリ",
+      "repositoryUrl": "https://github.com/example/recipe-app",
+      "data": {
+        "project": "レシピアプリ",
+        "goals": [
+          {
+            "id": "weekly-menu",
+            "projectId": "recipe-app",
+            "title": "冷蔵庫の材料から1週間の献立を作り、買い物リストを書き出せるようにする",
+            "issueNumber": null,
+            "issueState": "unknown"
+          }
+        ],
+        "parentIssues": [],
+        "tasks": [
+          {
+            "id": "ingredient-search",
+            "projectId": "recipe-app",
+            "title": "材料名から作れるレシピを検索できるようにする",
+            "goalId": "weekly-menu",
+            "parentId": "weekly-menu",
+            "issueNumber": 7,
+            "status": "done",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "材料を複数入力すると、すべて使えるレシピを一覧で返す",
+                "checked": true
+              },
+              {
+                "text": "表記ゆれ（にんじん・人参）を同じ材料として扱う",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。検索APIと一覧画面で、材料3件の組合せと表記ゆれを確認した。\nhttps://github.com/example/recipe-app/pull/12",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "nutrition-data-terms",
+            "projectId": "recipe-app",
+            "title": "栄養成分データの利用条件を確認する",
+            "goalId": "weekly-menu",
+            "parentId": "weekly-menu",
+            "issueNumber": null,
+            "status": "todo",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "公開データの利用規約を読み、アプリへの同梱が許されるかを記録する",
+                "checked": false
+              },
+              {
+                "text": "更新の頻度と取得方法を決める",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。候補のデータ提供元を2件に絞った。利用規約の確認は未着手。\nhttps://github.com/example/recipe-app/issues/10",
+            "waitReason": "データ提供元への問い合わせの回答待ち",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "weekly-menu-generator",
+            "projectId": "recipe-app",
+            "title": "1週間の献立を自動で組み立てる",
+            "goalId": "weekly-menu",
+            "parentId": "weekly-menu",
+            "issueNumber": 10,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "nutrition-data-terms"
+            ],
+            "criteria": [
+              {
+                "text": "7日分の朝・昼・夕を、登録済みのレシピから組み立てる",
+                "checked": false
+              },
+              {
+                "text": "同じ主菜が3日以内に続かない",
+                "checked": false
+              },
+              {
+                "text": "1日の栄養の目安から大きく外れた日を警告する",
+                "checked": false
+              },
+              {
+                "text": "冷蔵庫にある材料を先に使う献立を優先する",
+                "checked": false
+              },
+              {
+                "text": "1食を差し替えても、残りの日の献立を変えない",
+                "checked": false
+              },
+              {
+                "text": "レシピが足りないときは理由を表示して止める",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。6つの完了条件をIssueに書いた。実装は未着手。\nhttps://github.com/example/recipe-app/issues/10",
+            "waitReason": "栄養成分データの利用条件が決まるまで着手しない",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "family-trial",
+            "projectId": "recipe-app",
+            "title": "家族の1週間の利用で使い勝手を確かめる",
+            "goalId": "weekly-menu",
+            "parentId": "weekly-menu",
+            "issueNumber": null,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "weekly-menu-generator"
+            ],
+            "criteria": [
+              {
+                "text": "家族が献立を作り、実際に1週間分の買い物をする",
+                "checked": false
+              },
+              {
+                "text": "困った操作を記録し、次の作業に分ける",
+                "checked": false
+              },
+              {
+                "text": "買い物リストに漏れがなかったかを確かめる",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。献立の自動作成が終わってから行う。",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          }
+        ],
+        "iterations": [],
+        "decisions": [],
+        "order": [
+          "ingredient-search",
+          "nutrition-data-terms",
+          "weekly-menu-generator",
+          "family-trial"
+        ],
+        "history": [
+          {
+            "projectId": "recipe-app",
+            "goalId": "weekly-menu",
+            "at": "2026-10-03T20:48:15Z",
+            "text": "サンプル記録を作成した。見積・担当・期限は不明のまま保持した。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "booking-app",
+      "name": "予約管理アプリ",
+      "repositoryUrl": "https://github.com/example/booking-app",
+      "data": {
+        "project": "予約管理アプリ",
+        "goals": [
+          {
+            "id": "annual-bookings",
+            "projectId": "booking-app",
+            "title": "1年間の予約を受け付け、利用者が操作を評価できる試作版を作る",
+            "issueNumber": 1,
+            "issueState": "open"
+          }
+        ],
+        "parentIssues": [],
+        "tasks": [
+          {
+            "id": "placement-audit",
+            "projectId": "booking-app",
+            "title": "予約枠と会議室の割り当てのずれを調べる",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": 8,
+            "status": "done",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "追加・取消・時間変更の3つの操作で会議室の割り当てを確かめる",
+                "checked": true
+              },
+              {
+                "text": "ずれが出る手順を再現し、原因を特定する",
+                "checked": true
+              },
+              {
+                "text": "修正案をPRとして出す",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。予約時間の変更でだけずれが出ることを再現し、原因を特定した。\nhttps://github.com/example/booking-app/issues/8",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "monthly-capacity",
+            "projectId": "booking-app",
+            "title": "月ごとの受付上限を設定できるようにする",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": 5,
+            "status": "done",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "会議室ごとの受付上限を月ごとに変えられる",
+                "checked": true
+              },
+              {
+                "text": "上限の変更が翌月の予約枠に反映される",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。受付上限の画面をmainに統合した。\nhttps://github.com/example/booking-app/pull/14",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "plan-history-view",
+            "projectId": "booking-app",
+            "title": "今月の予約と過去の記録を分けて表示する",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "status": "done",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "今月の予約と過去の記録を別の欄に表示する",
+                "checked": true
+              },
+              {
+                "text": "過去の記録を編集できないようにする",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。表示を分けたPRを統合した。\nhttps://github.com/example/booking-app/pull/18",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "usage-memo",
+            "projectId": "booking-app",
+            "title": "予約が増えた理由をメモとして残す",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "status": "done",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "予約が増えた月に、主な理由を3件まで記録する",
+                "checked": true
+              },
+              {
+                "text": "過去のメモを月ごとに読み返せる",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。メモの記録と読み返しを統合した。\nhttps://github.com/example/booking-app/pull/19",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "capacity-display",
+            "projectId": "booking-app",
+            "title": "空き枠の表示を直す",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "status": "done",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "満室の時間帯を色だけでなく記号でも示す",
+                "checked": true
+              },
+              {
+                "text": "会議室ごとの空き枠と合計が一致する",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。表示の修正を統合した。\nhttps://github.com/example/booking-app/pull/20",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "resource-sync-fix",
+            "projectId": "booking-app",
+            "title": "会議室の割り当てのずれを修正する",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "status": "done",
+            "group": "",
+            "deps": [
+              "placement-audit"
+            ],
+            "criteria": [
+              {
+                "text": "予約時間を変更しても会議室の割り当てが保たれる",
+                "checked": true
+              },
+              {
+                "text": "既存の予約データを読み込んでもずれが出ない",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。調査で特定した原因を修正し、統合した。\nhttps://github.com/example/booking-app/pull/21",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "capacity-user-trial",
+            "projectId": "booking-app",
+            "title": "受付上限を利用者に確かめてもらう",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "monthly-capacity",
+              "placement-audit",
+              "resource-sync-fix"
+            ],
+            "criteria": [
+              {
+                "text": "3か月分の予約を入力し、上限の変更が分かりやすいかを記録する",
+                "checked": false
+              },
+              {
+                "text": "分かりにくかった点を次の作業に分ける",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。受付上限と割り当ての修正が揃ってから行う。",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "annual-user-trial",
+            "projectId": "booking-app",
+            "title": "1年間の予約操作を利用者に評価してもらう",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "placement-audit",
+              "plan-history-view",
+              "usage-memo",
+              "capacity-user-trial",
+              "capacity-display",
+              "resource-sync-fix"
+            ],
+            "criteria": [
+              {
+                "text": "12か月分の予約を入力できる",
+                "checked": false
+              },
+              {
+                "text": "途中で操作が止まる不具合がない",
+                "checked": false
+              },
+              {
+                "text": "受付上限の変更が空き枠に表れる",
+                "checked": false
+              },
+              {
+                "text": "予約数の増減の理由を画面で追える",
+                "checked": false
+              },
+              {
+                "text": "保存した予約データを読み込んで続きを入力できる",
+                "checked": false
+              },
+              {
+                "text": "利用者が分かりやすかった点と迷った点を記録する",
+                "checked": false
+              },
+              {
+                "text": "評価の結果から次の目標を決める",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。前提の作業が揃ってから、利用者が操作を評価する。",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "group": "",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null,
+            "id": "combined-qa",
+            "title": "4つの修正をまとめて検証する",
+            "status": "done",
+            "deps": [
+              "placement-audit"
+            ],
+            "criteria": [
+              {
+                "text": "4つのPRを重ねた状態で、すべてのテストが通る",
+                "checked": true
+              },
+              {
+                "text": "12か月分の予約を自動入力しても操作が止まらない",
+                "checked": true
+              },
+              {
+                "text": "修正どうしの衝突がない",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。4つのPRを重ねた検証用のブランチで確認した。"
+          },
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "parentId": "annual-bookings",
+            "issueNumber": null,
+            "group": "",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null,
+            "id": "merge-decision",
+            "title": "4つの修正を統合するか決める",
+            "status": "done",
+            "deps": [
+              "placement-audit",
+              "combined-qa"
+            ],
+            "criteria": [
+              {
+                "text": "検証の結果をもとに、統合するかどうかを決める",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。検証の結果を確認し、4つのPRを順に統合すると決めた。"
+          }
+        ],
+        "iterations": [],
+        "decisions": [],
+        "order": [
+          "placement-audit",
+          "monthly-capacity",
+          "plan-history-view",
+          "usage-memo",
+          "capacity-display",
+          "resource-sync-fix",
+          "capacity-user-trial",
+          "annual-user-trial",
+          "combined-qa",
+          "merge-decision"
+        ],
+        "history": [
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "at": "2026-10-03T20:48:15Z",
+            "text": "サンプル記録を作成した。見積・担当・期限は不明のまま保持した。"
+          },
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "at": "2026-10-03T21:17:29Z",
+            "text": "空き枠の表示の修正を確認待ちに追加した。"
+          },
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "at": "2026-10-03T21:47:58Z",
+            "text": "割り当てのずれの原因を特定し、調査を完了した。修正のPRを確認待ちに追加した。"
+          },
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "at": "2026-10-03T22:24:03Z",
+            "text": "4つのPRをまとめた検証を完了した。次の作業を統合の判断にした。"
+          },
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "at": "2026-10-04T03:16:39Z",
+            "text": "4つのPRの統合を確認し、統合の判断と各修正を完了にした。"
+          },
+          {
+            "projectId": "booking-app",
+            "goalId": "annual-bookings",
+            "at": "2026-10-04T03:20:34Z",
+            "text": "統合後の検証で、すべてのテストが通ることを確認した。"
+          }
+        ]
+      }
+    },
+    {
+      "id": "progress-board",
+      "name": "github-progress-board",
+      "repositoryUrl": "https://github.com/Wakua/github-progress-board",
+      "data": {
+        "project": "github-progress-board",
+        "goals": [
+          {
+            "id": "shared-progress",
+            "projectId": "progress-board",
+            "title": "PCとスマートフォンから同じ進捗を確認し、更新できるようにする",
+            "issueNumber": null,
+            "issueState": "unknown"
+          }
+        ],
+        "parentIssues": [],
+        "tasks": [
+          {
+            "id": "local-foundation",
+            "projectId": "progress-board",
+            "title": "ブラウザ保存で複数のプロジェクトを管理できるようにする",
+            "goalId": "shared-progress",
+            "parentId": "shared-progress",
+            "issueNumber": null,
+            "status": "done",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "複数のプロジェクトを登録し、再読込しても復元できる",
+                "checked": true
+              },
+              {
+                "text": "保存に失敗した変更を画面に反映しない",
+                "checked": true
+              }
+            ],
+            "evidence": "サンプル記録（架空）。ローカルモードの保存と復旧を確認した。",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "shared-storage",
+            "projectId": "progress-board",
+            "title": "クラウドに共有保存する仕組みを作る",
+            "goalId": "shared-progress",
+            "parentId": "shared-progress",
+            "issueNumber": null,
+            "status": "review",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "同じ利用者の別の端末から同じデータを読める",
+                "checked": false
+              },
+              {
+                "text": "古い端末からの上書きを止める",
+                "checked": false
+              },
+              {
+                "text": "保存に失敗した入力を退避できる",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。実装を提出し、確認を待っている。",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "private-hosting",
+            "projectId": "progress-board",
+            "title": "本人だけが開ける場所に公開する",
+            "goalId": "shared-progress",
+            "parentId": "shared-progress",
+            "issueNumber": null,
+            "status": "todo",
+            "group": "",
+            "deps": [],
+            "criteria": [
+              {
+                "text": "本人だけが開けるURLで画面を表示する",
+                "checked": false
+              },
+              {
+                "text": "保存先のデータベースを用意する",
+                "checked": false
+              },
+              {
+                "text": "公開したソースとリポジトリのソースが一致する",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。公開先を選んでいる。",
+            "waitReason": "公開先の準備待ち",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          },
+          {
+            "id": "device-migration-check",
+            "projectId": "progress-board",
+            "title": "実際の端末でデータを移して確かめる",
+            "goalId": "shared-progress",
+            "parentId": "shared-progress",
+            "issueNumber": null,
+            "status": "todo",
+            "group": "",
+            "deps": [
+              "private-hosting",
+              "shared-storage"
+            ],
+            "criteria": [
+              {
+                "text": "PCのブラウザ保存をクラウドに移す",
+                "checked": false
+              },
+              {
+                "text": "スマートフォンから同じデータを開く",
+                "checked": false
+              },
+              {
+                "text": "両方の端末で作業を更新する",
+                "checked": false
+              },
+              {
+                "text": "古い端末の上書きが止まることを確かめる",
+                "checked": false
+              },
+              {
+                "text": "移した後もPCの元データが残っている",
+                "checked": false
+              }
+            ],
+            "evidence": "サンプル記録（架空）。公開と共有保存が終わってから行う。",
+            "waitReason": "",
+            "owner": null,
+            "estimatePoints": null,
+            "iterationId": null
+          }
+        ],
+        "iterations": [],
+        "decisions": [],
+        "order": [
+          "local-foundation",
+          "shared-storage",
+          "private-hosting",
+          "device-migration-check"
+        ],
+        "history": [
+          {
+            "projectId": "progress-board",
+            "goalId": "shared-progress",
+            "at": "2026-10-03T20:48:15Z",
+            "text": "サンプル記録を作成した。見積・担当・期限は不明のまま保持した。"
+          },
+          {
+            "projectId": "progress-board",
+            "goalId": "shared-progress",
+            "at": "2026-10-03T20:59:30Z",
+            "text": "共有保存の実装を提出した。"
+          },
+          {
+            "projectId": "progress-board",
+            "goalId": "shared-progress",
+            "at": "2026-10-03T21:38:55.078998Z",
+            "text": "レビューの指摘を修正した。共有保存は確認待ちのまま保持する。"
+          }
+        ]
+      }
+    }
+  ]
+}

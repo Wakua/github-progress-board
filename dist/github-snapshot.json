@@ -1,0 +1,626 @@
+{
+  "type": "github-snapshot-bundle",
+  "schemaVersion": 1,
+  "snapshots": [
+    {
+      "schemaVersion": 1,
+      "source": "github",
+      "repositoryUrl": "https://github.com/example/recipe-app",
+      "fetchedAt": "2026-10-03T16:14:45Z",
+      "sources": {
+        "issues": {
+          "complete": true,
+          "urls": [
+            "https://api.github.com/repos/example/recipe-app/issues?state=all&per_page=100&sort=updated&direction=desc&page=1"
+          ]
+        },
+        "pullRequests": {
+          "complete": true,
+          "urls": [
+            "https://api.github.com/repos/example/recipe-app/pulls?state=all&per_page=100&sort=updated&direction=desc&page=1"
+          ]
+        }
+      },
+      "items": [
+        {
+          "kind": "pull_request",
+          "number": 18,
+          "url": "https://github.com/example/recipe-app/pull/18",
+          "title": "献立の差し替えで残りの日を保つ",
+          "state": "open",
+          "updatedAt": "2026-10-03T15:44:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 17,
+          "url": "https://github.com/example/recipe-app/pull/17",
+          "title": "材料の表記ゆれ辞書を追加する",
+          "state": "open",
+          "updatedAt": "2026-10-03T14:07:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": null
+        },
+        {
+          "kind": "issue",
+          "number": 10,
+          "url": "https://github.com/example/recipe-app/issues/10",
+          "title": "1週間の献立を自動で組み立てる",
+          "state": "open",
+          "updatedAt": "2026-10-03T12:30:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "issue",
+          "number": 9,
+          "url": "https://github.com/example/recipe-app/issues/9",
+          "title": "買い物リストをテキストで書き出す",
+          "state": "open",
+          "updatedAt": "2026-10-03T10:53:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 16,
+          "url": "https://github.com/example/recipe-app/pull/16",
+          "title": "検索結果に調理時間を表示する",
+          "state": "closed",
+          "updatedAt": "2026-10-03T09:16:45Z",
+          "closedAt": "2026-10-03T09:16:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-03T09:16:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 8,
+          "url": "https://github.com/example/recipe-app/issues/8",
+          "title": "アレルギーのある材料を除外する",
+          "state": "open",
+          "updatedAt": "2026-10-03T07:39:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 15,
+          "url": "https://github.com/example/recipe-app/pull/15",
+          "title": "レシピの登録画面を直す",
+          "state": "closed",
+          "updatedAt": "2026-10-03T06:02:45Z",
+          "closedAt": "2026-10-03T06:02:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-03T06:02:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 7,
+          "url": "https://github.com/example/recipe-app/issues/7",
+          "title": "材料名から作れるレシピを検索できるようにする",
+          "state": "open",
+          "updatedAt": "2026-10-03T04:25:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 14,
+          "url": "https://github.com/example/recipe-app/pull/14",
+          "title": "材料の単位を揃える",
+          "state": "closed",
+          "updatedAt": "2026-10-03T02:48:45Z",
+          "closedAt": "2026-10-03T02:48:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-03T02:48:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 6,
+          "url": "https://github.com/example/recipe-app/issues/6",
+          "title": "栄養成分を表示する",
+          "state": "open",
+          "updatedAt": "2026-10-03T01:11:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "issue",
+          "number": 5,
+          "url": "https://github.com/example/recipe-app/issues/5",
+          "title": "献立の印刷用の表示を作る",
+          "state": "open",
+          "updatedAt": "2026-10-02T23:34:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 13,
+          "url": "https://github.com/example/recipe-app/pull/13",
+          "title": "レシピの写真を縮小して保存する",
+          "state": "closed",
+          "updatedAt": "2026-10-02T21:57:45Z",
+          "closedAt": "2026-10-02T21:57:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T21:57:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 4,
+          "url": "https://github.com/example/recipe-app/issues/4",
+          "title": "冷蔵庫の在庫を登録する",
+          "state": "open",
+          "updatedAt": "2026-10-02T20:20:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 12,
+          "url": "https://github.com/example/recipe-app/pull/12",
+          "title": "材料の組合せで検索するAPIを追加する",
+          "state": "closed",
+          "updatedAt": "2026-10-02T18:43:45Z",
+          "closedAt": "2026-10-02T18:43:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T18:43:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 3,
+          "url": "https://github.com/example/recipe-app/issues/3",
+          "title": "人数に合わせて分量を変える",
+          "state": "open",
+          "updatedAt": "2026-10-02T17:06:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 11,
+          "url": "https://github.com/example/recipe-app/pull/11",
+          "title": "レシピ一覧の並び順を選べるようにする",
+          "state": "closed",
+          "updatedAt": "2026-10-02T15:29:45Z",
+          "closedAt": "2026-10-02T15:29:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T15:29:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 2,
+          "url": "https://github.com/example/recipe-app/issues/2",
+          "title": "レシピをカテゴリで絞り込む",
+          "state": "open",
+          "updatedAt": "2026-10-02T13:52:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "issue",
+          "number": 1,
+          "url": "https://github.com/example/recipe-app/issues/1",
+          "title": "スマートフォンの表示を整える",
+          "state": "open",
+          "updatedAt": "2026-10-02T12:15:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "source": "github",
+      "repositoryUrl": "https://github.com/example/booking-app",
+      "fetchedAt": "2026-10-03T16:14:45Z",
+      "sources": {
+        "issues": {
+          "complete": true,
+          "urls": [
+            "https://api.github.com/repos/example/booking-app/issues?state=all&per_page=100&sort=updated&direction=desc&page=1"
+          ]
+        },
+        "pullRequests": {
+          "complete": true,
+          "urls": [
+            "https://api.github.com/repos/example/booking-app/pulls?state=all&per_page=100&sort=updated&direction=desc&page=1"
+          ]
+        }
+      },
+      "items": [
+        {
+          "kind": "pull_request",
+          "number": 26,
+          "url": "https://github.com/example/booking-app/pull/26",
+          "title": "1年分の予約結果をまとめて表示する",
+          "state": "open",
+          "updatedAt": "2026-10-03T15:44:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": true,
+          "mergedAt": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 25,
+          "url": "https://github.com/example/booking-app/pull/25",
+          "title": "空き枠の通知を予約数の変化に合わせる",
+          "state": "open",
+          "updatedAt": "2026-10-03T14:07:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": true,
+          "mergedAt": null
+        },
+        {
+          "kind": "issue",
+          "number": 12,
+          "url": "https://github.com/example/booking-app/issues/12",
+          "title": "1年間の予約操作を利用者に評価してもらう",
+          "state": "open",
+          "updatedAt": "2026-10-03T12:30:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 24,
+          "url": "https://github.com/example/booking-app/pull/24",
+          "title": "予約データの読み込みを速くする",
+          "state": "open",
+          "updatedAt": "2026-10-03T10:53:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": true,
+          "mergedAt": null
+        },
+        {
+          "kind": "issue",
+          "number": 11,
+          "url": "https://github.com/example/booking-app/issues/11",
+          "title": "予約通知の頻度を調整する",
+          "state": "open",
+          "updatedAt": "2026-10-03T09:16:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 23,
+          "url": "https://github.com/example/booking-app/pull/23",
+          "title": "連続した予約枠の設定を試す",
+          "state": "closed",
+          "updatedAt": "2026-10-03T07:39:45Z",
+          "closedAt": "2026-10-03T07:39:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": true,
+          "mergedAt": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 22,
+          "url": "https://github.com/example/booking-app/pull/22",
+          "title": "予約一覧の色を変える",
+          "state": "closed",
+          "updatedAt": "2026-10-03T06:02:45Z",
+          "closedAt": "2026-10-03T06:02:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 21,
+          "url": "https://github.com/example/booking-app/pull/21",
+          "title": "会議室の割り当てのずれを修正する",
+          "state": "closed",
+          "updatedAt": "2026-10-03T04:25:45Z",
+          "closedAt": "2026-10-03T04:25:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-03T04:25:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 10,
+          "url": "https://github.com/example/booking-app/issues/10",
+          "title": "予約件数の上限を決める",
+          "state": "open",
+          "updatedAt": "2026-10-03T02:48:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 20,
+          "url": "https://github.com/example/booking-app/pull/20",
+          "title": "空き枠の表示を直す",
+          "state": "closed",
+          "updatedAt": "2026-10-03T01:11:45Z",
+          "closedAt": "2026-10-03T01:11:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-03T01:11:45Z"
+        },
+        {
+          "kind": "pull_request",
+          "number": 19,
+          "url": "https://github.com/example/booking-app/pull/19",
+          "title": "予約が増えた理由をメモとして残す",
+          "state": "closed",
+          "updatedAt": "2026-10-02T23:34:45Z",
+          "closedAt": "2026-10-02T23:34:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T23:34:45Z"
+        },
+        {
+          "kind": "pull_request",
+          "number": 18,
+          "url": "https://github.com/example/booking-app/pull/18",
+          "title": "今月の予約と過去の記録を分けて表示する",
+          "state": "closed",
+          "updatedAt": "2026-10-02T21:57:45Z",
+          "closedAt": "2026-10-02T21:57:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T21:57:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 9,
+          "url": "https://github.com/example/booking-app/issues/9",
+          "title": "初回の操作案内を作る",
+          "state": "open",
+          "updatedAt": "2026-10-02T20:20:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "issue",
+          "number": 8,
+          "url": "https://github.com/example/booking-app/issues/8",
+          "title": "予約枠と会議室の割り当てのずれを調べる",
+          "state": "closed",
+          "updatedAt": "2026-10-02T18:43:45Z",
+          "closedAt": "2026-10-02T18:43:45Z",
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 17,
+          "url": "https://github.com/example/booking-app/pull/17",
+          "title": "予約の取消を元に戻せるようにする",
+          "state": "closed",
+          "updatedAt": "2026-10-02T17:06:45Z",
+          "closedAt": "2026-10-02T17:06:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T17:06:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 7,
+          "url": "https://github.com/example/booking-app/issues/7",
+          "title": "予約の取消を元に戻せるようにする",
+          "state": "closed",
+          "updatedAt": "2026-10-02T15:29:45Z",
+          "closedAt": "2026-10-02T15:29:45Z",
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 16,
+          "url": "https://github.com/example/booking-app/pull/16",
+          "title": "月ごとに受付時間を変える",
+          "state": "closed",
+          "updatedAt": "2026-10-02T13:52:45Z",
+          "closedAt": "2026-10-02T13:52:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T13:52:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 6,
+          "url": "https://github.com/example/booking-app/issues/6",
+          "title": "月ごとに受付時間を変える",
+          "state": "closed",
+          "updatedAt": "2026-10-02T12:15:45Z",
+          "closedAt": "2026-10-02T12:15:45Z",
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 15,
+          "url": "https://github.com/example/booking-app/pull/15",
+          "title": "月の切り替えを速くする",
+          "state": "closed",
+          "updatedAt": "2026-10-02T10:38:45Z",
+          "closedAt": "2026-10-02T10:38:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T10:38:45Z"
+        },
+        {
+          "kind": "pull_request",
+          "number": 14,
+          "url": "https://github.com/example/booking-app/pull/14",
+          "title": "月ごとの受付上限を設定できるようにする",
+          "state": "closed",
+          "updatedAt": "2026-10-02T09:01:45Z",
+          "closedAt": "2026-10-02T09:01:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T09:01:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 5,
+          "url": "https://github.com/example/booking-app/issues/5",
+          "title": "月ごとの受付上限を設定できるようにする",
+          "state": "closed",
+          "updatedAt": "2026-10-02T07:24:45Z",
+          "closedAt": "2026-10-02T07:24:45Z",
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "issue",
+          "number": 4,
+          "url": "https://github.com/example/booking-app/issues/4",
+          "title": "会議室の種類を増やす",
+          "state": "closed",
+          "updatedAt": "2026-10-02T05:47:45Z",
+          "closedAt": "2026-10-02T05:47:45Z",
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "pull_request",
+          "number": 13,
+          "url": "https://github.com/example/booking-app/pull/13",
+          "title": "会議室の種類を増やす",
+          "state": "closed",
+          "updatedAt": "2026-10-02T04:10:45Z",
+          "closedAt": "2026-10-02T04:10:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-02T04:10:45Z"
+        },
+        {
+          "kind": "issue",
+          "number": 3,
+          "url": "https://github.com/example/booking-app/issues/3",
+          "title": "予約枠を登録できるようにする",
+          "state": "closed",
+          "updatedAt": "2026-10-02T02:33:45Z",
+          "closedAt": "2026-10-02T02:33:45Z",
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "issue",
+          "number": 2,
+          "url": "https://github.com/example/booking-app/issues/2",
+          "title": "年間カレンダーを生成する",
+          "state": "closed",
+          "updatedAt": "2026-10-02T00:56:45Z",
+          "closedAt": "2026-10-02T00:56:45Z",
+          "estimatePoints": null,
+          "deadline": null
+        },
+        {
+          "kind": "issue",
+          "number": 1,
+          "url": "https://github.com/example/booking-app/issues/1",
+          "title": "1年間の予約を受け付けられる試作版を作る",
+          "state": "open",
+          "updatedAt": "2026-10-01T23:19:45Z",
+          "closedAt": null,
+          "estimatePoints": null,
+          "deadline": null
+        }
+      ]
+    },
+    {
+      "schemaVersion": 1,
+      "source": "github",
+      "repositoryUrl": "https://github.com/Wakua/github-progress-board",
+      "fetchedAt": "2026-10-03T16:14:45Z",
+      "sources": {
+        "issues": {
+          "complete": true,
+          "urls": [
+            "https://api.github.com/repos/Wakua/github-progress-board/issues?state=all&per_page=100&sort=updated&direction=desc&page=1"
+          ]
+        },
+        "pullRequests": {
+          "complete": true,
+          "urls": [
+            "https://api.github.com/repos/Wakua/github-progress-board/pulls?state=all&per_page=100&sort=updated&direction=desc&page=1"
+          ]
+        }
+      },
+      "items": [
+        {
+          "kind": "pull_request",
+          "number": 2,
+          "url": "https://github.com/Wakua/github-progress-board/pull/2",
+          "title": "全体一覧に承認待ちのPRを表示する",
+          "state": "closed",
+          "updatedAt": "2026-10-03T15:44:45Z",
+          "closedAt": "2026-10-03T15:44:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-03T15:44:45Z"
+        },
+        {
+          "kind": "pull_request",
+          "number": 1,
+          "url": "https://github.com/Wakua/github-progress-board/pull/1",
+          "title": "ローカルモードの初期画面を作る",
+          "state": "closed",
+          "updatedAt": "2026-10-03T14:07:45Z",
+          "closedAt": "2026-10-03T14:07:45Z",
+          "estimatePoints": null,
+          "deadline": null,
+          "draft": false,
+          "mergedAt": "2026-10-03T14:07:45Z"
+        }
+      ]
+    }
+  ]
+}

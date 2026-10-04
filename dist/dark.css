@@ -1,0 +1,53 @@
+:root {
+  color-scheme: dark;
+  --ink: #ccd4df;
+  --muted: #a1adbf;
+  --blue: #a2b7ef;
+  --line: #343d4a;
+  --bg: #15191f;
+  --amber: #d3b68d;
+  --green: #9ec7b2;
+}
+
+.brand-mark { background: #303b50; color: #ccd6e8; }
+.sample-label, .count { background: #272f3b; }
+.goal { border-top-color: #495464; }
+.summary, .work-explanation, .unlock, .detail-section p, .history li { color: #b1bed0; }
+.scope { background: #272f3b; color: #b3bfd1; }
+.scope.done { background: #24332e; color: var(--green); }
+
+.work-card, .wait-card {
+  background: #1c232d;
+  border-color: #36404f;
+  box-shadow: none;
+}
+.work-card { border-top-color: #718dc8; }
+.wait-card { background: #24221f; border-color: #423a2e; border-top-color: #a18966; }
+.wait-item + .wait-item { border-top-color: #463b2e; }
+.wait-item p { color: #c2af94; }
+
+.primary { background: #3b508d; color: #e1e7f3; border-color: #5369a1; }
+.primary:hover { background: #465d9c; }
+.secondary { background: #262f3c; border-color: #465267; }
+.secondary:hover { background: #303b4c; }
+.badge.active { background: #2b354b; color: var(--blue); }
+.badge.done { background: #293b32; color: var(--green); }
+.badge.review, .badge.blocked { background: #3b3024; color: #d8bc98; }
+.badge.todo, .badge.unknown { background: #2b3340; color: #b0bed2; }
+
+.footnote, .tree-sub, .history time { color: #9eabbd; }
+.tree { border-left-color: #3c4656; }
+.tree-row:hover { background: #2b3442; }
+.notice { background: #382e23; color: #dbc2a2; }
+.detail-section .evidence { background: #242e3d; border-left-color: #7186ad; }
+.inline-error { color: #e4a9a1; }
+
+dialog { background: #1c232d; box-shadow: -10px 0 40px #00000040; }
+dialog::backdrop { background: #090d14a3; }
+.close-button { background: #303a49; color: var(--ink); }
+textarea, input, select { background: #171d26; border-color: #475367; }
+textarea::placeholder, input::placeholder { color: #a0adbf; }
+.toast { background: #303b50; color: #dae3f0; border: 1px solid #50607a; }
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline-color: #9cafe0;
+}

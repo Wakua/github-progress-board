@@ -1,0 +1,86 @@
+[hidden] { display: none !important; }
+.workspace-toolbar { display: flex; align-items: end; justify-content: space-between; gap: 20px; padding-top: 22px; flex-wrap: wrap; }
+.workspace-toolbar .field { margin: 0; min-width: 220px; max-width: 100%; }
+.workspace-toolbar .actions { margin: 0; }
+.workspace-toolbar select { max-width: 360px; }
+.project-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr)); gap: 16px; }
+.project-card { padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: #1c232d; min-width: 0; }
+.project-card h2 { font-size: 20px; overflow-wrap: anywhere; }
+.project-card .repository { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; margin: 4px 0 16px; }
+.project-card dl { margin: 12px 0 20px; }
+.project-card dt { font-size: 12px; color: var(--muted); margin-top: 14px; }
+.project-card dd { margin: 4px 0 0; font-size: 14px; overflow-wrap: anywhere; }
+.project-card .summary-action { color: var(--amber); }
+.workspace-empty { padding: 30px 0; max-width: 600px; line-height: 1.8; }
+.workspace-empty p { margin: 12px 0 20px; color: var(--muted); }
+.storage-warning { border: 1px solid var(--amber); padding: 16px; margin-top: 20px; border-radius: 8px; }
+.storage-warning .actions { margin-top: 10px; }
+.storage-warning .field { margin: 0; max-width: 320px; }
+.storage-scope { margin: 28px 0; line-height: 1.8; }
+.goal-list { display: flex; gap: 10px; flex-wrap: wrap; padding: 8px 0 20px; }
+#project-meta { overflow-wrap: anywhere; line-height: 1.8; }
+#drawer-project { color: var(--muted); font-size: 12px; margin-top: 10px; overflow-wrap: anywhere; }
+.registration-form .field { margin-top: 18px; }
+.registration-form .form-actions { margin-top: 22px; }
+.dependency-select { min-height: 110px; }
+.github-snapshot { margin: 24px 0 32px; padding: 20px; border: 1px solid var(--line); border-radius: 8px; background: #1c232d; }
+.snapshot-heading { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+.snapshot-heading h2 { font-size: 19px; }
+.snapshot-heading h2 small, .snapshot-kind h3 small { font-size: 12px; color: var(--muted); font-weight: normal; }
+.snapshot-age { display: inline-block; font-size: 12px; color: var(--muted); }
+.snapshot-age.stale { color: var(--amber); }
+.snapshot-note { color: var(--muted); line-height: 1.8; margin: 12px 0 18px; font-size: 13px; }
+.snapshot-kind { margin-top: 20px; }
+.snapshot-kind h3 { font-size: 15px; margin-bottom: 8px; }
+.snapshot-items { list-style: none; padding: 0; margin: 0; }
+.snapshot-items li { display: flex; align-items: start; justify-content: space-between; gap: 12px; border-top: 1px solid var(--line); padding: 10px 0; }
+.snapshot-items button { display: flex; align-items: start; gap: 10px; min-width: 0; text-align: left; line-height: 1.6; }
+.snapshot-items button small { flex-shrink: 0; color: var(--muted); min-width: 60px; }
+.snapshot-items button span { overflow-wrap: anywhere; }
+.github-state { flex-shrink: 0; font-size: 12px; border: 1px solid var(--line); border-radius: 5px; padding: 3px 7px; color: var(--muted); white-space: nowrap; }
+.snapshot-history { margin-top: 10px; }
+.snapshot-history summary { cursor: pointer; font-size: 13px; color: var(--muted); padding: 8px 0; }
+.snapshot-facts dt { font-size: 12px; color: var(--muted); margin-top: 20px; }
+.snapshot-facts dd { margin: 5px 0 0; overflow-wrap: anywhere; font-size: 14px; }
+.snapshot-import .field { margin-top: 12px; }
+.snapshot-import select, .snapshot-import input, #snapshot-file { width: 100%; min-width: 0; max-width: 100%; }
+.panel-note p, .github-snapshot .footnote { overflow-wrap: anywhere; }
+.migration-projects { padding-left: 20px; }
+.migration-projects li { margin: 14px 0; overflow-wrap: anywhere; }
+.migration-projects span, .migration-projects small { display: block; margin-top: 4px; }
+.migration-projects small { font-size: 14px; color: var(--muted); }
+.migration-confirm { display: flex; align-items: start; gap: 8px; line-height: 1.7; margin: 18px 0; font-size: 14px; }
+.migration-confirm input { width: 18px; height: 18px; padding: 0; flex-shrink: 0; margin-top: 5px; }
+.migration-confirm span { min-width: 0; flex: 1; }
+@media (max-width:520px) {
+  .workspace-toolbar { align-items: stretch; gap: 12px; }
+  .workspace-toolbar .field, .workspace-toolbar select { width: 100%; }
+  .workspace-toolbar .actions { flex-wrap: wrap; }
+  .github-snapshot { padding: 14px; }
+  .snapshot-items li { flex-wrap: wrap; gap: 6px; }
+  .snapshot-items button { width: 100%; }
+}
+.approval-queue { margin: 16px 0 4px; padding: 12px 16px; border: 1px solid #343d4a; border-radius: 7px; background: #1a2029; }
+.approval-queue.full { border-color: #8a5a3a; background: #261f1b; }
+.approval-head { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 14px; }
+.approval-head h2 { font-size: 14px; font-weight: 600; }
+.approval-head h2 strong { font-size: 16px; margin-left: 4px; }
+.approval-head h2 strong.full { color: #e4a9a1; }
+.approval-head h2 small { color: #8f9cb0; font-weight: 400; font-size: 12px; margin-left: 6px; }
+.approval-status { font-size: 13px; color: var(--muted); margin-top: 4px; }
+.approval-status.full { color: #e4b48f; font-weight: 600; }
+.approval-note { font-size: 12px; color: #8f9cb0; margin-top: 4px; }
+.approval-items { list-style: none; margin: 8px 0 0; padding: 0; display: grid; gap: 4px; }
+.approval-items li { display: flex; gap: 10px; align-items: baseline; font-size: 13px; min-width: 0; }
+.approval-items li span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
+.approval-items li small { color: #8f9cb0; flex-shrink: 0; }
+.approval-items a { color: var(--blue); flex-shrink: 0; }
+.project-card .summary-approval.full { color: #e4a9a1; }
+
+:root .goal-list > .button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
+
+
+.estimate-provisional { display: block; font-size: 11px; line-height: 1.5; color: var(--muted); white-space: normal; overflow-wrap: anywhere; }
+.estimate-proposal h3, .estimate-proposal p, .estimate-proposal summary { overflow-wrap: anywhere; }
+.estimate-proposal details { font-size: 13px; line-height: 1.7; }
+.period-goal-progress > small { white-space: normal; }
