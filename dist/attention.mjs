@@ -19,7 +19,7 @@ const RELIEF = [
   { test: /^作業中なのに前提が未完了/, manual: '作業を未着手に戻す、前提を完了する、または依存関係を修正する', github: 'StatusをTodoに戻す、前提を閉じる、またはblocked byを修正する' },
 ];
 export const FALLBACK_RELIEF = '当たった条件を解消する';
-export const APPROVAL_RELIEF = 'GitHubでPRを確認し、承認する。直すなら、コメントで差し戻す';
+export const APPROVAL_RELIEF = 'GitHubで確認して承認する';
 // 「あなたの担当」に入れる作業のまとまり。要対応と前提待ち、完了は入れない（要対応は別のまとまりに出す）。
 export const MINE_GROUPS = ['active', 'review', 'ready-now', 'ready-later'];
 
