@@ -1,6 +1,7 @@
 import { githubPlan } from './github-planning.mjs';
-import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree } from './github-planning-view.mjs';
-import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork } from './engine.mjs';
+import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems } from './github-planning-view.mjs';
+import { attentionPanelMarkup, manualEndedOn } from './attention.mjs';
+import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
 import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision } from './workspace.mjs';
 import { MAX_IMPORT_BYTES, parseSnapshotImport, repositoryKey, snapshotAge, githubStateLabel, approvalQueue, approvalState, APPROVAL_LIMIT } from './github-snapshot.mjs';
 import { createLocalGithubClient, applyRefreshedSnapshot, localRepositoryKey, isLocalRuntime, REFRESH_INTERVAL_MS } from './local-github.mjs';
@@ -37,7 +38,7 @@ function readView() {
 function writeView(change) {
   try { storage.setItem(VIEW_KEY, JSON.stringify({ ...readView(), ...change })); } catch { /* 保存できなくても表示は切り替える */ }
 }
-let viewTab = readView().tab === 'iterations' ? 'iterations' : 'my-work';
+let viewTab = ['iterations', 'attention'].includes(readView().tab) ? readView().tab : 'my-work';
 // 担当者の絞り込みは { all: true } か { owner: 担当者名 | null（未担当） }。担当者名と「全員」が衝突しないように種類で分ける。
 const validOwnerFilter = value => value && typeof value === 'object' && (value.all === true || typeof value.owner === 'string' || value.owner === null);
 const githubDisclosures = new Map();
@@ -289,6 +290,24 @@ function renderApprovalQueue(project) {
   const list = queue.items.length ? `<ul class="approval-items">${queue.items.map(item => `<li><a href="${escape(item.url)}" target="_blank" rel="noopener noreferrer">#${item.number}</a><span>${escape(item.title)}</span><small>${escape(githubStateLabel(item))}</small></li>`).join('')}</ul>` : '';
   return `<div class="approval-head"><h2>承認待ちのPR <strong class="${queue.full ? 'full' : ''}">${queue.items.length}件</strong> <small>上限${queue.limit}件</small></h2>${snapshotAgeMarkup(project.githubSnapshot)}</div>${status}${list}`;
 }
+// ③ 要対応：手動計画とGitHubの計画のどちらも、同じ判定（要対応のまとまり）を使う。
+function attentionView(project) {
+  const snapshot = project.githubSnapshot;
+  if (githubPlan(snapshot)) return { kind: 'github', items: githubAttentionItems(snapshot) || [] };
+  if (snapshot || localRepositoryKey(project.repositoryUrl)) return { kind: 'github', items: null };
+  const today = todayInTokyo();
+  const action = myWork(state, undefined, today).sections.find(section => section.id === 'action');
+  return { kind: 'manual', items: (action?.tasks ?? []).map(({ task, reasons }) => ({
+    reasons, endedOn: manualEndedOn(reasons, today),
+    nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>`,
+    metaHtml: `<span class="my-work-owner ${taskOwner(task) ? '' : 'missing'}">${escape(taskOwner(task) || '担当未設定')}</span>`,
+  })) };
+}
+function renderAttention(project) {
+  const view = attentionView(project);
+  if (!view.items) return '<p class="empty-message">GitHubの計画情報は未取得です。取得すると、要対応の作業を表示します。</p>';
+  return attentionPanelMarkup(view.items, view.kind);
+}
 function renderViewTabs(project) {
   for (const tab of document.querySelectorAll('.view-tab')) {
     const selected = tab.dataset.view === viewTab;
@@ -296,7 +315,11 @@ function renderViewTabs(project) {
   }
   $('#my-work-panel').hidden = viewTab !== 'my-work';
   $('#iterations-panel').hidden = viewTab !== 'iterations';
+  $('#attention-panel').hidden = viewTab !== 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
+  const attention = attentionView(project);
+  $('#tab-attention').innerHTML = `要対応${attention.items?.length ? `<span class="tab-count">${attention.items.length}</span>` : ''}`;
+  $('#attention-panel').innerHTML = renderAttention(project);
 }
 function selectView(view, focus = false) {
   viewTab = view; writeView({ tab: view }); render();
