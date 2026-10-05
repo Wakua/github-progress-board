@@ -78,8 +78,8 @@ test('画面は、承認待ちのPR・あなたの担当・要対応の順に並
   assert.match(html, /承認待ちのPR <span class="my-work-count">1件 \/ 上限2件/);
   assert.match(html, /data-attention-me="Wakua" aria-pressed="true"/);
   assert.match(html, /data-attention-me="Claude" aria-pressed="false"/);
-  assert.match(html, /着手可能<\/span>/);
-  assert.ok(!html.includes('着手可能（'), '状態の補足は出さない');
+  assert.ok(!html.includes('着手可能'), '既定の状態（着手可能）は示さない');
+  assert.match(html, /→ /);
 });
 
 test('手が要る作業が無いときと、文字のエスケープを扱う', () => {
@@ -89,4 +89,12 @@ test('手が要る作業が無いときと、文字のエスケープを扱う',
   assert.match(attentionPanelMarkup(model({ mine: [] }), 'github'), /Wakuaの未完了の作業はありません/);
   const html = attentionPanelMarkup(model({ items: [{ endedOn: null, reasons: ['待ち：<script>alert(1)</script>'], nameHtml: '', metaHtml: '' }] }), 'manual');
   assert.ok(!html.includes('<script>'));
+});
+
+test('作業中などの既定でない状態は示し、期限超過の行には同じ意味の期限を重ねない', () => {
+  assert.match(attentionPanelMarkup(model({ mine: [{ label: '作業中', nameHtml: '<button>#3</button>', metaHtml: '' }] }), 'github'), /attention-state">作業中</);
+  const [overdue] = githubAttentionItems(snapshot, TODAY).filter(item => item.endedOn);
+  assert.ok(overdue && !overdue.metaHtml.includes('task-deadline'), '期限超過の行に、期限を重ねて出さない');
+  const [other] = githubAttentionItems(snapshot, TODAY).filter(item => !item.endedOn && /It1/.test(item.metaHtml));
+  assert.ok(other, '期限超過でない行には期限を出す');
 });

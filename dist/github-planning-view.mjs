@@ -33,7 +33,7 @@ export function githubAttentionItems(snapshot, today = todayInTokyo()) {
     const iteration = taskIteration(t), end = iteration && githubIterationLastDay(iteration);
     const deadline = iteration ? `${esc(iteration.title)} · ${shortDate(end)}まで` : '期間未設定';
     return { endedOn, reasons, nameHtml: itemButton(t),
-      metaHtml: `<span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span><span class="task-deadline ${endedOn ? 'overdue' : iteration ? '' : 'unknown'}">${deadline}</span>` };
+      metaHtml: `<span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span>${endedOn ? '' : `<span class="task-deadline ${iteration ? '' : 'unknown'}">${deadline}</span>`}` };
   });
 }
 // ③ あなたの担当：担当者が owner の未完了の作業（要対応と前提待ちを除く）を、まとまりの名前つきで取り出す。

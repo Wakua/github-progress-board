@@ -50,11 +50,12 @@ export function orderAttention(items) {
 }
 
 export function attentionRow({ nameHtml, metaHtml, reasons }, kind) {
-  const list = reasons.map(reason => `<li><span class="attention-reason">${esc(reason)}</span><span class="attention-relief">解除：${esc(reliefFor(reason, kind))}</span></li>`).join('');
+  const list = reasons.map(reason => `<li><span class="attention-reason">${esc(reason)}</span><span class="attention-relief">→ ${esc(reliefFor(reason, kind))}</span></li>`).join('');
   return `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}<ul class="attention-reasons">${list}</ul></div><div class="my-work-meta">${metaHtml}</div></li>`;
 }
 const approvalRow = pr => `<li class="my-work-row attention-row"><div class="my-work-main"><a class="issue-name" href="${esc(pr.url)}" target="_blank" rel="noopener noreferrer">#${pr.number} ${esc(pr.title)}</a></div></li>`;
-const mineRow = ({ nameHtml, metaHtml, label }) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}<ul class="attention-reasons"><li><span class="attention-state">${esc(label.replace(/（.*）/, ''))}</span></li></ul></div><div class="my-work-meta">${metaHtml}</div></li>`;
+const state = label => { const text = label.replace(/（.*）/, ''); return text === '着手可能' ? '' : `<ul class="attention-reasons"><li><span class="attention-state">${esc(text)}</span></li></ul>`; };
+const mineRow = ({ nameHtml, metaHtml, label }) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}${state(label)}</div><div class="my-work-meta">${metaHtml}</div></li>`;
 
 const section = (id, title, count, body, extra = '', suffix = '') => `<section class="my-work-section ${extra}" data-attention-section="${id}"><h3>${esc(title)} <span class="my-work-count">${count}件${suffix}</span></h3><ul class="my-work-list">${body}</ul></section>`;
 
