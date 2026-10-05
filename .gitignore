@@ -12,3 +12,6 @@ Thumbs.db
 /.wrangler/
 /preview*.jpg
 /.qa-python/
+
+/.bug-reporting-data/
+/.bug-qa/

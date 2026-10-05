@@ -1,10 +1,15 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomBytes, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { createGithubRefresher, configuredRepositories } from './scripts/local-github-refresh.mjs';
 import { repositoryKey } from './dist/github-snapshot.mjs';
+import { BugStore } from './server/bug-store.mjs';
+import { handleBugApi, acquireDataLock, recoverIncompleteUploads } from './server/bug-api.mjs';
+import { GitHubClient, parseBugRepository } from './server/bug-github-client.mjs';
+import { GitHubWorker } from './server/bug-github-worker.mjs';
 
 const defaultRoot = path.resolve(fileURLToPath(new URL('./dist/', import.meta.url)));
 const mime = { '.html': 'text/html; charset=utf-8', '.css': 'text/css; charset=utf-8', '.mjs': 'text/javascript; charset=utf-8', '.json': 'application/json; charset=utf-8' };
@@ -26,7 +31,19 @@ async function readRequest(req) {
   });
 }
 
-export function createProgressServer({ root = defaultRoot, repositories = configuredRepositories(), refresher = createGithubRefresher({ repositories }) } = {}) {
+export function createProgressServer({ root = defaultRoot, repositories = configuredRepositories(), refresher = createGithubRefresher({ repositories }), dataDir = process.env.BUG_REPORTING_DATA_DIR || path.resolve('.bug-reporting-data'), githubRepository = process.env.BUG_REPORTING_GITHUB_REPO || null, githubClient } = {}) {
+  const bugRepository = parseBugRepository(githubRepository);
+  const relative = path.relative(root, path.resolve(dataDir));
+  if (relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative)) throw new Error('報告の保存先はdistの外に置いてください。');
+  if (githubClient && bugRepository && githubClient.repository !== bugRepository) throw new Error('GitHubの接続先が設定と一致しません。');
+  let store, release, worker;
+  if (existsSync(path.join(dataDir, 'reports.sqlite'))) {
+    store = new BugStore(dataDir);
+    try {
+      release = acquireDataLock(store); recoverIncompleteUploads(store);
+      if (githubClient || bugRepository) worker = new GitHubWorker(store, githubClient || new GitHubClient(bugRepository));
+    } catch (error) { release?.(); store.close(); throw error; }
+  }
   const allowed = new Set(repositories.map(repositoryKey));
   const csrfToken = randomBytes(32).toString('hex');
   const server = http.createServer(async (req, res) => {
@@ -40,6 +57,10 @@ export function createProgressServer({ root = defaultRoot, repositories = config
       const origin = `http://${host}`, url = new URL(req.url, origin);
       if (url.origin !== origin) throw failure(403, 'forbidden');
       const pathname = decodeURIComponent(url.pathname);
+      if (pathname.startsWith('/api/bugs/')) {
+        if (url.search || url.hash || req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') throw failure(403, 'forbidden');
+        await handleBugApi(req, res, store, pathname, worker); return;
+      }
       if (pathname.startsWith('/api/')) {
         if (url.search || url.hash || req.headers.origin && req.headers.origin !== origin || req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') throw failure(403, 'forbidden');
         if (pathname === '/api/local-github') {
@@ -59,7 +80,8 @@ export function createProgressServer({ root = defaultRoot, repositories = config
         throw failure(404, 'not_found');
       }
       if (!['GET', 'HEAD'].includes(req.method)) throw failure(405, 'invalid_request');
-      const file = path.resolve(root, `.${pathname === '/' ? '/index.html' : pathname}`);
+      const location = pathname === '/bugs' || pathname === '/bugs/' ? '/bugs/index.html' : pathname === '/' ? '/index.html' : pathname;
+      const file = path.resolve(root, `.${location}`);
       if (!file.startsWith(root + path.sep) && file !== path.join(root, 'index.html')) throw failure(403, 'forbidden');
       const data = await readFile(file);
       res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream' }).end(req.method === 'HEAD' ? undefined : data);
@@ -68,7 +90,15 @@ export function createProgressServer({ root = defaultRoot, repositories = config
       if (!res.headersSent) json(status, { error: ['forbidden', 'invalid_request', 'not_found', 'busy', 'timeout', 'gh_unavailable', 'gh_failed', 'invalid_snapshot'].includes(error.code) ? error.code : 'not_found' });
     }
   });
-  server.headersTimeout = 10000; server.requestTimeout = 100000;
+  server.headersTimeout = 10000; server.requestTimeout = store ? 0 : 100000;
+  server.once('listening', () => { if (worker) { worker.origin = 'http://127.0.0.1:' + server.address().port; worker.wakeIfPending(); } });
+  let resolveBugClosed;
+  server.bugClosed = new Promise(resolve => { resolveBugClosed = resolve; });
+  server.once('close', () => {
+    const close = () => { release?.(); store?.close(); resolveBugClosed(); };
+    if (worker) worker.stop().then(close, close); else close();
+  });
+  server.bugWorker = worker; server.bugStore = store;
   return server;
 }
 
@@ -80,10 +110,14 @@ if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) 
     let repositories = null;
     try { repositories = configuredRepositories(); } catch (error) { process.stderr.write(`${error.message}\n`); process.exitCode = 1; }
     if (repositories) {
-      const server = createProgressServer({ repositories });
-      process.stdout.write(`GitHubを自動取得するrepository：${repositories.length ? repositories.join(', ') : 'なし（PROGRESS_GITHUB_REPOSで指定する）'}\n`);
-      server.on('error', error => { process.stderr.write(error.code === 'EADDRINUSE' ? `127.0.0.1:${port}は使用中です。既存の起動を確認してください。\n` : 'ローカルサーバーを起動できません。\n'); process.exitCode = 1; });
-      server.listen(port, '127.0.0.1', () => process.stdout.write(`Local: http://127.0.0.1:${port}\n`));
+      let server;
+      try { server = createProgressServer({ repositories }); } catch (error) { process.stderr.write(error.message + '\n'); process.exitCode = 1; }
+      if (server) {
+        process.stdout.write(`GitHubを自動取得するrepository：${repositories.length ? repositories.join(', ') : 'なし（PROGRESS_GITHUB_REPOSで指定する）'}\n`);
+        server.on('error', error => { process.stderr.write(error.code === 'EADDRINUSE' ? `127.0.0.1:${port}は使用中です。既存の起動を確認してください。\n` : 'ローカルサーバーを起動できません。\n'); server.close(); process.exitCode = 1; });
+        server.listen(port, '127.0.0.1', () => process.stdout.write(`Local: http://127.0.0.1:${port}\n`));
+        for (const signal of ['SIGINT', 'SIGTERM']) process.once(signal, () => { server.close(); server.closeAllConnections(); });
+      }
     }
   }
 }
