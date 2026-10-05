@@ -299,7 +299,7 @@ function attentionView(project) {
     const owners = githubOwners(snapshot).filter(Boolean).sort((x, y) => x.localeCompare(y, 'ja'));
     const me = owners.includes(requested) ? requested : null;
     const queue = approvalQueue(snapshot);
-    return { kind: 'github', model: { approvals: queue ? queue.items.map(({ number, title, url }) => ({ number, title, url })) : [], owners, me,
+    return { kind: 'github', model: { approvals: queue ? queue.items.map(({ number, title, url }) => ({ number, title, url })) : [], approvalLimit: queue?.limit, owners, me,
       mine: me ? githubMineItems(snapshot, me, today) : [], items: githubAttentionItems(snapshot, today) || [] } };
   }
   if (snapshot || localRepositoryKey(project.repositoryUrl)) return { kind: 'github', model: null };
@@ -327,6 +327,7 @@ function renderViewTabs(project) {
   $('#my-work-panel').hidden = viewTab !== 'my-work';
   $('#iterations-panel').hidden = viewTab !== 'iterations';
   $('#attention-panel').hidden = viewTab !== 'attention';
+  $('#approval-queue').hidden = viewTab === 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
   const attention = attentionView(project), count = attention.model ? attentionCount(attention.model) : 0;
   $('#tab-attention').innerHTML = `要対応${count ? `<span class="tab-count">${count}</span>` : ''}`;

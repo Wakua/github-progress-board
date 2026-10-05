@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { reliefFor, manualEndedOn, orderAttention, attentionPanelMarkup, attentionCount, FALLBACK_RELIEF, APPROVAL_RELIEF } from '../dist/attention.mjs';
+import { reliefFor, manualEndedOn, orderAttention, attentionPanelMarkup, attentionCount, FALLBACK_RELIEF } from '../dist/attention.mjs';
 import { githubAttentionItems, githubMineItems } from '../dist/github-planning-view.mjs';
 import { approvalQueue } from '../dist/github-snapshot.mjs';
 import { githubMyWork } from '../dist/github-work.mjs';
@@ -65,7 +65,7 @@ test('承認待ちのPRは、実際のsnapshotのReadyのPRだけを並べる', 
   assert.deepEqual(queue.items.map(pr => pr.number), [31]);
 });
 
-const model = (extra = {}) => ({ approvals: [{ number: 31, title: '予約の自動テストを足す（PR）', url: 'https://github.com/example/booking-app/pull/31' }],
+const model = (extra = {}) => ({ approvalLimit: 2, approvals: [{ number: 31, title: '予約の自動テストを足す（PR）', url: 'https://github.com/example/booking-app/pull/31' }],
   owners: ['Claude', 'Wakua'], me: 'Wakua', mine: [{ label: '着手可能（先の期間・未割当・期間不明）', nameHtml: '<button>#8</button>', metaHtml: '' }],
   items: [{ endedOn: null, reasons: ['待ち：確認する'], nameHtml: '<button>#5</button>', metaHtml: '' }], ...extra });
 
@@ -73,19 +73,19 @@ test('画面は、承認待ちのPR・あなたの担当・要対応の順に並
   const html = attentionPanelMarkup(model(), 'github');
   const order = ['approvals', 'mine', 'attention'].map(id => html.indexOf(`data-attention-section="${id}"`));
   assert.ok(order.every(n => n >= 0) && order[0] < order[1] && order[1] < order[2], order.join());
-  assert.match(html, /手が要る作業 <span class="my-work-count">3件/);
   assert.equal(attentionCount(model()), 3);
-  assert.match(html, new RegExp('承認：' + APPROVAL_RELIEF));
+  assert.ok(!html.includes('承認：'), '承認待ちのPRの行に、見出しと同じ意味の行を添えない');
+  assert.match(html, /承認待ちのPR <span class="my-work-count">1件 \/ 上限2件/);
   assert.match(html, /data-attention-me="Wakua" aria-pressed="true"/);
   assert.match(html, /data-attention-me="Claude" aria-pressed="false"/);
-  assert.match(html, /読み取り専用/);
+  assert.match(html, /着手可能<\/span>/);
+  assert.ok(!html.includes('着手可能（'), '状態の補足は出さない');
 });
 
-test('担当者を選んでいないときは案内を出し、手が要る作業が無いときと文字のエスケープも扱う', () => {
-  assert.match(attentionPanelMarkup(model({ me: null, mine: [] }), 'github'), /担当者名を選ぶと/);
+test('手が要る作業が無いときと、文字のエスケープを扱う', () => {
+  assert.ok(!attentionPanelMarkup(model({ me: null, mine: [] }), 'github').includes('data-attention-section="mine"'));
   const empty = attentionPanelMarkup({ approvals: [], owners: [], me: null, mine: [], items: [] }, 'manual');
   assert.match(empty, /手が要る作業はありません/);
-  assert.match(empty, /ツール内で操作/);
   assert.match(attentionPanelMarkup(model({ mine: [] }), 'github'), /Wakuaの未完了の作業はありません/);
   const html = attentionPanelMarkup(model({ items: [{ endedOn: null, reasons: ['待ち：<script>alert(1)</script>'], nameHtml: '', metaHtml: '' }] }), 'manual');
   assert.ok(!html.includes('<script>'));
