@@ -337,6 +337,8 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 
 ## 変更履歴
 
+- 2026-10-05：画面の変更前後の画像を、圧縮して `docs/screens/` に保存しPRに貼る規則を定めた。規則に合わない画像は `npm run check` が失敗する。
+
 - 2026-10-05：公開サンプルを実際の活動と無関係な題材へ統一し、repository設定の応答上限と初回取得後の表示を修正した。
 
 - 2026-10-05：公開リポジトリとして github-progress-board に名前を変え、MIT Licenseを付けた。用意済み記録・仮見積・同梱snapshotを架空のサンプルに差し替え、観察資料と実進捗の記録を外した。ローカルで自動取得するrepositoryを `PROGRESS_GITHUB_REPOS` で指定するよう変更した。
