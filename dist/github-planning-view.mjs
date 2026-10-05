@@ -1,6 +1,7 @@
 import { githubPlan, githubProgress, githubModules } from './github-planning.mjs';
 import { githubMyWork, taskIteration, githubIterationLastDay } from './github-work.mjs';
 import { todayInTokyo } from './engine.mjs';
+import { MINE_GROUPS } from './attention.mjs';
 const shortDate = date => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const link = (url, label) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
@@ -34,6 +35,16 @@ export function githubAttentionItems(snapshot, today = todayInTokyo()) {
     return { endedOn, reasons, nameHtml: itemButton(t),
       metaHtml: `<span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span><span class="task-deadline ${endedOn ? 'overdue' : iteration ? '' : 'unknown'}">${deadline}</span>` };
   });
+}
+// ③ あなたの担当：担当者が owner の未完了の作業（要対応と前提待ちを除く）を、まとまりの名前つきで取り出す。
+export function githubMineItems(snapshot, owner, today = todayInTokyo()) {
+  const work = githubMyWork(snapshot, { owner }, today);
+  if (!work) return [];
+  return work.sections.filter(section => MINE_GROUPS.includes(section.id)).flatMap(section => section.tasks.map(({ task: t }) => {
+    const iteration = taskIteration(t), end = iteration && githubIterationLastDay(iteration);
+    return { label: section.title, nameHtml: itemButton(t),
+      metaHtml: `<span class="task-deadline ${iteration ? '' : 'unknown'}">${iteration ? `${esc(iteration.title)} · ${shortDate(end)}まで` : '期間未設定'}</span>` };
+  }));
 }
 export function githubOwners(snapshot) {
   return [...new Set((githubPlan(snapshot)?.tasks || []).flatMap(t => t.projects.length ? t.projects.map(p => p.owner) : [null]))];

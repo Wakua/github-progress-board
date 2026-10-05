@@ -1,4 +1,4 @@
-// ③ 要対応：人が手を入れないと進まない作業と、条件を解消する操作を並べる。
+// ③ 要対応：人が手を入れる場所を並べる。「承認待ちのPR」「あなたの担当」「要対応」の3つのまとまりに分ける。
 // 要対応かどうかの判定は engine.mjs と github-work.mjs が行う。ここは表示の文言と並びだけを持つ。
 // 解除に必要な対応は docs/attention-release-behavior.md の表に従う。
 const DAY = 86400000;
@@ -19,6 +19,9 @@ const RELIEF = [
   { test: /^作業中なのに前提が未完了/, manual: '作業を未着手に戻す、前提を完了する、または依存関係を修正する', github: 'StatusをTodoに戻す、前提を閉じる、またはblocked byを修正する' },
 ];
 export const FALLBACK_RELIEF = '当たった条件を解消する';
+export const APPROVAL_RELIEF = 'GitHubでPRを確認し、承認する。直すなら、コメントで差し戻す';
+// 「あなたの担当」に入れる作業のまとまり。要対応と前提待ち、完了は入れない（要対応は別のまとまりに出す）。
+export const MINE_GROUPS = ['active', 'review', 'ready-now', 'ready-later'];
 
 // kind は 'manual' か 'github'。条件が残る限り要対応のままなので、条件を解消する操作だけを示す。
 export function reliefFor(reason, kind) {
@@ -51,14 +54,28 @@ export function attentionRow({ nameHtml, metaHtml, reasons }, kind) {
   const list = reasons.map(reason => `<li><span class="attention-reason">${esc(reason)}</span><span class="attention-relief">解除：${esc(reliefFor(reason, kind))}</span></li>`).join('');
   return `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}<ul class="attention-reasons">${list}</ul></div><div class="my-work-meta">${metaHtml}</div></li>`;
 }
+const approvalRow = pr => `<li class="my-work-row attention-row"><div class="my-work-main"><a class="issue-name" href="${esc(pr.url)}" target="_blank" rel="noopener noreferrer">#${pr.number} ${esc(pr.title)}</a><ul class="attention-reasons"><li><span class="attention-relief">承認：${esc(APPROVAL_RELIEF)}</span></li></ul></div></li>`;
+const mineRow = ({ nameHtml, metaHtml, label }) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}<ul class="attention-reasons"><li><span class="attention-state">${esc(label)}</span></li></ul></div><div class="my-work-meta">${metaHtml}</div></li>`;
 
 const NOTES = {
   manual: '手動の計画は、ツール内で操作して解除します。前提待ちは含みません。',
   github: 'GitHubの計画は読み取り専用です。GitHub上で変更し、「GitHubを再取得」で反映します。前提待ちは含みません。',
 };
-export function attentionPanelMarkup(items, kind) {
-  const ordered = orderAttention(items);
-  const heading = `<div class="attention-head"><h2>要対応 <span class="my-work-count">${ordered.length}件</span></h2><p class="footnote">${esc(NOTES[kind])}</p></div>`;
-  if (!ordered.length) return `${heading}<p class="empty-message">要対応の作業はありません。</p>`;
-  return `${heading}<section class="my-work-section needs-action" data-attention-list><ul class="my-work-list">${ordered.map(item => attentionRow(item, kind)).join('')}</ul></section>`;
+const section = (id, title, count, body, extra = '') => `<section class="my-work-section ${extra}" data-attention-section="${id}"><h3>${esc(title)} <span class="my-work-count">${count}件</span></h3><ul class="my-work-list">${body}</ul></section>`;
+
+// model：{ approvals: [{number, title, url}] | null, owners: [名前], me: 名前 | null, mine: [{nameHtml, metaHtml, label}], items: [要対応の行] }
+export function attentionCount(model) {
+  return (model.approvals?.length ?? 0) + model.mine.length + model.items.length;
+}
+export function attentionPanelMarkup(model, kind) {
+  const items = orderAttention(model.items), approvals = model.approvals ?? [];
+  const chips = model.owners.length ? `<div class="owner-filter attention-me" role="group" aria-label="あなたの担当者名"><span class="attention-me-label">あなた：</span>${model.owners.map(owner => `<button type="button" class="owner-choice" data-attention-me="${esc(owner)}" aria-pressed="${owner === model.me}">${esc(owner)}</button>`).join('')}</div>` : '';
+  const head = `<div class="attention-head"><h2>手が要る作業 <span class="my-work-count">${attentionCount(model)}件</span></h2><p class="footnote">${esc(NOTES[kind])}</p></div>${chips}`;
+  const parts = [];
+  if (approvals.length) parts.push(section('approvals', '承認待ちのPR', approvals.length, approvals.map(approvalRow).join(''), 'needs-action'));
+  if (model.me) parts.push(model.mine.length ? section('mine', `${model.me}の担当`, model.mine.length, model.mine.map(mineRow).join('')) : `<p class="empty-message">${esc(model.me)}の未完了の作業はありません。</p>`);
+  else if (model.owners.length) parts.push('<p class="footnote">「あなた」の担当者名を選ぶと、その人が担当の未完了の作業を表示します。</p>');
+  if (items.length) parts.push(section('attention', '要対応', items.length, items.map(item => attentionRow(item, kind)).join(''), 'needs-action'));
+  if (!approvals.length && !items.length && !model.mine.length) parts.push('<p class="empty-message">手が要る作業はありません。</p>');
+  return head + parts.join('');
 }
