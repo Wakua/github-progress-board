@@ -1,0 +1,11 @@
+.attention-head { margin: 4px 0 12px; }
+.attention-head h2 { font-size: 16px; margin: 0 0 4px; }
+.attention-reasons { list-style: none; margin: 6px 0 0; padding: 0; font-size: 12px; }
+.attention-reasons li { margin-top: 5px; }
+.attention-reason { display: block; color: #b9a585; }
+.attention-relief { display: block; color: #9db4e8; }
+.view-tab .tab-count { margin-left: 5px; color: var(--amber); font-size: 12px; font-weight: 600; }
+.attention-me { margin: 0 0 14px; align-items: center; }
+.attention-me-label { font-size: 12px; color: var(--muted); }
+.attention-state { display: block; color: #8f9cb0; }
+.attention-relief a { color: inherit; }
