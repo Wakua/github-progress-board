@@ -50,7 +50,7 @@ export async function checkScreenshots(root) {
     total += sum;
     if (sum > LIMITS.folderBytes) problems.push(`${where}: 合計${kib(sum)}で、1作業${kib(LIMITS.folderBytes)}を超えている`);
   }
-  if (total > LIMITS.totalBytes) problems.push(`docs/screens: 全体で${kib(total)}あり、${kib(LIMITS.totalBytes)}を超えている。古い画像を整理する`);
+  if (total > LIMITS.totalBytes) problems.push(`docs/screens: 全体で${kib(total)}あり、${kib(LIMITS.totalBytes)}を超えている。削除しても履歴の容量は減らないため、保存先の見直しをユーザーに相談する`);
   return problems;
 }
 
