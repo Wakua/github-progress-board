@@ -6,17 +6,17 @@ const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;'
 
 // manual：手動計画（ツール内で操作）、github：GitHubの計画（GitHub上で操作し、再取得で反映）。null は該当しない。
 const RELIEF = [
-  { test: /^判断待ち：/, manual: '判断する人が判断を記録する', github: null },
-  { test: /^待ち：/, manual: '理由を読み、待ちを解除するか、計画を見直す', github: null },
-  { test: /^状態が未確認$/, manual: '状態を確かめて、未着手などに更新する', github: null },
-  { test: /^状態が未確認：Projectに未登録/, manual: null, github: 'IssueをProjectに登録し、Statusを設定する' },
-  { test: /^状態が未確認：ProjectごとにStatusが異なる/, manual: null, github: 'ProjectごとのStatusを揃える' },
-  { test: /^状態が未確認：Status/, manual: null, github: 'StatusをTodo・In Progress・Doneのいずれかにする' },
-  { test: /^仕様待ち：/, manual: null, github: '仕様のIssueの担当が仕様を決め、仕様書に書いてIssueを閉じる' },
-  { test: /^期限超過/, manual: '割当のイテレーションを変えるか、完了にする', github: 'ProjectのIterationを変えるか、Issueを閉じてStatusをDoneにする' },
-  { test: /^前提(が|の)期限超過：/, manual: '前提を完了するか、前提の割当を変える', github: '前提のIterationを変えるか、前提を閉じる' },
-  { test: /^作業中なのに担当者がいない/, manual: '担当者を設定する', github: 'Projectの「担当」を設定する' },
-  { test: /^作業中なのに前提が未完了/, manual: '作業を未着手に戻す、前提を完了する、または依存関係を修正する', github: 'StatusをTodoに戻す、前提を閉じる、またはblocked byを修正する' },
+  { test: /^判断待ち：/, manual: '判断を記録する', github: null },
+  { test: /^待ち：/, manual: '待ちを解除する', github: null },
+  { test: /^状態が未確認$/, manual: '状態を更新する', github: null },
+  { test: /^状態が未確認：Projectに未登録/, manual: null, github: 'Projectに登録する' },
+  { test: /^状態が未確認：ProjectごとにStatusが異なる/, manual: null, github: 'Statusを揃える' },
+  { test: /^状態が未確認：Status/, manual: null, github: 'Statusを設定する' },
+  { test: /^仕様待ち：/, manual: null, github: '仕様を決める' },
+  { test: /^期限超過/, manual: '割当を変えるか完了にする', github: 'Iterationを変えるか閉じる' },
+  { test: /^前提(が|の)期限超過：/, manual: '前提を進める', github: '前提を進める' },
+  { test: /^作業中なのに担当者がいない/, manual: '担当を決める', github: '担当を決める' },
+  { test: /^作業中なのに前提が未完了/, manual: '未着手に戻すか前提を完了する', github: 'Todoに戻すか前提を閉じる' },
 ];
 export const FALLBACK_RELIEF = '当たった条件を解消する';
 // 「あなたの担当」に入れる作業のまとまり。要対応と前提待ち、完了は入れない（要対応は別のまとまりに出す）。

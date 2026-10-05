@@ -10,13 +10,13 @@ import { bookingSampleWorkspace } from '../scripts/make-booking-sample.mjs';
 const TODAY = '2026-10-05';
 const snapshot = bookingSampleWorkspace(new Date('2026-10-05T12:00:00Z')).projects[0].githubSnapshot;
 
-test('条件ごとに、手動計画とGitHubの計画の解除操作を分けて示す', () => {
-  assert.match(reliefFor('判断待ち：保存方式を決める', 'manual'), /判断を記録/);
+test('条件ごとに、手動計画とGitHubの計画の解除操作を分けて短く示す', () => {
+  assert.equal(reliefFor('判断待ち：保存方式を決める', 'manual'), '判断を記録する');
   assert.equal(reliefFor('判断待ち：保存方式を決める', 'github'), FALLBACK_RELIEF);
-  assert.match(reliefFor('仕様待ち：保存形式を決める', 'github'), /仕様のIssueの担当/);
-  assert.match(reliefFor('期限超過（3日）', 'manual'), /割当のイテレーション/);
-  assert.match(reliefFor('期限超過：It0（10/4終了）', 'github'), /ProjectのIteration/);
-  assert.match(reliefFor('状態が未確認：Projectに未登録', 'github'), /Projectに登録/);
+  assert.equal(reliefFor('仕様待ち：保存形式を決める', 'github'), '仕様を決める');
+  assert.equal(reliefFor('期限超過（3日）', 'manual'), '割当を変えるか完了にする');
+  assert.equal(reliefFor('期限超過：It0（10/4終了）', 'github'), 'Iterationを変えるか閉じる');
+  assert.equal(reliefFor('状態が未確認：Projectに未登録', 'github'), 'Projectに登録する');
   // 「続ける」だけでは解除されない。条件を解消する操作を示す。
   for (const kind of ['manual', 'github']) assert.doesNotMatch(reliefFor('作業中なのに前提が未完了：#3', kind), /続ける/);
   assert.match(reliefFor('作業中なのに前提が未完了：#3', 'manual'), /未着手に戻す/);
