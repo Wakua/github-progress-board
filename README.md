@@ -410,6 +410,10 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 - [Linearの表示設定](https://linear.app/docs/display-options)：一覧の属性表示と、対象から詳細を開く構成。
 - [GitHub Projectsの表示](https://docs.github.com/en/issues/planning-and-tracking-with-projects/customizing-views-in-your-project)：テーブル形式による項目の表示。
 
+## 文章の書き方
+
+このリポジトリで文章を書く際は、[文章の書き方](docs/writing-guidelines.md)に従う。開発の作業規則は[AGENTS.md](AGENTS.md)を参照する。
+
 ## 公開対象
 
 公開対象の文書・ソース・テスト・サンプルには、実際の活動を推測できるプロジェクト名、利用製品、制作内容、作業計画、公開サイトのURL、非公開repositoryの参照を含めない。サンプルは実際の活動と無関係な題材で作る。
