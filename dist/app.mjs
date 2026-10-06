@@ -352,6 +352,7 @@ function render() {
   const status = store.status();
   $('#storage-label').textContent = cloudMode ? (status.readOnly ? '保存を停止' : 'クラウド保存') : 'ブラウザ保存';
   $('.storage-scope').textContent = cloudMode ? `同じChatGPTアカウントで開くPC・スマートフォンに共有します。最新データは読込時に取得し、保存が確認できるまで変更を反映しません。GitHubへの書込はありません。${status.updatedAt ? ` 最終保存：${utcTime(status.updatedAt)}` : ''}` : 'このブラウザ・このURLの保存領域に保存します。サーバーやGitHubへの同期はありません。ブラウザのデータ削除で失われるため、必要なデータは書き出してください。';
+  $('#bug-reporting-link').hidden = cloudMode;
   $('#migrate-workspace').hidden = !cloudMode;
   $('#prepared-workspace').hidden = !cloudMode;
   $('#prepared-estimates').hidden = !cloudMode;
