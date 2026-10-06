@@ -86,8 +86,12 @@ export function createProgressServer({ root = defaultRoot, repositories = config
       const data = await readFile(file);
       res.writeHead(200, { 'Content-Type': mime[path.extname(file)] || 'application/octet-stream' }).end(req.method === 'HEAD' ? undefined : data);
     } catch (error) {
-      const status = error.status || (error.code === 'busy' ? 429 : error.code === 'timeout' ? 504 : error.code?.startsWith('gh_') || error.code === 'invalid_snapshot' ? 502 : 404);
-      if (!res.headersSent) json(status, { error: ['forbidden', 'invalid_request', 'not_found', 'busy', 'timeout', 'gh_unavailable', 'gh_failed', 'invalid_snapshot'].includes(error.code) ? error.code : 'not_found' });
+      const status = error.status || (error.code === 'busy' || error.code === 'rate_limited' ? 429 : error.code === 'timeout' ? 504 : error.code?.startsWith('gh_') || error.code === 'invalid_snapshot' ? 502 : 404);
+      if (!res.headersSent) json(status, {
+        error: ['forbidden', 'invalid_request', 'not_found', 'busy', 'rate_limited', 'timeout', 'gh_unavailable', 'gh_failed', 'invalid_snapshot'].includes(error.code) ? error.code : 'not_found',
+        // 取得を再開できる時刻。ブラウザが止めている理由と一緒に表示する。
+        ...(error.code === 'rate_limited' && Number.isFinite(error.resetAt) ? { resetAt: new Date(error.resetAt).toISOString() } : {}),
+      });
     }
   });
   server.headersTimeout = 10000; server.requestTimeout = store ? 0 : 100000;

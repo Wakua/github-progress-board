@@ -55,9 +55,16 @@ const messages = {
   gh_failed: 'GitHubを取得できません。既存ghの認証とrepositoryの読み取り許可を確認してください。',
   timeout: 'GitHub取得が時間内に完了しませんでした。',
   busy: '別repositoryを取得中です。次回の自動更新または再取得を待ってください。',
+  rate_limited: 'GitHubのAPIの利用制限に近いか達したため、取得を止めています。',
   invalid_snapshot: '全ページの整合性を確認できず、更新を見送りました。',
   forbidden: 'ローカル接続を確認するため、ページを再読み込みしてください。',
 };
+// 取得を止めているときは、再開できる時刻が分かれば示す。
+function failureMessage(value) {
+  const resetAt = value.error === 'rate_limited' ? Date.parse(value.resetAt) : NaN;
+  if (Number.isFinite(resetAt)) return `GitHubのAPIの利用制限に近いか達したため、${new Date(resetAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}まで取得を止めています。`;
+  return messages[value.error] || 'ローカル取得に失敗しました。';
+}
 
 export function createLocalGithubClient({ fetchImpl = fetch, getWorkspace, canRefresh, saveSnapshot, onState = () => {}, now = Date.now, timeoutMs = 95000 }) {
   let config = null, connecting = null, running = null, pending = null;
@@ -83,7 +90,7 @@ export function createLocalGithubClient({ fetchImpl = fetch, getWorkspace, canRe
       let offset = 0;
       for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
       const value = JSON.parse(new TextDecoder().decode(bytes));
-      if (!response.ok) throw new Error(messages[value.error] || 'ローカル取得に失敗しました。');
+      if (!response.ok) throw new Error(failureMessage(value));
       return value;
     } catch (error) {
       if (controller.signal.aborted) throw new Error(messages.timeout);
