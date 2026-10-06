@@ -211,7 +211,7 @@ GitHubで計画しているプロジェクトは、GitHubの作業を同じま�
 
 ## 要対応タブ（試作）
 
-人が手を入れるものを、一つの一覧に並べる（[ユースケースの文書案](https://github.com/Wakua/github-progress-board/blob/e76b4a944fb7abcc5298cee85798d20ddc144fc4/docs/use-cases.md)の場面1）。
+人が手を入れるものを、一つの一覧に並べる（[ユースケース](use-cases.md)の場面1）。
 各行は、作業名と短い理由（期限切れ、担当なし、仕様待ち、など）だけである。
 手動の計画もGitHubの計画も同じ形である。
 
@@ -227,7 +227,7 @@ GitHubで計画しているプロジェクトは、GitHubの作業を同じま�
 
 ## リリースタブ（試作）
 
-Milestoneごとに、計画のはみ出しだけを示す（[ユースケースの文書案](https://github.com/Wakua/github-progress-board/blob/e76b4a944fb7abcc5298cee85798d20ddc144fc4/docs/use-cases.md)の場面2）。
+Milestoneごとに、計画のはみ出しだけを示す（[ユースケース](use-cases.md)の場面2）。
 GitHubで計画しているプロジェクトだけに出す。
 完了予定日と、間に合うかの判定は出さない。
 

@@ -48,6 +48,8 @@ UIの構造や操作の流れは、観察、行動の整理、設計、試作の
 - PRは作業中はDraftにし、作業を終えてユーザーの承認を求めるときにReadyにする。ReadyのPRを「承認待ちのPR」と呼び、2件までとする。
 - Readyにする前に `gh pr list --state open --draft=false` で承認待ちの件数を確認し、2件以上ならDraftのまま待つ。待っていることはユーザーに伝える。上限の状態はツールの「承認待ちのPR」で確認できる。
 - リリースは2イテレーション（2週間）ごとにMilestoneで区切る。Milestoneの期日までに、そのMilestoneの作業のPRをマージする。期日後にユーザーがmainを確認し、フィードバックする。
+- ユーザーがmainを確認して承認したら、リリース用のPRで `package.json` と `package-lock.json` の版を更新する。版の規則は [バージョン](docs/development.md#バージョン) に従う。
+- リリース用のPRのマージ後に、ユーザーの承認を得て、タグ `v<版>` とGitHub Releaseを作る。承認なしにタグやReleaseを作らない。Releaseの本文には、完了したIssueの一覧を書く。
 - フィードバックはIssueにし、担当・Iteration・Estimateを設定して次のイテレーションに割り当てる。GitHubでClosedにしても、ユーザーの確認が済むまで受入完了としない。
 
 ## 文章とGit

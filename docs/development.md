@@ -152,6 +152,15 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
   snapshotの出典・取得日時・分離規則は上記の採用済み仕様に従う。
 - 子Issueを持つIssue自身に独立した作業量がある場合は、作業Issueへ分ける運用か、別の集計規則を採用するかを接続前に決定する。
 
+## バージョン
+
+現在の版は `0.1.0`（公開時点）である。版の正本は `package.json` と `package-lock.json` の `version` で、一致を単体テストで検査する。画面には表示しない。
+
+- 版は `0.<Milestoneの通し番号>.<修正の番号>` とする。Milestone（2イテレーションごとのリリース）が一つ終わるたびに2番目の数字を上げる。R2は `0.2.0` である。同じMilestoneの中で、緊急の修正だけを出すときは3番目の数字を上げる。
+- `1.0.0` は、保存データの形式が安定したとユーザーが判断したときにする。それまでは `0.` で始め、仕様の変更で互換性が変わることがある。
+- 版の番号はアプリの版であり、保存データの `schemaVersion` とは別である。
+- 版ごとに、タグ `v<版>` とGitHub Releaseを作る。Releaseの本文には、そのMilestoneで完了したIssueの一覧を書く。Closedは受入完了を表さない。手順は [AGENTS.md](../AGENTS.md) の「IssueとGitHub Project」に従う。
+
 ## 参考
 
 - [Asanaのプロジェクト表示](https://asana.com/features/project-management/project-views)：作業名と属性を列でそろえる一覧。

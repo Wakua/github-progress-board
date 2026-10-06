@@ -81,7 +81,8 @@ JSONによる手動取込と、取得の条件・上限は[GitHub snapshotの取
 | [進捗管理の仕様](docs/specification.md) | 作業の分類、集計、期限、保存とGitHub snapshotの規則 |
 | [操作の説明](docs/usage.md) | 画面の構成と詳しい操作 |
 | [GitHub snapshotの取得](docs/github-integration.md) | 自動取得の設定、JSONでの再取得と取込 |
-| [開発と検証](docs/development.md) | 内部構造、ビルドと検証、実装状況、公開対象 |
+| [利用場面](docs/use-cases.md) | ツールが助ける場面と画面の対応 |
+| [開発と検証](docs/development.md) | 内部構造、ビルドと検証、実装状況、バージョン、公開対象 |
 
 ## ライセンス
 
