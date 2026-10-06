@@ -63,6 +63,10 @@ GitHubで計画しているプロジェクトはGitHubの作業を表示し、�
 - 操作・保存範囲・安全性・公開準備：[docs/cloud-workspace.md](docs/cloud-workspace.md)
 - 用意済み記録の取込用JSON（架空のサンプル）：[samples/prepared-workspace.json](samples/prepared-workspace.json)
 
+## バグ報告（ローカルモード）
+
+ローカル版の `/bugs/` で、報告本文、再現データ、対応状況、修正版の確認結果を共有保存する。進捗の手動計画とは別のSQLiteとファイルに保存する。初期設定・利用範囲・GitHubへの登録条件は[仕様と運用](docs/bug-reporting.md)、AIからの送信は[API仕様](docs/bug-reporting-api.md)、開発段階は[ロードマップ](docs/bug-reporting-roadmap.md)を参照する。
+
 ## 採用済み仕様：プロジェクトと保存（ローカルモード）
 
 - 全体一覧はプロジェクトごとの次の作業・要対応・確認待ち・承認待ちのPRに絞る。
@@ -796,7 +800,11 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 
 - 2026-10-05：「要対応」タブ（試作）を追加した。承認待ちのPR、「あなた」の担当、要対応（条件ごとの解除操作つき）を、手動の計画とGitHubの計画の両方で並べる。
 
+- 2026-10-05：画面の変更前後の画像を、圧縮して `docs/screens/` に保存しPRに貼る規則を定めた。規則に合わない画像は `npm run check` が失敗する。
+
 - 2026-10-05：③ 要対応と ④ リリースの行動の整理を追加した。画面の設計と試作は未着手である。
+
+- 2026-10-05：バグ報告の組み込み版を追加し、GitHub登録先を設定で指定して既定は空とした。書き込みをIssueの新規作成に限り、状況と確認結果はツール内に保存する。
 
 - 2026-10-05：公開サンプルを実際の活動と無関係な題材へ統一し、repository設定の応答上限と初回取得後の表示を修正した。
 
