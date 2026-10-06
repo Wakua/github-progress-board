@@ -299,7 +299,7 @@ function attentionView(project) {
     const owners = githubOwners(snapshot).filter(Boolean).sort((x, y) => x.localeCompare(y, 'ja'));
     const me = owners.includes(requested) ? requested : null;
     const queue = approvalQueue(snapshot);
-    return { kind: 'github', model: { approvals: queue ? queue.items.map(({ number, title, url }) => ({ number, title, url })) : [], approvalLimit: queue?.limit, owners, me,
+    return { kind: 'github', model: { approvals: queue ? queue.items.map(({ number, title, url }) => ({ number, title, url })) : [], owners, me,
       mine: me ? githubMineItems(snapshot, me, today) : [], items: githubAttentionItems(snapshot, today) || [] } };
   }
   if (snapshot || localRepositoryKey(project.repositoryUrl)) return { kind: 'github', model: null };
@@ -307,11 +307,10 @@ function attentionView(project) {
   const me = owners.includes(requested) ? requested : null;
   const action = myWork(state, undefined, today).sections.find(section => section.id === 'action');
   const mine = me ? myWork(state, me, today).sections.filter(section => MINE_GROUPS.includes(section.id)).flatMap(section => section.tasks.map(({ task }) => ({
-    label: section.title, nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>`, metaHtml: '' }))) : [];
+    nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>` }))) : [];
   return { kind: 'manual', model: { approvals: null, owners, me, mine, items: (action?.tasks ?? []).map(({ task, reasons }) => ({
     reasons, endedOn: manualEndedOn(reasons, today),
     nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>`,
-    metaHtml: `<span class="my-work-owner ${taskOwner(task) ? '' : 'missing'}">${escape(taskOwner(task) || '担当未設定')}</span>`,
   })) } };
 }
 function renderAttention(project) {

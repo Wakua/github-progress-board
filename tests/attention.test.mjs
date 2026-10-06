@@ -51,50 +51,39 @@ test('GitHubの計画では、要対応だけを期限切れの古い順に並�
   for (const waiting of [4, 10]) assert.ok(!numbers.includes(waiting), `前提待ちの #${waiting} は含めない`);
 });
 
-test('あなたの担当は、未完了の作業を状態つきで取り出し、要対応と前提待ちを重ねて出さない', () => {
-  const mine = githubMineItems(snapshot, 'Wakua', TODAY);
-  const names = mine.map(item => Number(/data-id="issue:(\d+)"/.exec(item.nameHtml)[1]));
-  assert.deepEqual(names.sort((a, b) => a - b), [8, 16]);
-  assert.ok(!names.includes(9), '要対応の #9 は、要対応のまとまりに出す');
-  assert.ok(mine.every(item => /着手可能|作業中|確認待ち/.test(item.label)));
+test('あなたの担当は、未完了の作業を取り出し、要対応と前提待ちを重ねて出さない', () => {
+  const names = githubMineItems(snapshot, 'Wakua', TODAY).map(item => Number(/data-id="issue:(\d+)"/.exec(item.nameHtml)[1]));
+  assert.deepEqual(names.sort((x, y) => x - y), [8, 16]);
+  assert.ok(!names.includes(9), '要対応の #9 は、要対応に出す');
   assert.deepEqual(githubMineItems(snapshot, 'だれもいない', TODAY), []);
 });
 
 test('承認待ちのPRは、実際のsnapshotのReadyのPRだけを並べる', () => {
-  const queue = approvalQueue(snapshot);
-  assert.deepEqual(queue.items.map(pr => pr.number), [31]);
+  assert.deepEqual(approvalQueue(snapshot).items.map(pr => pr.number), [31]);
 });
 
-const model = (extra = {}) => ({ approvalLimit: 2, approvals: [{ number: 31, title: '予約の自動テストを足す（PR）', url: 'https://github.com/example/booking-app/pull/31' }],
-  owners: ['Claude', 'Wakua'], me: 'Wakua', mine: [{ label: '着手可能（先の期間・未割当・期間不明）', nameHtml: '<button>#8</button>', metaHtml: '' }],
-  items: [{ endedOn: null, reasons: ['待ち：確認する'], nameHtml: '<button>#5</button>', metaHtml: '' }], ...extra });
+const model = (extra = {}) => ({ approvals: [{ number: 31, title: '予約の自動テストを足す（PR）', url: 'https://github.com/example/booking-app/pull/31' }],
+  owners: ['Claude', 'Wakua'], me: 'Wakua', mine: [{ nameHtml: '<button>#8</button>' }],
+  items: [{ endedOn: null, reasons: ['待ち：確認する'], nameHtml: '<button>#5</button>' }], ...extra });
 
-test('画面は、承認待ちのPR・あなたの担当・要対応の順に並べ、件数を合計する', () => {
-  const html = attentionPanelMarkup(model(), 'github');
-  const order = ['approvals', 'mine', 'attention'].map(id => html.indexOf(`data-attention-section="${id}"`));
+test('画面は一つの一覧で、承認待ちのPR・要対応・あなたの担当の順に、何をするかだけを示す', () => {
+  const html = attentionPanelMarkup(model(), 'manual');
+  assert.equal((html.match(/<li class="my-work-row/g) || []).length, 3);
+  const order = ['#31', '#5', '#8'].map(label => html.indexOf(label));
   assert.ok(order.every(n => n >= 0) && order[0] < order[1] && order[1] < order[2], order.join());
+  assert.match(html, /→ 承認/);
+  assert.match(html, /→ 待ちを解除する/);
+  assert.equal((html.match(/→ /g) || []).length, 2, '「あなたの担当」の行には、何もつけない');
+  for (const heading of ['<h3', '<h2', 'attention-reason', '承認待ちのPR']) assert.ok(!html.includes(heading), `見出しや理由の行は出さない：${heading}`);
   assert.equal(attentionCount(model()), 3);
-  assert.ok(!html.includes('承認：'), '承認待ちのPRの行に、見出しと同じ意味の行を添えない');
-  assert.match(html, /承認待ちのPR <span class="my-work-count">1件 \/ 上限2件/);
   assert.match(html, /data-attention-me="Wakua" aria-pressed="true"/);
   assert.match(html, /data-attention-me="Claude" aria-pressed="false"/);
-  assert.ok(!html.includes('着手可能'), '既定の状態（着手可能）は示さない');
-  assert.match(html, /→ /);
 });
 
-test('手が要る作業が無いときと、文字のエスケープを扱う', () => {
-  assert.ok(!attentionPanelMarkup(model({ me: null, mine: [] }), 'github').includes('data-attention-section="mine"'));
-  const empty = attentionPanelMarkup({ approvals: [], owners: [], me: null, mine: [], items: [] }, 'manual');
-  assert.match(empty, /手が要る作業はありません/);
-  assert.match(attentionPanelMarkup(model({ mine: [] }), 'github'), /Wakuaの未完了の作業はありません/);
-  const html = attentionPanelMarkup(model({ items: [{ endedOn: null, reasons: ['待ち：<script>alert(1)</script>'], nameHtml: '', metaHtml: '' }] }), 'manual');
-  assert.ok(!html.includes('<script>'));
-});
-
-test('作業中などの既定でない状態は示し、期限超過の行には同じ意味の期限を重ねない', () => {
-  assert.match(attentionPanelMarkup(model({ mine: [{ label: '作業中', nameHtml: '<button>#3</button>', metaHtml: '' }] }), 'github'), /attention-state">作業中</);
-  const [overdue] = githubAttentionItems(snapshot, TODAY).filter(item => item.endedOn);
-  assert.ok(overdue && !overdue.metaHtml.includes('task-deadline'), '期限超過の行に、期限を重ねて出さない');
-  const [other] = githubAttentionItems(snapshot, TODAY).filter(item => !item.endedOn && /It1/.test(item.metaHtml));
-  assert.ok(other, '期限超過でない行には期限を出す');
+test('同じ操作は一度だけ示し、手が要る作業が無いときと文字のエスケープを扱う', () => {
+  const twice = attentionPanelMarkup(model({ approvals: [], mine: [], items: [{ endedOn: null, reasons: ['期限超過（3日）', '前提が期限超過：a', '前提が期限超過：b'], nameHtml: '<button>#6</button>' }] }), 'manual');
+  assert.equal((twice.match(/前提を進める/g) || []).length, 1);
+  assert.match(twice, /割当を変えるか完了にする・前提を進める/);
+  assert.match(attentionPanelMarkup({ approvals: [], owners: [], me: null, mine: [], items: [] }, 'manual'), /手が要る作業はありません/);
+  assert.ok(!attentionPanelMarkup(model({ items: [{ endedOn: null, reasons: ['待ち：<script>alert(1)</script>'], nameHtml: '' }] }), 'manual').includes('<script>'));
 });

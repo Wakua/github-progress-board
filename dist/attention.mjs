@@ -49,28 +49,20 @@ export function orderAttention(items) {
     }).map(({ item }) => item);
 }
 
-export function attentionRow({ nameHtml, metaHtml, reasons }, kind) {
-  const list = reasons.map(reason => `<li><span class="attention-reason">${esc(reason)}</span><span class="attention-relief">→ ${esc(reliefFor(reason, kind))}</span></li>`).join('');
-  return `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}<ul class="attention-reasons">${list}</ul></div><div class="my-work-meta">${metaHtml}</div></li>`;
-}
-const approvalRow = pr => `<li class="my-work-row attention-row"><div class="my-work-main"><a class="issue-name" href="${esc(pr.url)}" target="_blank" rel="noopener noreferrer">#${pr.number} ${esc(pr.title)}</a></div></li>`;
-const state = label => { const text = label.replace(/（.*）/, ''); return text === '着手可能' ? '' : `<ul class="attention-reasons"><li><span class="attention-state">${esc(text)}</span></li></ul>`; };
-const mineRow = ({ nameHtml, metaHtml, label }) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}${state(label)}</div><div class="my-work-meta">${metaHtml}</div></li>`;
+const row = (nameHtml, action) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}${action ? `<span class="attention-relief">→ ${esc(action)}</span>` : ''}</div></li>`;
+const prLink = pr => `<a class="issue-name" href="${esc(pr.url)}" target="_blank" rel="noopener noreferrer">#${pr.number} ${esc(pr.title)}</a>`;
 
-const section = (id, title, count, body, extra = '', suffix = '') => `<section class="my-work-section ${extra}" data-attention-section="${id}"><h3>${esc(title)} <span class="my-work-count">${count}件${suffix}</span></h3><ul class="my-work-list">${body}</ul></section>`;
-
-// model：{ approvals: [{number, title, url}] | null, approvalLimit: 数 | undefined, owners: [名前], me: 名前 | null, mine: [{nameHtml, metaHtml, label}], items: [要対応の行] }
+// model：{ approvals: [{number, title, url}] | null, owners: [名前], me: 名前 | null, mine: [{nameHtml}], items: [{nameHtml, reasons, endedOn}] }
 export function attentionCount(model) {
   return (model.approvals?.length ?? 0) + model.mine.length + model.items.length;
 }
+// 順は、承認待ちのPR → 要対応（期限切れの古い順）→「あなた」の担当。
 export function attentionPanelMarkup(model, kind) {
-  const items = orderAttention(model.items), approvals = model.approvals ?? [];
   const chips = model.owners.length ? `<div class="owner-filter attention-me" role="group" aria-label="あなたの担当者名"><span class="attention-me-label">あなた：</span>${model.owners.map(owner => `<button type="button" class="owner-choice" data-attention-me="${esc(owner)}" aria-pressed="${owner === model.me}">${esc(owner)}</button>`).join('')}</div>` : '';
-  const head = chips;
-  const parts = [];
-  if (approvals.length) parts.push(section('approvals', '承認待ちのPR', approvals.length, approvals.map(approvalRow).join(''), 'needs-action', model.approvalLimit ? ` / 上限${model.approvalLimit}件` : ''));
-  if (model.me) parts.push(model.mine.length ? section('mine', `${model.me}の担当`, model.mine.length, model.mine.map(mineRow).join('')) : `<p class="empty-message">${esc(model.me)}の未完了の作業はありません。</p>`);
-  if (items.length) parts.push(section('attention', '要対応', items.length, items.map(item => attentionRow(item, kind)).join(''), 'needs-action'));
-  if (!approvals.length && !items.length && !model.mine.length) parts.push('<p class="empty-message">手が要る作業はありません。</p>');
-  return head + parts.join('');
+  const rows = [
+    ...(model.approvals ?? []).map(pr => row(prLink(pr), '承認')),
+    ...orderAttention(model.items).map(item => row(item.nameHtml, [...new Set(item.reasons.map(reason => reliefFor(reason, kind)))].join('・'))),
+    ...model.mine.map(item => row(item.nameHtml, '')),
+  ];
+  return chips + (rows.length ? `<section class="my-work-section needs-action"><ul class="my-work-list">${rows.join('')}</ul></section>` : '<p class="empty-message">手が要る作業はありません。</p>');
 }
