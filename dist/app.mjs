@@ -316,7 +316,7 @@ function attentionView(project) {
 function renderAttention(project) {
   const view = attentionView(project);
   if (!view.model) return '<p class="empty-message">GitHubの計画情報は未取得です。取得すると、手が要る作業を表示します。</p>';
-  return attentionPanelMarkup(view.model, view.kind);
+  return attentionPanelMarkup(view.model);
 }
 function renderViewTabs(project) {
   for (const tab of document.querySelectorAll('.view-tab')) {

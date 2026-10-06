@@ -1,31 +1,26 @@
-// ③ 要対応：人が手を入れる場所を並べる。「承認待ちのPR」「あなたの担当」「要対応」の3つのまとまりに分ける。
+// ③ 要対応：人が手を入れるものを、一つの一覧に並べる。各行は、作業名と短い理由だけ。
 // 要対応かどうかの判定は engine.mjs と github-work.mjs が行う。ここは表示の文言と並びだけを持つ。
-// 解除に必要な対応は docs/attention-release-behavior.md の表に従う。
 const DAY = 86400000;
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// manual：手動計画（ツール内で操作）、github：GitHubの計画（GitHub上で操作し、再取得で反映）。null は該当しない。
-const RELIEF = [
-  { test: /^判断待ち：/, manual: '判断を記録する', github: null },
-  { test: /^待ち：/, manual: '待ちを解除する', github: null },
-  { test: /^状態が未確認$/, manual: '状態を更新する', github: null },
-  { test: /^状態が未確認：Projectに未登録/, manual: null, github: 'Projectに登録する' },
-  { test: /^状態が未確認：ProjectごとにStatusが異なる/, manual: null, github: 'Statusを揃える' },
-  { test: /^状態が未確認：Status/, manual: null, github: 'Statusを設定する' },
-  { test: /^仕様待ち：/, manual: null, github: '仕様を決める' },
-  { test: /^期限超過/, manual: '割当を変えるか完了にする', github: 'Iterationを変えるか閉じる' },
-  { test: /^前提(が|の)期限超過：/, manual: '前提を進める', github: '前提を進める' },
-  { test: /^作業中なのに担当者がいない/, manual: '担当を決める', github: '担当を決める' },
-  { test: /^作業中なのに前提が未完了/, manual: '未着手に戻すか前提を完了する', github: 'Todoに戻すか前提を閉じる' },
+// 要対応の理由を、専門用語を使わない短い言葉にする。何をするかは書かない（理由が分かれば、人が決められる）。
+const LABELS = [
+  [/^判断待ち：/, '判断待ち'],
+  [/^待ち：/, '待ち'],
+  [/^状態が未確認：Projectに未登録/, 'Project未登録'],
+  [/^状態が未確認/, '状態が不明'],
+  [/^仕様待ち：/, '仕様待ち'],
+  [/^期限超過/, '期限切れ'],
+  [/^前提(が|の)期限超過：/, '前提が期限切れ'],
+  [/^作業中なのに担当者がいない/, '担当なし'],
+  [/^作業中なのに前提が未完了/, '前提が未完了'],
 ];
-export const FALLBACK_RELIEF = '当たった条件を解消する';
+export const FALLBACK_LABEL = '要確認';
 // 「あなたの担当」に入れる作業のまとまり。要対応と前提待ち、完了は入れない（要対応は別のまとまりに出す）。
 export const MINE_GROUPS = ['active', 'review', 'ready-now', 'ready-later'];
 
-// kind は 'manual' か 'github'。条件が残る限り要対応のままなので、条件を解消する操作だけを示す。
-export function reliefFor(reason, kind) {
-  const entry = RELIEF.find(item => item.test.test(reason));
-  return entry?.[kind] ?? FALLBACK_RELIEF;
+export function labelFor(reason) {
+  return LABELS.find(([test]) => test.test(reason))?.[1] ?? FALLBACK_LABEL;
 }
 
 // 手動計画の「期限超過（N日）」から、期間が終わった日を求める。
@@ -49,7 +44,7 @@ export function orderAttention(items) {
     }).map(({ item }) => item);
 }
 
-const row = (nameHtml, action) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}${action ? `<span class="attention-relief">→ ${esc(action)}</span>` : ''}</div></li>`;
+const row = (nameHtml, label) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}${label ? `<span class="attention-label">${esc(label)}</span>` : ''}</div></li>`;
 const prLink = pr => `<a class="issue-name" href="${esc(pr.url)}" target="_blank" rel="noopener noreferrer">#${pr.number} ${esc(pr.title)}</a>`;
 
 // model：{ approvals: [{number, title, url}] | null, owners: [名前], me: 名前 | null, mine: [{nameHtml}], items: [{nameHtml, reasons, endedOn}] }
@@ -57,11 +52,11 @@ export function attentionCount(model) {
   return (model.approvals?.length ?? 0) + model.mine.length + model.items.length;
 }
 // 順は、承認待ちのPR → 要対応（期限切れの古い順）→「あなた」の担当。
-export function attentionPanelMarkup(model, kind) {
+export function attentionPanelMarkup(model) {
   const chips = model.owners.length ? `<div class="owner-filter attention-me" role="group" aria-label="あなたの担当者名"><span class="attention-me-label">あなた：</span>${model.owners.map(owner => `<button type="button" class="owner-choice" data-attention-me="${esc(owner)}" aria-pressed="${owner === model.me}">${esc(owner)}</button>`).join('')}</div>` : '';
   const rows = [
-    ...(model.approvals ?? []).map(pr => row(prLink(pr), '承認')),
-    ...orderAttention(model.items).map(item => row(item.nameHtml, [...new Set(item.reasons.map(reason => reliefFor(reason, kind)))].join('・'))),
+    ...(model.approvals ?? []).map(pr => row(prLink(pr), '承認待ち')),
+    ...orderAttention(model.items).map(item => row(item.nameHtml, [...new Set(item.reasons.map(labelFor))].join('・'))),
     ...model.mine.map(item => row(item.nameHtml, '')),
   ];
   return chips + (rows.length ? `<section class="my-work-section needs-action"><ul class="my-work-list">${rows.join('')}</ul></section>` : '<p class="empty-message">手が要る作業はありません。</p>');
