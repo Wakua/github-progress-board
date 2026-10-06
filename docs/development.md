@@ -25,7 +25,8 @@
 ローカル保存キーは`progress-tool.workspace.v1`、直前バックアップは`.backup`、破損原本の退避は`.recovery`である。
 
 workspaceの最上位は`schemaVersion`、`selectedProjectId`、`projects`を持つ。
-各projectは`id`、`name`、`repositoryUrl`、`data`と任意の`githubSnapshot`を持つ。
+各projectは`id`、`name`、`repositoryUrl`、`data`と任意の`githubSnapshot`、`approvalLimit`を持つ。
+`approvalLimit`の条件は[承認待ちのPR](specification.md#承認待ちのpr)に従う。
 既存v1データは移行せず読み込める。
 Issueの出典識別にはprojectId、repository URL、entityId、Issue番号の組を使う。
 

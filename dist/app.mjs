@@ -3,8 +3,8 @@ import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning
 import { releaseSummaries, releasePanelMarkup } from './release.mjs';
 import { attentionPanelMarkup, attentionCount, manualEndedOn, MINE_GROUPS } from './attention.mjs';
 import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
-import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision } from './workspace.mjs';
-import { MAX_IMPORT_BYTES, parseSnapshotImport, repositoryKey, snapshotAge, githubStateLabel, approvalQueue, approvalState, APPROVAL_LIMIT } from './github-snapshot.mjs';
+import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision, setApprovalLimit } from './workspace.mjs';
+import { MAX_IMPORT_BYTES, parseSnapshotImport, repositoryKey, snapshotAge, githubStateLabel, approvalQueue, approvalState, projectApprovalLimit, approvalLimitMessage, APPROVAL_LIMIT, APPROVAL_LIMIT_MAX } from './github-snapshot.mjs';
 import { createLocalGithubClient, applyRefreshedSnapshot, localRepositoryKey, isLocalRuntime, REFRESH_INTERVAL_MS } from './local-github.mjs';
 import { createCloudWorkspaceStore, MAX_CLOUD_BYTES } from './cloud-workspace.mjs';
 import { planPreparedEstimates, applyPreparedEstimates, isProvisionalEstimate } from './estimate-proposals.mjs';
@@ -16,7 +16,7 @@ const store = cloudMode ? createCloudWorkspaceStore(window.fetch.bind(window), {
 let workspace, state, viewProjectId;
 let busy = false;
 const exclusive = action => navigator.locks ? navigator.locks.request(STORAGE_KEY, action) : Promise.resolve().then(action);
-const editingActions = new Set(['prepared-estimates', 'prepared-workspace', 'migrate-workspace', 'import-snapshot', 'add-project', 'add-goal', 'add-task', 'assign-owner', 'assign-iteration', 'estimate', 'evidence', 'resolve', 'wait', 'clear-wait', 'up', 'down', 'start', 'review', 'complete', 'pause', 'reopen', 'dependencies', 'criteria', 'add-decision']);
+const editingActions = new Set(['prepared-estimates', 'prepared-workspace', 'migrate-workspace', 'import-snapshot', 'add-project', 'add-goal', 'add-task', 'assign-owner', 'assign-iteration', 'estimate', 'evidence', 'resolve', 'wait', 'clear-wait', 'up', 'down', 'start', 'review', 'complete', 'pause', 'reopen', 'dependencies', 'criteria', 'add-decision', 'save-approval-limit']);
 const expandedIterations = new Map();
 const collapsedPeriodGoals = new Set();
 let panel = null;
@@ -273,24 +273,25 @@ function renderMyWork(project) {
   return `<section class="github-work"><div class="snapshot-heading"><h2>GitHubの作業 <small>読み取り専用</small></h2>${snapshot ? snapshotAgeMarkup(snapshot) : ''}</div><div data-local-github>${localGithubMarkup(project)}</div>${renderGithubWork(snapshot, filter)}</section><details class="manual-work" ${state.tasks.length && !githubPlan(snapshot) ? 'open' : ''}><summary>手動の作業 ${state.tasks.length}件${githubPlan(snapshot) ? '（GitHubで計画しているため畳んで表示）' : ''}</summary>${renderManualMyWork(project)}</details>`;
 }
 // 古いsnapshotの件数だけでは、Readyにできると断定しない。上限に達していた事実は取得時点のものとして示す。
-function approvalStatus(snapshot) {
-  const { queue, stale } = approvalState(snapshot);
+function approvalStatus(project) {
+  const { queue, stale } = approvalState(project.githubSnapshot, Date.now(), projectApprovalLimit(project));
   if (!queue) return { queue, full: false, text: 'GitHub snapshotを読み込むと表示します。' };
   if (queue.full) return { queue, full: true, text: stale ? '取得時点で上限に達していました。古いsnapshotのため、最新の件数は未確認です。' : '上限に達しています。AIは新しくPRをReadyにせず、承認を待ちます。' };
   return { queue, full: false, text: stale ? '古いsnapshotのため、PRをReadyにできるかは未確認です。最新のsnapshotを取得してください。' : `あと${queue.remaining}件まで、AIはPRをReadyにできます。` };
 }
 function approvalSummary(project) {
-  const { queue, full, text } = approvalStatus(project.githubSnapshot);
-  const heading = queue ? `承認待ちのPR ${queue.items.length}件 / 上限${queue.limit}件` : `承認待ちのPR：未取得（上限${APPROVAL_LIMIT}件）`;
+  const { queue, full, text } = approvalStatus(project);
+  const heading = queue ? `承認待ちのPR ${queue.items.length}件 / 上限${queue.limit}件` : `承認待ちのPR：未取得（上限${projectApprovalLimit(project)}件）`;
   return `<dt class="summary-approval ${full ? 'full' : ''}">${escape(heading)}</dt><dd>${escape(text)}${queue ? `<br>${snapshotAgeMarkup(project.githubSnapshot)}` : ''}</dd>`;
 }
 function renderApprovalQueue(project) {
-  const queue = approvalQueue(project.githubSnapshot);
-  if (!queue) return `<div class="approval-head"><h2>承認待ちのPR <small>上限${APPROVAL_LIMIT}件</small></h2></div><p class="approval-note">未取得。GitHub snapshotを読み込むと、承認待ちのPRと上限の状態を表示します。</p>`;
-  const current = approvalStatus(project.githubSnapshot);
+  const limit = projectApprovalLimit(project), queue = approvalQueue(project.githubSnapshot, limit);
+  const change = `<button type="button" class="text-button approval-limit-change" data-action="approval-limit" data-id="">上限を変更</button>`;
+  if (!queue) return `<div class="approval-head"><h2>承認待ちのPR <small>上限${limit}件</small></h2>${change}</div><p class="approval-note">未取得。GitHub snapshotを読み込むと、承認待ちのPRと上限の状態を表示します。</p>`;
+  const current = approvalStatus(project);
   const status = `<p class="approval-status ${current.full ? 'full' : ''}" role="status">${escape(current.text)}</p>`;
   const list = queue.items.length ? `<ul class="approval-items">${queue.items.map(item => `<li><a href="${escape(item.url)}" target="_blank" rel="noopener noreferrer">#${item.number}</a><span>${escape(item.title)}</span><small>${escape(githubStateLabel(item))}</small></li>`).join('')}</ul>` : '';
-  return `<div class="approval-head"><h2>承認待ちのPR <strong class="${queue.full ? 'full' : ''}">${queue.items.length}件</strong> <small>上限${queue.limit}件</small></h2>${snapshotAgeMarkup(project.githubSnapshot)}</div>${status}${list}`;
+  return `<div class="approval-head"><h2>承認待ちのPR <strong class="${queue.full ? 'full' : ''}">${queue.items.length}件</strong> <small>上限${queue.limit}件</small></h2>${change}${snapshotAgeMarkup(project.githubSnapshot)}</div>${status}${list}`;
 }
 // ③ 要対応：手動計画とGitHubの計画のどちらも、同じ判定（要対応のまとまり）を使う。
 function attentionView(project) {
@@ -394,7 +395,7 @@ function render() {
   $('#iteration-count').textContent = state.iterations.length;
   $('#iterations-board').innerHTML = renderIterations('main');
   $('#approval-queue').innerHTML = renderApprovalQueue(project);
-  $('#approval-queue').classList.toggle('full', !!approvalQueue(project.githubSnapshot)?.full);
+  $('#approval-queue').classList.toggle('full', !!approvalQueue(project.githubSnapshot, projectApprovalLimit(project))?.full);
   renderViewTabs(project);
   for (const element of document.querySelectorAll('[data-github-disclosure]')) {
     const key = project.id + ':' + element.dataset.githubDisclosure;
@@ -679,6 +680,13 @@ function renderPanelContent() {
     $('#drawer-body').innerHTML = `<form class="registration-form" data-form="${type}"><label class="field">${type === 'add-project' ? 'プロジェクト名' : type === 'add-goal' ? '目標名' : '作業名'}<input id="registration-title" name="title" maxlength="${type === 'add-project' ? '100' : '500'}" required ${type === 'add-project' ? 'list="project-names"' : ''}></label>${type === 'add-project' ? '<datalist id="project-names"></datalist><label class="field">repository URL（任意）<input id="registration-repository" name="repositoryUrl" type="url" maxlength="500" placeholder="https://github.com/owner/repository"></label><p class="footnote">不明なら空欄で登録できます。固定の対象repositoryは、ローカル起動時に既存ghで自動取得します。</p>' : '<label class="field">Issue番号（任意）<input id="registration-issue-number" name="issueNumber" type="number" min="1" step="1" placeholder="未登録"></label>'}${type === 'add-task' ? `<label class="field">目標<select id="registration-goal" name="goalId" aria-label="目標" required>${state.goals.map(goal => `<option value="${escape(goal.id)}">${escape(goal.title)}</option>`).join('')}</select></label><label class="field">状態<select id="registration-status" name="status" aria-label="状態"><option value="unknown">未確認</option><option value="todo">未着手</option></select></label><label class="field">完了条件（任意・1行に1件）<textarea id="registration-criteria" name="criteria"></textarea></label><p class="footnote">Estimateと期限は未設定で登録します。前提や成果の根拠は作業の詳細で入力できます。</p>` : ''}<div class="form-actions"><button class="button primary" type="submit" ${store.status().readOnly ? 'disabled' : ''}>登録して保存</button></div></form>`;
     return;
   }
+  if (type === 'approval-limit') {
+    const project = findProject(workspace, panel.projectId), limit = projectApprovalLimit(project);
+    $('#drawer-kicker').textContent = '承認待ちのPR';
+    $('#drawer-title').textContent = '承認待ちの上限';
+    $('#drawer-body').innerHTML = `<section class="detail-section"><p>開いているReadyのPR（承認待ちのPR）が上限に達している間、AIは新しくPRをReadyにせず、承認を待ちます。上限はこのプロジェクトだけに適用し、設定しなければ${APPROVAL_LIMIT}件です。</p><div class="approval-limit-form"><label class="field">上限（件）<input id="approval-limit" type="number" inputmode="numeric" min="1" max="${APPROVAL_LIMIT_MAX}" step="1" value="${limit}"></label>${button('上限を保存', 'save-approval-limit')}</div><p class="approval-limit-caption">現在の上限：${limit}件。1〜${APPROVAL_LIMIT_MAX}の整数で指定します。</p></section><section class="detail-section"><h3>AIに伝える</h3><p>画面の上限はAIが直接読めません。保存した上限をAIへの指示に貼って伝えてください。AIはPRをReadyにするとき、適用した上限をPRに書きます。</p><p class="approval-limit-message"><code>${escape(approvalLimitMessage(project))}</code></p>${button('伝える文をコピー', 'copy-approval-limit')}<p class="approval-limit-caption" id="approval-limit-copy-status" role="status"></p></section>`;
+    return;
+  }
   if (type === 'github-goals') {
     const snapshot = findProject(workspace, panel.projectId).githubSnapshot;
     $('#drawer-kicker').textContent = 'GitHubの親子Issue · 読み取り専用';
@@ -817,7 +825,7 @@ document.addEventListener('click', async event => {
     return;
   }
   if (goalSummary) event.preventDefault();
-  if (['manage', 'github-item', 'github-goals', 'task', 'reason', 'decision', 'overview', 'issue', 'iteration', 'overdue', 'order', 'blockers', 'blocker', 'workload'].includes(action)) { openPanel(action, id, element.dataset.goalId, element.dataset.owner || null); return; }
+  if (['manage', 'github-item', 'github-goals', 'task', 'reason', 'decision', 'overview', 'issue', 'iteration', 'overdue', 'order', 'blockers', 'blocker', 'workload', 'approval-limit'].includes(action)) { openPanel(action, id, element.dataset.goalId, element.dataset.owner || null); return; }
   if (action === 'github-owner') {
     const filter = element.dataset.githubOwnerFilter === 'all' ? { all: true } : { owner: element.dataset.githubOwnerFilter === 'none' ? null : element.dataset.ownerName };
     githubOwnerFilters.set(workspace.selectedProjectId, filter);
@@ -825,6 +833,19 @@ document.addEventListener('click', async event => {
   }
   if (action === 'import-snapshot') { if (!store.status().readOnly) openPanel(action); return; }
   if (action === 'refresh-local-github') { await localGithub.refresh({ force: true }); return; }
+  if (action === 'copy-approval-limit') {
+    const message = approvalLimitMessage(findProject(workspace, panel.projectId));
+    // 結果は詳細の中に示す。トーストは詳細（モーダル）の背後に隠れる。
+    const status = text => { const element = $('#approval-limit-copy-status'); if (element) element.textContent = text; };
+    try { await navigator.clipboard.writeText(message); status('コピーしました。AIへの指示に貼ってください。'); }
+    catch {
+      // クリップボードの書き込みを拒否する環境では、文を選択状態にして手動のコピーを案内する。
+      const sentence = $('#drawer-body .approval-limit-message code');
+      if (sentence) { const range = document.createRange(); range.selectNodeContents(sentence); getSelection().removeAllRanges(); getSelection().addRange(range); }
+      status('コピーできませんでした。選んだ文をCtrl+Cでコピーしてください。');
+    }
+    return;
+  }
   if (action === 'load-bundled-snapshot') {
     if (panel?.type === 'import-snapshot' && !store.status().readOnly) await loadSnapshot(async () => {
       const response = await fetch('./github-snapshot.json', { cache: 'no-store' });
@@ -836,6 +857,11 @@ document.addEventListener('click', async event => {
   if (action === 'select-project') { await switchProject(id); return; }
   if (['add-project', 'add-goal', 'add-task'].includes(action)) { if (store.status().readOnly || (action === 'add-task' && !state?.goals.length)) return; openPanel(action); return; }
   if (editingActions.has(action) && store.status().readOnly) { error(store.status().problem); return; }
+  if (action === 'save-approval-limit') {
+    const projectId = panel?.projectId, raw = $('#approval-limit').value.trim();
+    if (!projectId || projectId !== workspace.selectedProjectId) { error('対象のプロジェクトを開き直してください。'); return; }
+    await commitWorkspace(draft => setApprovalLimit(draft, projectId, /^\d+$/.test(raw) ? Number(raw) : null), '承認待ちの上限を保存しました', null, true, ['approval-limit']); return;
+  }
   if (action === 'assign-owner') { const value = $('#task-owner').value; await mutate(data => setOwner(data, id, value), '担当者を保存しました', true, ['task-owner']); return; }
   if (action === 'assign-iteration') { const value = $('#task-iteration').value || null; await mutate(data => setIteration(data, id, value), 'イテレーションの割当を保存しました', true, ['task-iteration']); return; }
   if (action === 'estimate') { const input = $('#task-estimate').value.trim(); await mutate(data => setEstimate(data, id, input ? Number(input) : null), 'Estimateを保存しました', true, ['task-estimate']); return; }

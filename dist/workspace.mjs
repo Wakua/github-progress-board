@@ -1,5 +1,5 @@
 import { orderedTasks, issuePath, iterationTiming, myWork, todayInTokyo } from './engine.mjs';
-import { validateSnapshot, attachSnapshot, repositoryKey } from './github-snapshot.mjs';
+import { validateSnapshot, attachSnapshot, repositoryKey, isApprovalLimit, APPROVAL_LIMIT_MAX } from './github-snapshot.mjs';
 
 export const SCHEMA_VERSION = 1;
 export const STORAGE_KEY = 'progress-tool.workspace.v1';
@@ -65,6 +65,7 @@ function validateProject(project) {
   id(project.id); text(project.name, 'プロジェクト名', true, 100);
   if (normalizeRepositoryUrl(project.repositoryUrl) !== project.repositoryUrl) fail('repository URLを確認してください。');
   if (project.githubSnapshot !== undefined) validateSnapshot(project.githubSnapshot, { projectId: project.id, repositoryUrl: project.repositoryUrl });
+  if (project.approvalLimit !== undefined && !isApprovalLimit(project.approvalLimit)) fail('承認待ちの上限を確認してください。');
   const data = project.data;
   if (!object(data) || data.project !== project.name) fail('プロジェクトのデータを確認してください。');
   for (const key of ['goals', 'parentIssues', 'tasks', 'iterations', 'decisions', 'history', 'order']) array(data[key], key);
@@ -158,6 +159,12 @@ export function registerProject(workspace, { name, repositoryUrl = null }, makeI
 export function selectProject(workspace, projectId) {
   if (projectId !== null) findProject(workspace, projectId);
   workspace.selectedProjectId = projectId;
+}
+
+// 承認待ちのPRの上限はプロジェクトごとの設定で、未設定のプロジェクトは既定の件数を使う。
+export function setApprovalLimit(workspace, projectId, limit) {
+  if (!isApprovalLimit(limit)) fail(`承認待ちの上限は1〜${APPROVAL_LIMIT_MAX}の整数で入力してください。`);
+  findProject(workspace, projectId).approvalLimit = limit;
 }
 
 // Targets are chosen in the preview. The store validates/saves the entire batch atomically.

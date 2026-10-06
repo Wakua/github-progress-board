@@ -1,7 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createCloudWorkspaceStore, planWorkspaceMigration, readLocalMigration, readLocalBackup } from '../dist/cloud-workspace.mjs';
-import { registerProject, updateProject, addDecision, STORAGE_KEY, BACKUP_KEY } from '../dist/workspace.mjs';
+import { registerProject, updateProject, addDecision, setApprovalLimit, STORAGE_KEY, BACKUP_KEY } from '../dist/workspace.mjs';
+import { projectApprovalLimit, APPROVAL_LIMIT } from '../dist/github-snapshot.mjs';
 import { myWork, resolveDecision } from '../dist/engine.mjs';
 import worker from '../server/worker.mjs';
 import { fixtureWorkspace, sqliteD1, memoryStorage } from './cloud-fixtures.mjs';
@@ -231,4 +232,16 @@ test('source-level migration then reload preserves task state, criteria, unknown
   await cloud.transact(draft => Object.assign(draft, planWorkspaceMigration(draft, source.workspace).workspace));
   const reload = h.store(); await reload.initialize(); assert.deepEqual(reload.snapshot().projects, source.workspace.projects);
   assert.equal(h.storage.getItem(STORAGE_KEY), original); assert.equal(reload.snapshot().projects[0].data.tasks[0].estimatePoints, null);
+});
+test('cloud approval limit persists per project across independent reloads and rejects invalid values before the network', async t => {
+  const h = harness(t), pc = h.store(), seed = fixtureWorkspace();
+  seed.projects.push(fixtureWorkspace('other-project').projects[0]);
+  await pc.initialize(); await pc.transact(draft => Object.assign(draft, seed));
+  await pc.transact(draft => setApprovalLimit(draft, 'project-one', 4));
+  const puts = h.calls.filter(call => call.method === 'PUT').length;
+  await assert.rejects(pc.transact(draft => setApprovalLimit(draft, 'project-one', 0)), /1〜99の整数/);
+  assert.equal(h.calls.filter(call => call.method === 'PUT').length, puts, '不正な上限は保存要求を送らない');
+  const phone = h.store(); await phone.initialize();
+  assert.deepEqual(phone.snapshot().projects.map(projectApprovalLimit), [4, APPROVAL_LIMIT]);
+  assert.deepEqual(phone.snapshot().projects[1], seed.projects[1], '他のプロジェクトは変わらない');
 });
