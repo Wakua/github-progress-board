@@ -44,7 +44,8 @@ Issue本文、コメント、CI、レビュー、完了条件は取得しない�
 ローカル起動と基本の検証コマンドは[READMEの起動と検証](../README.md#起動と検証)に従う。
 
 `npm test`は表示判断、保存・分離・復旧、snapshot、ローカルgh、共有保存、バグ報告APIを検証する。
-共有SQLの試験はNodeのSQLite、MCP出力契約の試験はPythonのjsonschemaを使う。
+共有SQLの試験はNodeのSQLiteを使う。
+MCP出力契約の試験にはPythonとjsonschemaが必要であり、テスト環境のPATHからPythonを起動できるようにする。
 `npm run check`はJavaScriptの構文と[画面画像の保存規則](screenshots.md#保存の規則)を検査する。
 
 ### ブラウザ検証
@@ -86,7 +87,8 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 ## 実装状況
 
 ローカル機能は、[操作説明](usage.md)にある登録・編集と、[進捗管理の仕様](specification.md)にある表示・保存に対応する。
-要対応・リリースのタブは試作として扱う。
+要対応・リリースのタブは試作として扱い、幅の狭い画面と複数のProjectに登録したIssueの表示は未確認である。
+リリースの変更前後の画面は `docs/screens/6/` にある。
 
 クラウドの機能別の規則は、次の文書で定義する。
 

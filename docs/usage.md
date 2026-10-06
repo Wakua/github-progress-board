@@ -21,8 +21,8 @@
 | ① 自分の作業（タブ） | 今日何をやるか | [自分の作業と要対応](specification.md#自分の作業と要対応)。GitHubで計画しているプロジェクトは[GitHubから表示する計画](specification.md#githubから表示する計画) |
 | ② イテレーション（タブ） | 期間内に間に合うか | [イテレーションと期限](specification.md#イテレーションと期限)、[担当別の負荷](specification.md#担当別の負荷)、[表示ルール](specification.md#表示ルール) |
 | 詳細（右のパネル） | なぜ止まっているか、何が終われば進むか | [操作](#操作)、[詳細での入力と移動](specification.md#詳細での入力と移動) |
-| ③ 要対応（タブ） | どこで人の手が要るか | [要対応タブ](specification.md#要対応タブ試作)（試作）。行動の整理は[③④の行動の整理](attention-release-behavior.md) |
-| ④ リリース（タブ） | リリースに間に合うか | [リリースタブ](specification.md#リリースタブ試作)（試作）。行動の整理は同上 |
+| ③ 要対応（タブ） | どこで人の手が要るか | [要対応タブ](specification.md#要対応タブ)。行動の整理は[③④の行動の整理](attention-release-behavior.md) |
+| ④ リリース（タブ） | リリースに間に合うか | [リリースタブ](specification.md#リリースタブ)。行動の整理は同上 |
 
 ## 操作
 

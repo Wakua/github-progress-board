@@ -14,6 +14,7 @@ npm start
 
 ブラウザで <http://127.0.0.1:4319/> を開く。
 ポートを変える場合は、起動前に `PORT` を指定する。
+変更前に、[ローカル保存の範囲](docs/specification.md#保存の範囲)を確認する。
 
 ```sh
 # bash・Git Bash
