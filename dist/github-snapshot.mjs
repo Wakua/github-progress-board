@@ -148,6 +148,8 @@ export const APPROVAL_LIMIT = 2;
 export const APPROVAL_LIMIT_MAX = 99;
 export const isApprovalLimit = value => Number.isSafeInteger(value) && value >= 1 && value <= APPROVAL_LIMIT_MAX;
 export const projectApprovalLimit = project => project.approvalLimit ?? APPROVAL_LIMIT;
+// 画面の設定をAIは直接読めないため、人がAIへの指示に貼る文を、保存した上限から作る。
+export const approvalLimitMessage = project => `${project.name}の承認待ちのPRの上限は${projectApprovalLimit(project)}件です。`;
 export function approvalQueue(snapshot, limit = APPROVAL_LIMIT) {
   if (!snapshot) return null;
   const items = snapshot.items.filter(item => item.kind === 'pull_request' && item.state === 'open' && !item.draft).sort((a, b) => a.number - b.number);

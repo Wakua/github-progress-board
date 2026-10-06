@@ -4,7 +4,7 @@ import { releaseSummaries, releasePanelMarkup } from './release.mjs';
 import { attentionPanelMarkup, attentionCount, manualEndedOn, MINE_GROUPS } from './attention.mjs';
 import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
 import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision, setApprovalLimit } from './workspace.mjs';
-import { MAX_IMPORT_BYTES, parseSnapshotImport, repositoryKey, snapshotAge, githubStateLabel, approvalQueue, approvalState, projectApprovalLimit, APPROVAL_LIMIT, APPROVAL_LIMIT_MAX } from './github-snapshot.mjs';
+import { MAX_IMPORT_BYTES, parseSnapshotImport, repositoryKey, snapshotAge, githubStateLabel, approvalQueue, approvalState, projectApprovalLimit, approvalLimitMessage, APPROVAL_LIMIT, APPROVAL_LIMIT_MAX } from './github-snapshot.mjs';
 import { createLocalGithubClient, applyRefreshedSnapshot, localRepositoryKey, isLocalRuntime, REFRESH_INTERVAL_MS } from './local-github.mjs';
 import { createCloudWorkspaceStore, MAX_CLOUD_BYTES } from './cloud-workspace.mjs';
 import { planPreparedEstimates, applyPreparedEstimates, isProvisionalEstimate } from './estimate-proposals.mjs';
@@ -681,10 +681,10 @@ function renderPanelContent() {
     return;
   }
   if (type === 'approval-limit') {
-    const limit = projectApprovalLimit(findProject(workspace, panel.projectId));
+    const project = findProject(workspace, panel.projectId), limit = projectApprovalLimit(project);
     $('#drawer-kicker').textContent = '承認待ちのPR';
     $('#drawer-title').textContent = '承認待ちの上限';
-    $('#drawer-body').innerHTML = `<section class="detail-section"><p>開いているReadyのPR（承認待ちのPR）が上限に達している間、AIは新しくPRをReadyにせず、承認を待ちます。上限はこのプロジェクトだけに適用し、設定しなければ${APPROVAL_LIMIT}件です。</p><div class="approval-limit-form"><label class="field">上限（件）<input id="approval-limit" type="number" inputmode="numeric" min="1" max="${APPROVAL_LIMIT_MAX}" step="1" value="${limit}"></label>${button('上限を保存', 'save-approval-limit')}</div><p class="approval-limit-caption">現在の上限：${limit}件。1〜${APPROVAL_LIMIT_MAX}の整数で指定します。</p></section>`;
+    $('#drawer-body').innerHTML = `<section class="detail-section"><p>開いているReadyのPR（承認待ちのPR）が上限に達している間、AIは新しくPRをReadyにせず、承認を待ちます。上限はこのプロジェクトだけに適用し、設定しなければ${APPROVAL_LIMIT}件です。</p><div class="approval-limit-form"><label class="field">上限（件）<input id="approval-limit" type="number" inputmode="numeric" min="1" max="${APPROVAL_LIMIT_MAX}" step="1" value="${limit}"></label>${button('上限を保存', 'save-approval-limit')}</div><p class="approval-limit-caption">現在の上限：${limit}件。1〜${APPROVAL_LIMIT_MAX}の整数で指定します。</p></section><section class="detail-section"><h3>AIに伝える</h3><p>画面の上限はAIが直接読めません。保存した上限をAIへの指示に貼って伝えてください。AIはPRをReadyにするとき、適用した上限をPRに書きます。</p><p class="approval-limit-message"><code>${escape(approvalLimitMessage(project))}</code></p>${button('伝える文をコピー', 'copy-approval-limit')}<p class="approval-limit-caption" id="approval-limit-copy-status" role="status"></p></section>`;
     return;
   }
   if (type === 'github-goals') {
@@ -833,6 +833,19 @@ document.addEventListener('click', async event => {
   }
   if (action === 'import-snapshot') { if (!store.status().readOnly) openPanel(action); return; }
   if (action === 'refresh-local-github') { await localGithub.refresh({ force: true }); return; }
+  if (action === 'copy-approval-limit') {
+    const message = approvalLimitMessage(findProject(workspace, panel.projectId));
+    // 結果は詳細の中に示す。トーストは詳細（モーダル）の背後に隠れる。
+    const status = text => { const element = $('#approval-limit-copy-status'); if (element) element.textContent = text; };
+    try { await navigator.clipboard.writeText(message); status('コピーしました。AIへの指示に貼ってください。'); }
+    catch {
+      // クリップボードの書き込みを拒否する環境では、文を選択状態にして手動のコピーを案内する。
+      const sentence = $('#drawer-body .approval-limit-message code');
+      if (sentence) { const range = document.createRange(); range.selectNodeContents(sentence); getSelection().removeAllRanges(); getSelection().addRange(range); }
+      status('コピーできませんでした。選んだ文をCtrl+Cでコピーしてください。');
+    }
+    return;
+  }
   if (action === 'load-bundled-snapshot') {
     if (panel?.type === 'import-snapshot' && !store.status().readOnly) await loadSnapshot(async () => {
       const response = await fetch('./github-snapshot.json', { cache: 'no-store' });
