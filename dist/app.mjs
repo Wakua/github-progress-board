@@ -307,17 +307,16 @@ function attentionView(project) {
   const me = owners.includes(requested) ? requested : null;
   const action = myWork(state, undefined, today).sections.find(section => section.id === 'action');
   const mine = me ? myWork(state, me, today).sections.filter(section => MINE_GROUPS.includes(section.id)).flatMap(section => section.tasks.map(({ task }) => ({
-    label: section.title, nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>`, metaHtml: '' }))) : [];
+    nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>` }))) : [];
   return { kind: 'manual', model: { approvals: null, owners, me, mine, items: (action?.tasks ?? []).map(({ task, reasons }) => ({
     reasons, endedOn: manualEndedOn(reasons, today),
     nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>`,
-    metaHtml: `<span class="my-work-owner ${taskOwner(task) ? '' : 'missing'}">${escape(taskOwner(task) || '担当未設定')}</span>`,
   })) } };
 }
 function renderAttention(project) {
   const view = attentionView(project);
   if (!view.model) return '<p class="empty-message">GitHubの計画情報は未取得です。取得すると、手が要る作業を表示します。</p>';
-  return attentionPanelMarkup(view.model, view.kind);
+  return attentionPanelMarkup(view.model);
 }
 function renderViewTabs(project) {
   for (const tab of document.querySelectorAll('.view-tab')) {
@@ -327,6 +326,7 @@ function renderViewTabs(project) {
   $('#my-work-panel').hidden = viewTab !== 'my-work';
   $('#iterations-panel').hidden = viewTab !== 'iterations';
   $('#attention-panel').hidden = viewTab !== 'attention';
+  $('#approval-queue').hidden = viewTab === 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
   const attention = attentionView(project), count = attention.model ? attentionCount(attention.model) : 0;
   $('#tab-attention').innerHTML = `要対応${count ? `<span class="tab-count">${count}</span>` : ''}`;

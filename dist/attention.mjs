@@ -1,32 +1,26 @@
-// ③ 要対応：人が手を入れる場所を並べる。「承認待ちのPR」「あなたの担当」「要対応」の3つのまとまりに分ける。
+// ③ 要対応：人が手を入れるものを、一つの一覧に並べる。各行は、作業名と短い理由だけ。
 // 要対応かどうかの判定は engine.mjs と github-work.mjs が行う。ここは表示の文言と並びだけを持つ。
-// 解除に必要な対応は docs/attention-release-behavior.md の表に従う。
 const DAY = 86400000;
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// manual：手動計画（ツール内で操作）、github：GitHubの計画（GitHub上で操作し、再取得で反映）。null は該当しない。
-const RELIEF = [
-  { test: /^判断待ち：/, manual: '判断する人が判断を記録する', github: null },
-  { test: /^待ち：/, manual: '理由を読み、待ちを解除するか、計画を見直す', github: null },
-  { test: /^状態が未確認$/, manual: '状態を確かめて、未着手などに更新する', github: null },
-  { test: /^状態が未確認：Projectに未登録/, manual: null, github: 'IssueをProjectに登録し、Statusを設定する' },
-  { test: /^状態が未確認：ProjectごとにStatusが異なる/, manual: null, github: 'ProjectごとのStatusを揃える' },
-  { test: /^状態が未確認：Status/, manual: null, github: 'StatusをTodo・In Progress・Doneのいずれかにする' },
-  { test: /^仕様待ち：/, manual: null, github: '仕様のIssueの担当が仕様を決め、仕様書に書いてIssueを閉じる' },
-  { test: /^期限超過/, manual: '割当のイテレーションを変えるか、完了にする', github: 'ProjectのIterationを変えるか、Issueを閉じてStatusをDoneにする' },
-  { test: /^前提(が|の)期限超過：/, manual: '前提を完了するか、前提の割当を変える', github: '前提のIterationを変えるか、前提を閉じる' },
-  { test: /^作業中なのに担当者がいない/, manual: '担当者を設定する', github: 'Projectの「担当」を設定する' },
-  { test: /^作業中なのに前提が未完了/, manual: '作業を未着手に戻す、前提を完了する、または依存関係を修正する', github: 'StatusをTodoに戻す、前提を閉じる、またはblocked byを修正する' },
+// 要対応の理由を、専門用語を使わない短い言葉にする。何をするかは書かない（理由が分かれば、人が決められる）。
+const LABELS = [
+  [/^判断待ち：/, '判断待ち'],
+  [/^待ち：/, '待ち'],
+  [/^状態が未確認：Projectに未登録/, 'Project未登録'],
+  [/^状態が未確認/, '状態が不明'],
+  [/^仕様待ち：/, '仕様待ち'],
+  [/^期限超過/, '期限切れ'],
+  [/^前提(が|の)期限超過：/, '前提が期限切れ'],
+  [/^作業中なのに担当者がいない/, '担当なし'],
+  [/^作業中なのに前提が未完了/, '前提が未完了'],
 ];
-export const FALLBACK_RELIEF = '当たった条件を解消する';
-export const APPROVAL_RELIEF = 'GitHubでPRを確認し、承認する。直すなら、コメントで差し戻す';
+export const FALLBACK_LABEL = '要確認';
 // 「あなたの担当」に入れる作業のまとまり。要対応と前提待ち、完了は入れない（要対応は別のまとまりに出す）。
 export const MINE_GROUPS = ['active', 'review', 'ready-now', 'ready-later'];
 
-// kind は 'manual' か 'github'。条件が残る限り要対応のままなので、条件を解消する操作だけを示す。
-export function reliefFor(reason, kind) {
-  const entry = RELIEF.find(item => item.test.test(reason));
-  return entry?.[kind] ?? FALLBACK_RELIEF;
+export function labelFor(reason) {
+  return LABELS.find(([test]) => test.test(reason))?.[1] ?? FALLBACK_LABEL;
 }
 
 // 手動計画の「期限超過（N日）」から、期間が終わった日を求める。
@@ -50,32 +44,20 @@ export function orderAttention(items) {
     }).map(({ item }) => item);
 }
 
-export function attentionRow({ nameHtml, metaHtml, reasons }, kind) {
-  const list = reasons.map(reason => `<li><span class="attention-reason">${esc(reason)}</span><span class="attention-relief">解除：${esc(reliefFor(reason, kind))}</span></li>`).join('');
-  return `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}<ul class="attention-reasons">${list}</ul></div><div class="my-work-meta">${metaHtml}</div></li>`;
-}
-const approvalRow = pr => `<li class="my-work-row attention-row"><div class="my-work-main"><a class="issue-name" href="${esc(pr.url)}" target="_blank" rel="noopener noreferrer">#${pr.number} ${esc(pr.title)}</a><ul class="attention-reasons"><li><span class="attention-relief">承認：${esc(APPROVAL_RELIEF)}</span></li></ul></div></li>`;
-const mineRow = ({ nameHtml, metaHtml, label }) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}<ul class="attention-reasons"><li><span class="attention-state">${esc(label)}</span></li></ul></div><div class="my-work-meta">${metaHtml}</div></li>`;
+const row = (nameHtml, label) => `<li class="my-work-row attention-row"><div class="my-work-main">${nameHtml}${label ? `<span class="attention-label">${esc(label)}</span>` : ''}</div></li>`;
+const prLink = pr => `<a class="issue-name" href="${esc(pr.url)}" target="_blank" rel="noopener noreferrer">#${pr.number} ${esc(pr.title)}</a>`;
 
-const NOTES = {
-  manual: '手動の計画は、ツール内で操作して解除します。前提待ちは含みません。',
-  github: 'GitHubの計画は読み取り専用です。GitHub上で変更し、「GitHubを再取得」で反映します。前提待ちは含みません。',
-};
-const section = (id, title, count, body, extra = '') => `<section class="my-work-section ${extra}" data-attention-section="${id}"><h3>${esc(title)} <span class="my-work-count">${count}件</span></h3><ul class="my-work-list">${body}</ul></section>`;
-
-// model：{ approvals: [{number, title, url}] | null, owners: [名前], me: 名前 | null, mine: [{nameHtml, metaHtml, label}], items: [要対応の行] }
+// model：{ approvals: [{number, title, url}] | null, owners: [名前], me: 名前 | null, mine: [{nameHtml}], items: [{nameHtml, reasons, endedOn}] }
 export function attentionCount(model) {
   return (model.approvals?.length ?? 0) + model.mine.length + model.items.length;
 }
-export function attentionPanelMarkup(model, kind) {
-  const items = orderAttention(model.items), approvals = model.approvals ?? [];
+// 順は、承認待ちのPR → 要対応（期限切れの古い順）→「あなた」の担当。
+export function attentionPanelMarkup(model) {
   const chips = model.owners.length ? `<div class="owner-filter attention-me" role="group" aria-label="あなたの担当者名"><span class="attention-me-label">あなた：</span>${model.owners.map(owner => `<button type="button" class="owner-choice" data-attention-me="${esc(owner)}" aria-pressed="${owner === model.me}">${esc(owner)}</button>`).join('')}</div>` : '';
-  const head = `<div class="attention-head"><h2>手が要る作業 <span class="my-work-count">${attentionCount(model)}件</span></h2><p class="footnote">${esc(NOTES[kind])}</p></div>${chips}`;
-  const parts = [];
-  if (approvals.length) parts.push(section('approvals', '承認待ちのPR', approvals.length, approvals.map(approvalRow).join(''), 'needs-action'));
-  if (model.me) parts.push(model.mine.length ? section('mine', `${model.me}の担当`, model.mine.length, model.mine.map(mineRow).join('')) : `<p class="empty-message">${esc(model.me)}の未完了の作業はありません。</p>`);
-  else if (model.owners.length) parts.push('<p class="footnote">「あなた」の担当者名を選ぶと、その人が担当の未完了の作業を表示します。</p>');
-  if (items.length) parts.push(section('attention', '要対応', items.length, items.map(item => attentionRow(item, kind)).join(''), 'needs-action'));
-  if (!approvals.length && !items.length && !model.mine.length) parts.push('<p class="empty-message">手が要る作業はありません。</p>');
-  return head + parts.join('');
+  const rows = [
+    ...(model.approvals ?? []).map(pr => row(prLink(pr), '承認待ち')),
+    ...orderAttention(model.items).map(item => row(item.nameHtml, [...new Set(item.reasons.map(labelFor))].join('・'))),
+    ...model.mine.map(item => row(item.nameHtml, '担当')),
+  ];
+  return chips + (rows.length ? `<section class="my-work-section needs-action"><ul class="my-work-list">${rows.join('')}</ul></section>` : '<p class="empty-message">手が要る作業はありません。</p>');
 }

@@ -27,24 +27,16 @@ export function githubTaskRows(tasks, context = true, projectId = null) {
 export function githubAttentionItems(snapshot, today = todayInTokyo()) {
   const work = githubMyWork(snapshot, { all: true }, today);
   if (!work) return null;
-  return (work.sections.find(section => section.id === 'action')?.tasks ?? []).map(({ task: t, reasons }) => {
-    const endedOn = t.projects.map(p => p.iteration).filter(i => i && githubIterationLastDay(i) < today).map(githubIterationLastDay).sort()[0] || null;
-    const owners = t.projects.length ? t.projects.map(p => `${t.projects.length > 1 ? esc(p.title) + '：' : ''}${esc(p.owner ?? '担当未設定')}`).join(' / ') : 'Project未登録';
-    const iteration = taskIteration(t), end = iteration && githubIterationLastDay(iteration);
-    const deadline = iteration ? `${esc(iteration.title)} · ${shortDate(end)}まで` : '期間未設定';
-    return { endedOn, reasons, nameHtml: itemButton(t),
-      metaHtml: `<span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span><span class="task-deadline ${endedOn ? 'overdue' : iteration ? '' : 'unknown'}">${deadline}</span>` };
-  });
+  return (work.sections.find(section => section.id === 'action')?.tasks ?? []).map(({ task: t, reasons }) => ({
+    reasons, nameHtml: itemButton(t),
+    endedOn: t.projects.map(p => p.iteration).filter(i => i && githubIterationLastDay(i) < today).map(githubIterationLastDay).sort()[0] || null,
+  }));
 }
-// ③ あなたの担当：担当者が owner の未完了の作業（要対応と前提待ちを除く）を、まとまりの名前つきで取り出す。
+// ③ あなたの担当：担当者が owner の未完了の作業（要対応と前提待ちを除く）。
 export function githubMineItems(snapshot, owner, today = todayInTokyo()) {
   const work = githubMyWork(snapshot, { owner }, today);
   if (!work) return [];
-  return work.sections.filter(section => MINE_GROUPS.includes(section.id)).flatMap(section => section.tasks.map(({ task: t }) => {
-    const iteration = taskIteration(t), end = iteration && githubIterationLastDay(iteration);
-    return { label: section.title, nameHtml: itemButton(t),
-      metaHtml: `<span class="task-deadline ${iteration ? '' : 'unknown'}">${iteration ? `${esc(iteration.title)} · ${shortDate(end)}まで` : '期間未設定'}</span>` };
-  }));
+  return work.sections.filter(section => MINE_GROUPS.includes(section.id)).flatMap(section => section.tasks.map(({ task: t }) => ({ nameHtml: itemButton(t) })));
 }
 export function githubOwners(snapshot) {
   return [...new Set((githubPlan(snapshot)?.tasks || []).flatMap(t => t.projects.length ? t.projects.map(p => p.owner) : [null]))];
