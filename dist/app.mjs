@@ -352,7 +352,6 @@ function render() {
   state = project?.data || null;
   const status = store.status();
   $('#storage-label').textContent = cloudMode ? (status.readOnly ? '保存を停止' : 'クラウド保存') : 'ブラウザ保存';
-  $('.storage-scope').textContent = cloudMode ? `同じChatGPTアカウントで開くPC・スマートフォンに共有します。最新データは読込時に取得し、保存が確認できるまで変更を反映しません。GitHubへの書込はありません。${status.updatedAt ? ` 最終保存：${utcTime(status.updatedAt)}` : ''}` : 'このブラウザ・このURLの保存領域に保存します。サーバーやGitHubへの同期はありません。ブラウザのデータ削除で失われるため、必要なデータは書き出してください。';
   $('#bug-reporting-link').hidden = cloudMode;
   $('#migrate-workspace').hidden = !cloudMode;
   $('#prepared-workspace').hidden = !cloudMode;
@@ -380,7 +379,6 @@ function render() {
     }).join('')}</div>` : `<div class="workspace-empty"><h2>管理するプロジェクトを登録</h2><p>複数のプロジェクトを個別に登録できます。ローカルでは、PROGRESS_GITHUB_REPOSで指定したrepositoryの目標・作業・期間・リリースを既存ghから自動取得します。手動の計画も別に入力できます。</p>${button('プロジェクトを登録', 'add-project', '', true)}</div>`;
     disableEditing(); return;
   }
-  $('#estimate-scope').textContent = `割合は登録した計画作業の見積ベースの完了率です。製品全体の成熟度ではありません。${hasProvisional(state.tasks) ? ' 仮見積を含む割合は暫定です。' : ''}`;
   $('#project-meta').innerHTML = `${project.repositoryUrl ? `<a href="${escape(project.repositoryUrl)}" target="_blank" rel="noopener noreferrer">${escape(project.repositoryUrl.replace('https://github.com/', ''))}</a>` : 'repository未登録'} · プロジェクトID：${escape(project.id)}`;
   $('#goal-list').innerHTML = state.goals.length ? `<div class="goal-list">${state.goals.map(goal => button(goal.title, 'overview', goal.id)).join('')}</div>` : '<p class="empty-message">目標未登録。「登録・取込」から目標を登録し、その目標の作業を追加します。</p>';
   $('#github-planning').innerHTML = renderGithubPlanning(project);

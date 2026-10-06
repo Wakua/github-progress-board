@@ -53,7 +53,6 @@ try {
  const row = page.locator(`[data-period-task="${review.id}"]`);
  assert.match(await row.innerText(), /完了条件 100%/); assert.match(await row.innerText(), /確認待ち/);
  assert.match(await row.innerText(), /仮見積/);
- assert.match(await page.locator('#estimate-scope').innerText(), /暫定/);
  assert.match(await page.locator('.period-goal-progress').first().innerText(), /暫定/);
  await page.screenshot({ path: path.join(artifacts, '02-phone-progress.png'), fullPage: true, style: "#toast { visibility: hidden !important; }" });
  assert.equal(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth), true);
