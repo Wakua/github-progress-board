@@ -1,10 +1,11 @@
 import { githubPlan, githubProgress, githubModules } from './github-planning.mjs';
 import { githubMyWork, taskIteration, githubIterationLastDay } from './github-work.mjs';
 import { todayInTokyo } from './engine.mjs';
+import { MINE_GROUPS } from './attention.mjs';
 const shortDate = date => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const link = (url, label) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
-const itemButton = i => `<button class="issue-name" data-action="github-item" data-id="issue:${i.number}">#${i.number} ${esc(i.item.title)}</button>`;
+export const itemButton = i => `<button class="issue-name" data-action="github-item" data-id="issue:${i.number}">#${i.number} ${esc(i.item.title)}</button>`;
 export const moduleName = module => module?.kind === 'assigned' ? module.name : ({ unassigned: 'モジュール未分類', unfetched: 'モジュール情報未取得' })[module?.kind] ?? 'モジュール情報未取得';
 const points = value => Number(value.toPrecision(12)) + 'pt';
 export function githubProgressMarkup(tasks, title, projectId = null) {
@@ -21,6 +22,21 @@ export const iterationEnd = i => new Date(Date.parse(i.startDate + 'T00:00:00Z')
 const projectMeta = p => `${esc(p.owner ?? '担当未設定')} · ${esc(p.status ?? 'Status未設定')} · ${p.estimatePoints === null ? 'Estimate未設定' : p.estimatePoints + 'pt'} · ${p.iteration ? esc(p.iteration.title) : '期間未設定'}`;
 export function githubTaskRows(tasks, context = true, projectId = null) {
   return `<ul class="my-work-list">${tasks.map(t => `<li class="my-work-row" data-github-task="${t.number}"><div class="my-work-main">${itemButton(t)}${context ? `<p class="footnote">${esc(moduleName(t.module))} · ${t.goal ? esc(t.goal.item.title) : t.parent ? '親Issueは別repository' : '目標なし・単独Issue'}</p>` : ''}<div class="github-project-meta">${(projectId ? t.projects.filter(p => p.id === projectId) : t.projects).length ? (projectId ? t.projects.filter(p => p.id === projectId) : t.projects).map(p => `<p>${t.projects.length > 1 ? esc(p.title) + '：' : ''}${projectMeta(p)}</p>`).join('') : '<p>Project未登録</p>'}</div></div><span class="github-state">${t.item.state === 'closed' ? 'Closed' : 'Open'}</span></li>`).join('')}</ul>`;
+}
+// ③ 要対応：githubMyWork の「要対応」を、期間が終わった日つきで取り出す。計画情報がなければ null。
+export function githubAttentionItems(snapshot, today = todayInTokyo()) {
+  const work = githubMyWork(snapshot, { all: true }, today);
+  if (!work) return null;
+  return (work.sections.find(section => section.id === 'action')?.tasks ?? []).map(({ task: t, reasons }) => ({
+    reasons, nameHtml: itemButton(t),
+    endedOn: t.projects.map(p => p.iteration).filter(i => i && githubIterationLastDay(i) < today).map(githubIterationLastDay).sort()[0] || null,
+  }));
+}
+// ③ あなたの担当：担当者が owner の未完了の作業（要対応と前提待ちを除く）。
+export function githubMineItems(snapshot, owner, today = todayInTokyo()) {
+  const work = githubMyWork(snapshot, { owner }, today);
+  if (!work) return [];
+  return work.sections.filter(section => MINE_GROUPS.includes(section.id)).flatMap(section => section.tasks.map(({ task: t }) => ({ nameHtml: itemButton(t) })));
 }
 export function githubOwners(snapshot) {
   return [...new Set((githubPlan(snapshot)?.tasks || []).flatMap(t => t.projects.length ? t.projects.map(p => p.owner) : [null]))];
