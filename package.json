@@ -1,5 +1,6 @@
 {
   "name": "github-progress-board",
+  "version": "0.1.0",
   "license": "MIT",
   "private": true,
   "type": "module",
@@ -7,13 +8,16 @@
     "start": "node server.mjs",
     "test": "node --test tests/*.test.mjs",
     "test:browser": "node tests/browser-qa.mjs && node tests/snapshot-browser-qa.mjs && node tests/local-github-browser-qa.mjs && node tests/iteration-browser-qa.mjs && node tests/planning-browser-qa.mjs",
-    "check": "node --check dist/app.mjs && node --check dist/engine.mjs && node --check dist/workspace.mjs && node --check dist/github-snapshot.mjs && node --check dist/local-github.mjs && node --check server.mjs && node --check scripts/fetch-github-snapshot.mjs && node --check scripts/local-github-refresh.mjs && node --check tests/browser-qa.mjs && node --check tests/snapshot-browser-qa.mjs && node --check tests/iteration-browser-qa.mjs && node --check tests/local-github-browser-qa.mjs && node --check dist/cloud-workspace.mjs && node --check server/worker.mjs && node --check server/cloud-db.mjs && node --check scripts/build-cloud.mjs && node --check dist/progress-tools.mjs && node --check tests/cloud-browser-qa.mjs && node --check tests/cloud-preview.mjs && node --check tests/cloud-fixtures.mjs && node --check dist/estimate-proposals.mjs && node --check server/mcp.mjs && node --check server/mcp-schemas.mjs && node --check server/progress-mcp.mjs && node --check server/progress-update.mjs && node --check server/snapshot-mcp.mjs && node --check tests/prepared-browser-qa.mjs && node --check tests/estimate-browser-qa.mjs && node --check tests/planning-browser-qa.mjs && node --check dist/github-planning.mjs && node --check dist/github-planning-view.mjs && node --check dist/github-work.mjs && node --check scripts/github-planning-fetch.mjs",
+    "check": "node --check dist/app.mjs && node --check dist/engine.mjs && node --check dist/workspace.mjs && node --check dist/github-snapshot.mjs && node --check dist/local-github.mjs && node --check server.mjs && node --check scripts/fetch-github-snapshot.mjs && node --check scripts/local-github-refresh.mjs && node --check tests/browser-qa.mjs && node --check tests/snapshot-browser-qa.mjs && node --check tests/iteration-browser-qa.mjs && node --check tests/local-github-browser-qa.mjs && node --check dist/cloud-workspace.mjs && node --check server/worker.mjs && node --check server/cloud-db.mjs && node --check scripts/build-cloud.mjs && node --check dist/progress-tools.mjs && node --check tests/cloud-browser-qa.mjs && node --check tests/cloud-preview.mjs && node --check tests/cloud-fixtures.mjs && node --check dist/estimate-proposals.mjs && node --check server/mcp.mjs && node --check server/mcp-schemas.mjs && node --check server/progress-mcp.mjs && node --check server/progress-update.mjs && node --check server/snapshot-mcp.mjs && node --check tests/prepared-browser-qa.mjs && node --check tests/estimate-browser-qa.mjs && node --check tests/planning-browser-qa.mjs && node --check dist/github-planning.mjs && node --check dist/github-planning-view.mjs && node --check dist/github-work.mjs && node --check scripts/github-planning-fetch.mjs && node --check scripts/check-screenshots.mjs && node scripts/check-screenshots.mjs && node --check server/bug-store.mjs && node --check server/bug-api.mjs && node --check server/bug-github-client.mjs && node --check server/bug-github-worker.mjs && node --check scripts/bug-users.mjs && node --check dist/bugs/app.mjs && node --check dist/bugs/view.mjs && node --check tests/bug-confirmation.test.mjs && node --check tests/bug-github-view.test.mjs && node --check tests/bug-github.test.mjs && node --check tests/bug-reporting-form.test.mjs && node --check tests/bug-reporting.test.mjs && node --check tests/bug-reporting-browser-qa.mjs",
     "build": "node scripts/build-cloud.mjs",
     "db:generate": "drizzle-kit generate",
     "test:cloud:browser": "node tests/cloud-browser-qa.mjs",
     "preview:cloud": "node tests/cloud-preview.mjs",
     "test:prepared:browser": "node tests/prepared-browser-qa.mjs",
-    "test:estimates:browser": "node tests/estimate-browser-qa.mjs"
+    "test:estimates:browser": "node tests/estimate-browser-qa.mjs",
+    "bug:init": "node scripts/bug-users.mjs init",
+    "bug:settings": "node scripts/bug-users.mjs",
+    "test:bugs:browser": "node tests/bug-reporting-browser-qa.mjs"
   },
   "devDependencies": {
     "drizzle-kit": "0.31.11",

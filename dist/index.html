@@ -5,11 +5,11 @@
   <title>今日の進捗 — プロジェクト</title>
   <meta name="description" content="プロジェクトごとの次の作業、要対応、確認待ちを把握する進捗管理ツール。">
   <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%232746c7'/%3E%3Cpath d='M9 16l5 5 10-11' fill='none' stroke='white' stroke-width='3'/%3E%3C/svg%3E">
-  <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="dark.css"><link rel="stylesheet" href="goals.css"><link rel="stylesheet" href="list.css"><link rel="stylesheet" href="projects.css"><link rel="stylesheet" href="my-work.css"><link rel="stylesheet" href="github-planning.css"><script type="module" src="app.mjs"></script>
+  <link rel="stylesheet" href="style.css"><link rel="stylesheet" href="dark.css"><link rel="stylesheet" href="goals.css"><link rel="stylesheet" href="list.css"><link rel="stylesheet" href="projects.css"><link rel="stylesheet" href="my-work.css"><link rel="stylesheet" href="github-planning.css"><link rel="stylesheet" href="attention.css"><script type="module" src="app.mjs"></script>
 </head>
 <body>
   <div class="app">
-    <header class="topbar"><a class="brand" href="./" aria-label="今日の進捗 ホーム"><span class="brand-mark" aria-hidden="true">✓</span>今日の進捗</a><span class="sample-label" id="storage-label">ブラウザ保存</span></header>
+    <header class="topbar"><a class="brand" href="./" aria-label="今日の進捗 ホーム"><span class="brand-mark" aria-hidden="true">✓</span>今日の進捗</a><span class="sample-label" id="storage-label">ブラウザ保存</span><a id="bug-reporting-link" class="button" href="/bugs/">バグ報告</a></header>
     <main>
       <div class="workspace-toolbar"><label class="field">表示するプロジェクト<select id="project-switch"><option value="">全体一覧</option></select></label><div class="actions"><button class="button primary" data-action="prepared-workspace" id="prepared-workspace" hidden>用意済みの3プロジェクトを取り込む</button><button class="button secondary" data-action="prepared-estimates" id="prepared-estimates" hidden>未入力の見積を登録</button><button class="button secondary" data-action="manage">登録・取込</button><button class="button secondary" data-action="migrate-workspace" id="migrate-workspace" hidden>ブラウザ保存から移行</button><button class="text-button" id="refresh-cloud" hidden>最新データを読み込む</button><button class="text-button" id="export-workspace">データを書き出す</button><button class="text-button" id="export-cloud-backup" hidden>保存データ・変更候補を退避</button></div></div>
       <section id="storage-warning" class="storage-warning" role="alert" hidden><p id="storage-problem"></p><div class="actions"><button class="button secondary" id="recover-backup" hidden>バックアップから復旧</button><label id="recovery-file-label" class="field" hidden>復旧用JSONを読み込む<input id="recovery-file" type="file" accept="application/json,.json"></label><button class="text-button" id="export-raw">保存データを退避</button><button class="text-button" id="reload-workspace">再読み込み</button></div></section>
@@ -18,8 +18,10 @@
       <section id="project-detail" hidden aria-label="選択したプロジェクト">
       <p id="project-meta" class="footnote"></p><p class="footnote" id="estimate-scope"></p>
       <section id="approval-queue" class="approval-queue" aria-label="承認待ちのPR"></section>
-      <div class="view-tabs" role="tablist" aria-label="表示する画面"><button type="button" role="tab" class="view-tab" id="tab-my-work" data-view="my-work" aria-controls="my-work-panel">自分の作業</button><button type="button" role="tab" class="view-tab" id="tab-iterations" data-view="iterations" aria-controls="iterations-panel">イテレーション</button></div>
+      <div class="view-tabs" role="tablist" aria-label="表示する画面"><button type="button" role="tab" class="view-tab" id="tab-my-work" data-view="my-work" aria-controls="my-work-panel">自分の作業</button><button type="button" role="tab" class="view-tab" id="tab-iterations" data-view="iterations" aria-controls="iterations-panel">イテレーション</button><button type="button" role="tab" class="view-tab" id="tab-attention" data-view="attention" aria-controls="attention-panel">要対応</button><button type="button" role="tab" class="view-tab" id="tab-release" data-view="release" aria-controls="release-panel" hidden>リリース</button></div>
       <section id="my-work-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-my-work"></section>
+      <section id="attention-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-attention" hidden></section>
+      <section id="release-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-release" hidden></section>
       <div id="iterations-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-iterations">
       <section id="github-planning" class="github-snapshot" aria-label="GitHubの計画"></section>
       <section id="manual-periods"><h2 class="manual-heading">手動の目標・作業</h2>

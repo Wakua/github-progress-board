@@ -1,6 +1,8 @@
 import { githubPlan } from './github-planning.mjs';
-import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree } from './github-planning-view.mjs';
-import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork } from './engine.mjs';
+import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems, githubMineItems } from './github-planning-view.mjs';
+import { releaseSummaries, releasePanelMarkup } from './release.mjs';
+import { attentionPanelMarkup, attentionCount, manualEndedOn, MINE_GROUPS } from './attention.mjs';
+import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
 import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision } from './workspace.mjs';
 import { MAX_IMPORT_BYTES, parseSnapshotImport, repositoryKey, snapshotAge, githubStateLabel, approvalQueue, approvalState, APPROVAL_LIMIT } from './github-snapshot.mjs';
 import { createLocalGithubClient, applyRefreshedSnapshot, localRepositoryKey, isLocalRuntime, REFRESH_INTERVAL_MS } from './local-github.mjs';
@@ -37,7 +39,8 @@ function readView() {
 function writeView(change) {
   try { storage.setItem(VIEW_KEY, JSON.stringify({ ...readView(), ...change })); } catch { /* 保存できなくても表示は切り替える */ }
 }
-let viewTab = readView().tab === 'iterations' ? 'iterations' : 'my-work';
+const attentionMe = new Map(Object.entries(readView().attentionMe || {}).filter(([, value]) => typeof value === 'string'));
+let viewTab = ['iterations', 'attention', 'release'].includes(readView().tab) ? readView().tab : 'my-work';
 // 担当者の絞り込みは { all: true } か { owner: 担当者名 | null（未担当） }。担当者名と「全員」が衝突しないように種類で分ける。
 const validOwnerFilter = value => value && typeof value === 'object' && (value.all === true || typeof value.owner === 'string' || value.owner === null);
 const githubDisclosures = new Map();
@@ -289,14 +292,51 @@ function renderApprovalQueue(project) {
   const list = queue.items.length ? `<ul class="approval-items">${queue.items.map(item => `<li><a href="${escape(item.url)}" target="_blank" rel="noopener noreferrer">#${item.number}</a><span>${escape(item.title)}</span><small>${escape(githubStateLabel(item))}</small></li>`).join('')}</ul>` : '';
   return `<div class="approval-head"><h2>承認待ちのPR <strong class="${queue.full ? 'full' : ''}">${queue.items.length}件</strong> <small>上限${queue.limit}件</small></h2>${snapshotAgeMarkup(project.githubSnapshot)}</div>${status}${list}`;
 }
+// ③ 要対応：手動計画とGitHubの計画のどちらも、同じ判定（要対応のまとまり）を使う。
+function attentionView(project) {
+  const snapshot = project.githubSnapshot, today = todayInTokyo();
+  const requested = attentionMe.get(project.id) ?? null;
+  if (githubPlan(snapshot)) {
+    const owners = githubOwners(snapshot).filter(Boolean).sort((x, y) => x.localeCompare(y, 'ja'));
+    const me = owners.includes(requested) ? requested : null;
+    const queue = approvalQueue(snapshot);
+    return { kind: 'github', model: { approvals: queue ? queue.items.map(({ number, title, url }) => ({ number, title, url })) : [], owners, me,
+      mine: me ? githubMineItems(snapshot, me, today) : [], items: githubAttentionItems(snapshot, today) || [] } };
+  }
+  if (snapshot || localRepositoryKey(project.repositoryUrl)) return { kind: 'github', model: null };
+  const owners = [...new Set(orderedTasks(state).filter(task => task.status !== 'done').map(taskOwner).filter(Boolean))].sort((x, y) => x.localeCompare(y, 'ja'));
+  const me = owners.includes(requested) ? requested : null;
+  const action = myWork(state, undefined, today).sections.find(section => section.id === 'action');
+  const mine = me ? myWork(state, me, today).sections.filter(section => MINE_GROUPS.includes(section.id)).flatMap(section => section.tasks.map(({ task }) => ({
+    nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>` }))) : [];
+  return { kind: 'manual', model: { approvals: null, owners, me, mine, items: (action?.tasks ?? []).map(({ task, reasons }) => ({
+    reasons, endedOn: manualEndedOn(reasons, today),
+    nameHtml: `<button class="issue-name" data-action="task" data-id="${escape(task.id)}">${escape(task.title)}</button>`,
+  })) } };
+}
+function renderAttention(project) {
+  const view = attentionView(project);
+  if (!view.model) return '<p class="empty-message">GitHubの計画情報は未取得です。取得すると、手が要る作業を表示します。</p>';
+  return attentionPanelMarkup(view.model);
+}
 function renderViewTabs(project) {
+  const hasRelease = !!githubPlan(project.githubSnapshot);
+  $('#tab-release').hidden = !hasRelease;
+  if (!hasRelease && viewTab === 'release') viewTab = 'my-work';
   for (const tab of document.querySelectorAll('.view-tab')) {
     const selected = tab.dataset.view === viewTab;
     tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
   }
   $('#my-work-panel').hidden = viewTab !== 'my-work';
   $('#iterations-panel').hidden = viewTab !== 'iterations';
+  $('#attention-panel').hidden = viewTab !== 'attention';
+  $('#release-panel').hidden = viewTab !== 'release';
+  if (hasRelease) $('#release-panel').innerHTML = releasePanelMarkup(releaseSummaries(project.githubSnapshot));
+  $('#approval-queue').hidden = viewTab === 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
+  const attention = attentionView(project), count = attention.model ? attentionCount(attention.model) : 0;
+  $('#tab-attention').innerHTML = `要対応${count ? `<span class="tab-count">${count}</span>` : ''}`;
+  $('#attention-panel').innerHTML = renderAttention(project);
 }
 function selectView(view, focus = false) {
   viewTab = view; writeView({ tab: view }); render();
@@ -312,6 +352,7 @@ function render() {
   const status = store.status();
   $('#storage-label').textContent = cloudMode ? (status.readOnly ? '保存を停止' : 'クラウド保存') : 'ブラウザ保存';
   $('.storage-scope').textContent = cloudMode ? `同じChatGPTアカウントで開くPC・スマートフォンに共有します。最新データは読込時に取得し、保存が確認できるまで変更を反映しません。GitHubへの書込はありません。${status.updatedAt ? ` 最終保存：${utcTime(status.updatedAt)}` : ''}` : 'このブラウザ・このURLの保存領域に保存します。サーバーやGitHubへの同期はありません。ブラウザのデータ削除で失われるため、必要なデータは書き出してください。';
+  $('#bug-reporting-link').hidden = cloudMode;
   $('#migrate-workspace').hidden = !cloudMode;
   $('#prepared-workspace').hidden = !cloudMode;
   $('#prepared-estimates').hidden = !cloudMode;
@@ -1005,9 +1046,19 @@ document.querySelector('.view-tabs').addEventListener('click', event => {
 });
 document.querySelector('.view-tabs').addEventListener('keydown', event => {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || busy || !state) return;
-  const tabs = [...document.querySelectorAll('.view-tab')], index = tabs.findIndex(tab => tab.dataset.view === viewTab);
+  const tabs = [...document.querySelectorAll('.view-tab:not([hidden])')], index = tabs.findIndex(tab => tab.dataset.view === viewTab);
   const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
   event.preventDefault(); selectView(tabs[next].dataset.view, true);
+});
+$('#release-panel').addEventListener('click', event => {
+  const go = event.target.closest('[data-view-go]'); if (go && !busy && state) selectView(go.dataset.viewGo);
+});
+$('#attention-panel').addEventListener('click', event => {
+  const choice = event.target.closest('[data-attention-me]'); if (!choice || busy || !state) return;
+  const owner = choice.dataset.attentionMe, id = workspace.selectedProjectId;
+  if (attentionMe.get(id) === owner) attentionMe.delete(id); else attentionMe.set(id, owner);
+  writeView({ attentionMe: Object.fromEntries(attentionMe) }); render();
+  [...document.querySelectorAll('[data-attention-me]')].find(button => button.dataset.attentionMe === owner)?.focus();
 });
 $('#my-work-panel').addEventListener('click', event => {
   const choice = event.target.closest('[data-owner-filter]'); if (!choice || busy || !state) return;
