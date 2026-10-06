@@ -1,6 +1,7 @@
 # バグ報告ツールのロードマップ
 
-最初の運用目標と開発段階は[親Issue #11](https://github.com/Wakua/github-progress-board/issues/11)で管理する。採用済みの動作と操作範囲は[仕様と運用](bug-reporting.md)、要求と応答は[API仕様](bug-reporting-api.md)に従う。
+最初の運用目標と開発段階は[親Issue #11](https://github.com/Wakua/github-progress-board/issues/11)で管理する。
+採用済みの動作と操作範囲は[仕様と運用](bug-reporting.md)、要求と応答は[API仕様](bug-reporting-api.md)に従う。
 
 ## Issueとの対応
 
@@ -22,8 +23,4 @@
 | 進行状態と担当・Iteration・Estimate | GitHub Project |
 | 採用済みの動作 | 仕様と運用 |
 
-観察資料と画面記録はGit管理外の `references/` に保存する。公開ソースへ試作の報告、実際の報告者情報、添付本体を含めない。
-
-## 履歴
-
-- 2026-10-05: 公開版のIssueを管理先とし、公開対象から観察資料と実データを除外した。
+観察資料の保存は[UI設計の規則](../AGENTS.md#ui設計)、公開する内容は[公開対象](development.md#公開対象)に従う。

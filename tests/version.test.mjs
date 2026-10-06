@@ -12,7 +12,7 @@ test('版は 0.<Milestone>.<修正> の形で、package.jsonとpackage-lock.json
   assert.equal(lock.name, pkg.name);
 });
 
-test('READMEの「バージョン」に現在の版が書かれている', () => {
-  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
-  assert.ok(readme.includes(`現在の版は \`${pkg.version}\``), 'READMEの現在の版がpackage.jsonと違う');
+test('開発文書の「バージョン」に現在の版が書かれている', () => {
+  const development = readFileSync(new URL('../docs/development.md', import.meta.url), 'utf8');
+  assert.ok(development.includes(`現在の版は \`${pkg.version}\``), '開発文書の現在の版がpackage.jsonと違う');
 });

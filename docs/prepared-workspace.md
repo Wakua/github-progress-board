@@ -2,20 +2,22 @@
 
 ## 対象と操作
 
-クラウド画面の「用意済みの3プロジェクトを取り込む」から、同梱のサンプル記録（架空）を確認して追加する。原本は[samples/prepared-workspace.json](../samples/prepared-workspace.json)にある。現在のGitHub状態や本番workspaceを表すデータとして扱わない。
+クラウド画面の「用意済みの3プロジェクトを取り込む」から、同梱のサンプル記録（架空）を確認して追加する。
+原本は[samples/prepared-workspace.json](../samples/prepared-workspace.json)にある。
+現在のGitHub状態や本番workspaceを表すデータとして扱わない。
 
-プレビューは保存しない。「確認してクラウドに追加」で、現在の本人workspaceへ不足するプロジェクトを追加する。同じID・同じ内容は保持し、同じID・異なる内容は全件停止する。同じrepositoryでもIDが異なれば別プロジェクトとして扱う。
+プレビューは保存しない。
+「確認してクラウドに追加」で、現在の本人workspaceへ不足するプロジェクトを追加する。
+追加時のID・repositoryの照合は[移行の条件](cloud-workspace.md#既存ブラウザ保存を移す)に従う。
 
 原本はソースに保持されるため、この取込にはファイルのダウンロード・アップロードやバックアップ確認を要求しない。通常のブラウザ保存の移行には、[共有保存の移行手順](cloud-workspace.md#既存ブラウザ保存を移す)を使う。
 
 ## 保存と実装
 
-既存のmigrationPlan、認証、version条件、保存確認を使う。履歴・失敗・競合時の扱いは[共有保存](cloud-workspace.md#採用済み仕様)に従う。取込後のGitHub状態を自動で手動計画へ写さない。
+既存のmigrationPlan、認証、version条件、保存確認を使う。
+履歴・失敗・競合時の扱いは[共有保存](cloud-workspace.md#採用済み仕様)に従う。
+取込後のGitHub状態は[snapshotの仕様](specification.md#採用済み仕様読み取り専用github-snapshot)に従う。
 
-ビルドは原本workspace JSONを内容を変えずprepared-workspace.jsonへコピーし、Workerの認証境界内で配信する。取得結果は開いたパネルと読込順序を照合し、閉じたパネルや別の移行へ流用しない。取得失敗時は保存せず、パネルを開き直して再確認できる。
-
-## 検証
-
-## 履歴
-
-- 2026-10-04: 公開差分を最新mainの画面へ統合した。
+ビルドは原本workspace JSONを内容を変えずprepared-workspace.jsonへコピーし、Workerの認証境界内で配信する。
+取得結果は開いたパネルと読込順序を照合し、閉じたパネルや別の移行へ流用しない。
+取得失敗時は保存せず、パネルを開き直して再確認できる。
