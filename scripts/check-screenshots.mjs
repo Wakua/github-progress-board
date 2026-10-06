@@ -24,12 +24,15 @@ export function jpegWidth(bytes) {
   return null;
 }
 
+export const isComplete = bytes => bytes.length >= 4 && bytes[bytes.length - 2] === 0xff && bytes[bytes.length - 1] === 0xd9;
 const kib = bytes => `${Math.ceil(bytes / 1024)}KiB`;
 
 export async function checkScreenshots(root) {
   const problems = [];
   let folders;
-  try { folders = await readdir(root, { withFileTypes: true }); } catch { return problems; }
+  try { folders = await readdir(root, { withFileTypes: true }); } catch (error) {
+    return error.code === 'ENOENT' ? problems : [`docs/screens: 読み取れない（${error.code ?? error.message}）`];
+  }
   let total = 0;
   for (const folder of folders) {
     const where = `docs/screens/${folder.name}`;
@@ -45,6 +48,7 @@ export async function checkScreenshots(root) {
       if (bytes.length > LIMITS.fileBytes) problems.push(`${label}: ${kib(bytes.length)}で、1枚${kib(LIMITS.fileBytes)}を超えている`);
       const width = jpegWidth(bytes);
       if (width === null) problems.push(`${label}: JPEGとして読めない`);
+      else if (!isComplete(bytes)) problems.push(`${label}: 途中で切れている（JPEGの終わりがない）`);
       else if (width > LIMITS.width) problems.push(`${label}: 幅${width}pxで、${LIMITS.width}pxを超えている`);
     }
     total += sum;

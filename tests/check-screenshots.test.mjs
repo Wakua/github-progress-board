@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, mkdir, writeFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { checkScreenshots, jpegWidth, LIMITS } from '../scripts/check-screenshots.mjs';
+import { checkScreenshots, jpegWidth, isComplete, LIMITS } from '../scripts/check-screenshots.mjs';
 
 // SOI + SOF0（幅だけを持つ最小のJPEG）。画像として表示できるかは検査しない。
 function jpeg(width, padding = 0) {
@@ -55,4 +55,22 @@ test('1作業の合計容量が上限を超えたら検出する', async t => {
   const problems = await checkScreenshots(root);
   assert.equal(problems.length, 1);
   assert.match(problems[0], /docs\/screens\/7: 合計.*1作業1024KiBを超えている/);
+});
+
+test('途中で切れたJPEGは、幅が読めても拒否する', async t => {
+  const whole = jpeg(800, 100);
+  assert.ok(isComplete(whole));
+  const cut = whole.subarray(0, whole.length - 20);
+  assert.equal(jpegWidth(cut), 800);
+  assert.ok(!isComplete(cut));
+  const root = await workspace(t, { '5/after-01-cut.jpg': cut });
+  assert.match((await checkScreenshots(root)).join('\n'), /after-01-cut\.jpg: 途中で切れている/);
+});
+
+test('存在しない場合だけ問題なしにし、フォルダーでないものは検査を失敗させる', async t => {
+  const root = await workspace(t, { 'file.txt': 'x' });
+  assert.deepEqual(await checkScreenshots(path.join(root, 'missing')), []);
+  const problems = await checkScreenshots(path.join(root, 'file.txt'));
+  assert.equal(problems.length, 1);
+  assert.match(problems[0], /docs\/screens: 読み取れない/);
 });
