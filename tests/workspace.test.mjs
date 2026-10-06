@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { createSample, setEstimate, setOwner, setIteration, setWait, setCriterion, transition, goalProgress, overdueTasks } from '../dist/engine.mjs';
 import { SCHEMA_VERSION, STORAGE_KEY, BACKUP_KEY, RECOVERY_KEY, emptyWorkspace, validateWorkspace, createWorkspaceStore,
-  registerProject, selectProject, updateProject, addGoal, addTask, setTaskCriteria, normalizeRepositoryUrl, issueIdentity, projectSummary, addDecision } from '../dist/workspace.mjs';
+  registerProject, selectProject, updateProject, addGoal, addTask, setTaskCriteria, normalizeRepositoryUrl, issueIdentity, projectSummary, addDecision, setApprovalLimit } from '../dist/workspace.mjs';
+import { projectApprovalLimit, APPROVAL_LIMIT } from '../dist/github-snapshot.mjs';
 import { myWork, resolveDecision } from '../dist/engine.mjs';
 
 class Storage {
@@ -350,4 +351,27 @@ test('判断待ちの登録は名前・2件以上の重複しない選択肢・�
   assert.equal(store.snapshot().projects[0].data.tasks.length, 1, '失敗した登録は保存しない');
   add({ decider: null });
   assert.equal(store.snapshot().projects[0].data.tasks.find(task => task.decisionId).owner, null);
+});
+
+test('承認待ちの上限はプロジェクトごとに保存し、未設定は既定の件数にする', () => {
+  const { store, storage } = twoProjects();
+  assert.deepEqual(store.snapshot().projects.map(projectApprovalLimit), [APPROVAL_LIMIT, APPROVAL_LIMIT], '未設定のプロジェクトは既定の件数');
+  store.transact(workspace => setApprovalLimit(workspace, 'alpha', 5));
+  assert.deepEqual(createWorkspaceStore(storage).snapshot().projects.map(projectApprovalLimit), [5, APPROVAL_LIMIT], 'alphaだけが変わり、再読み込み後も残る');
+  store.transact(workspace => setApprovalLimit(workspace, 'alpha', 99));
+  store.transact(workspace => setApprovalLimit(workspace, 'alpha', 1));
+  assert.equal(projectApprovalLimit(store.snapshot().projects[0]), 1, '1〜99の両端を保存できる');
+});
+
+test('承認待ちの上限は1〜99の整数だけを保存し、失敗した変更は反映しない', () => {
+  const { store } = twoProjects();
+  store.transact(workspace => setApprovalLimit(workspace, 'alpha', 5));
+  for (const value of [0, 100, -1, 1.5, NaN, '3', null, undefined]) {
+    assert.throws(() => store.transact(workspace => setApprovalLimit(workspace, 'alpha', value)), /1〜99の整数/, String(value));
+  }
+  assert.throws(() => store.transact(workspace => setApprovalLimit(workspace, 'missing', 3)), /プロジェクトが見つかりません/);
+  assert.equal(projectApprovalLimit(store.snapshot().projects[0]), 5);
+  const broken = store.snapshot();
+  broken.projects[0].approvalLimit = 0;
+  assert.throws(() => validateWorkspace(broken), /承認待ちの上限/, '保存済みデータの範囲外の上限も検出する');
 });

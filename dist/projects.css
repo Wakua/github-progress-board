@@ -75,6 +75,12 @@
 .approval-items li span { flex: 1 1 auto; min-width: 0; overflow-wrap: anywhere; }
 .approval-items li small { color: #8f9cb0; flex-shrink: 0; }
 .approval-items a { color: var(--blue); flex-shrink: 0; }
+.approval-limit-change { margin-left: auto; font-size: 12px; min-height: 24px; }
+.approval-limit-form { display: flex; gap: 12px; align-items: flex-end; margin-top: 12px; flex-wrap: wrap; }
+.approval-limit-form .field { margin: 0; max-width: 160px; }
+.approval-limit-caption { font-size: 13px; margin-top: 8px; color: var(--muted); }
+.approval-limit-message { margin: 10px 0; overflow-wrap: anywhere; }
+.approval-limit-message code { padding: 6px 10px; border: 1px solid #343d4a; border-radius: 6px; background: #1a2029; user-select: all; }
 .project-card .summary-approval.full { color: #e4a9a1; }
 
 :root .goal-list > .button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }

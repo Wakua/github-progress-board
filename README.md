@@ -57,7 +57,7 @@ GitHubで計画しているプロジェクトはGitHubの作業を表示し、�
 
 `dist/workspace.mjs`が登録、projectIdによる境界、検証、保存を担当し、`dist/engine.mjs`は一つのプロジェクトの表示判断と集計を担当する。UIは表示対象のプロジェクトを明示して変更候補を作る。プロジェクト間を切り替えると詳細と展開状態を閉じ、前の画面からの編集を持ち越さない。
 
-保存キーは`progress-tool.workspace.v1`、直前バックアップは`.backup`、破損原本の退避は`.recovery`である。最上位は`schemaVersion`、`selectedProjectId`、`projects`を持つ。各projectは`id`、`name`、`repositoryUrl`、`data`を持ち、dataの目標・作業等は既存の集計処理で扱える形を維持する。Issueの出典識別にはprojectId、repository URL、entityId、Issue番号の組を使う。
+保存キーは`progress-tool.workspace.v1`、直前バックアップは`.backup`、破損原本の退避は`.recovery`である。最上位は`schemaVersion`、`selectedProjectId`、`projects`を持つ。各projectは`id`、`name`、`repositoryUrl`、`data`と、任意の`approvalLimit`（[承認待ちのPR](#承認待ちのpr)）を持ち、dataの目標・作業等は既存の集計処理で扱える形を維持する。Issueの出典識別にはprojectId、repository URL、entityId、Issue番号の組を使う。
 
 各projectは任意の`githubSnapshot`を持つ。`data`は手動計画、`githubSnapshot`はGitHubの状態であり、取込時に変換・統合しない。既存v1データは移行せず読み込める。snapshotにはprojectId、repository URL、取得日時、全ページの取得元URL、Issue/PRの種類・番号・URL・タイトル・状態・GitHub更新日時を保持する。PRにはDraft・merge日時も保持する。識別はrepository URL（大文字小文字を同一視）・種類・番号の組で行う。
 
@@ -184,7 +184,11 @@ node scripts/fetch-github-snapshot.mjs --repo owner/repo --from-pages pages.json
 
 ## 承認待ちのPR
 
-人とClaude・Codexが並行して作業すると、PRの承認が人に集まる。担当者は作業中のPRをDraftにし、作業を終えて承認を求めるときにReadyにする。開いているReadyのPRを「承認待ちのPR」とし、上限を2件とする。Draftは担当者が作業中であり、承認待ちに数えない。上限に達している間、AIは新しくPRをReadyにしない（AGENTS.md）。
+人とClaude・Codexが並行して作業すると、PRの承認が人に集まる。担当者は作業中のPRをDraftにし、作業を終えて承認を求めるときにReadyにする。開いているReadyのPRを「承認待ちのPR」とし、上限を設ける。上限はプロジェクトごとに1〜99件の整数で設定し、設定していないプロジェクトは2件とする。Draftは担当者が作業中であり、承認待ちに数えない。上限に達している間、AIは新しくPRをReadyにしない（AGENTS.md）。
+
+上限は、選択したプロジェクトの承認待ちのPRの枠にある「上限を変更」から設定する。範囲外の値、小数、空欄は保存せず、理由を示す。上限はプロジェクトの保存データに含め、ブラウザ・クラウドの保存先に従って残る。GitHub snapshotの取得では変わらない。
+
+画面の上限をAIが直接読む仕組みはない。設定の詳細に「AIに伝える文」（例：recipe-appの承認待ちのPRの上限は3件です。）を示し、コピーできる。人がその文をAIへの指示に貼って伝える。AIはPRをReadyにするとき、適用した上限・その出所（ユーザー指定か既定か）・承認待ちの件数をPRに書き（AGENTS.md）、人が画面の上限と照らして確認する。
 
 選択したプロジェクトの画面では、タブの上に承認待ちのPRの件数・上限・一覧と、上限に達しているかを表示する。一覧はPR番号の順に並べ、番号からGitHubのPRを開く。件数はGitHub snapshotから求めるため、取得時刻を示し、古いsnapshotでは件数が最新でない可能性を示す。snapshotが未取得なら未取得と表示する。全体一覧のカードにも件数と上限の状態を表示する。
 
@@ -372,6 +376,8 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 - 版ごとに、タグ `v<版>` とGitHub Releaseを作る。Releaseの本文には、そのMilestoneで完了したIssueの一覧を書く。Closedは受入完了を表さない。手順は [AGENTS.md](AGENTS.md) の「IssueとGitHub Project」に従う。
 
 ## 変更履歴
+
+- 2026-10-07：承認待ちのPRの上限を、プロジェクトごとに1〜99件で設定できるようにした。設定していないプロジェクトは従来どおり2件とする。設定の詳細にAIへ伝える文を示し、AIはPRをReadyにするとき適用した上限をPRに書く。
 
 - 2026-10-06：「リリース」タブ（試作）を追加した。期日、残りの期間数・Estimate、はみ出し、最長の流れを、Milestoneごとに示す。
 

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { readFile, writeFile, mkdtemp } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
-import { validateSnapshot, parseSnapshotImport, attachSnapshot, snapshotIdentity, snapshotAge, githubStateLabel, buildSnapshot, MAX_IMPORT_BYTES, approvalQueue, approvalState, APPROVAL_LIMIT } from '../dist/github-snapshot.mjs';
+import { validateSnapshot, parseSnapshotImport, attachSnapshot, snapshotIdentity, snapshotAge, githubStateLabel, buildSnapshot, MAX_IMPORT_BYTES, approvalQueue, approvalState, isApprovalLimit, projectApprovalLimit, approvalLimitMessage, APPROVAL_LIMIT } from '../dist/github-snapshot.mjs';
 import { emptyWorkspace, registerProject, addGoal, addTask, importSnapshots, createWorkspaceStore, validateWorkspace, STORAGE_KEY, BACKUP_KEY } from '../dist/workspace.mjs';
 import { collectPages, main } from '../scripts/fetch-github-snapshot.mjs';
 const at = '2026-10-02T12:00:00Z';
@@ -189,6 +189,31 @@ test('承認待ちのPRは開いているReadyのPRを番号順に数え、Draft
   assert.deepEqual(summary(), [[10, 12], true, 0]);
   snapshot.items.push(pr(15));
   assert.deepEqual(summary(), [[10, 12, 15], true, 0]);
+});
+
+test('承認待ちの上限を指定すると、上限に達しているかと残りの件数がその値で決まる', () => {
+  const snapshot = fixture();
+  for (const number of [10, 12]) snapshot.items.push({ kind: 'pull_request', number, url: `${repositoryUrl}/pull/${number}`, title: 'PR', state: 'open', updatedAt: at, closedAt: null, draft: false, mergedAt: null, estimatePoints: null, deadline: null });
+  const summary = limit => { const queue = approvalQueue(snapshot, limit); return [queue.limit, queue.full, queue.remaining]; };
+  assert.deepEqual(summary(1), [1, true, 0]);
+  assert.deepEqual(summary(2), [2, true, 0], '件数が上限に等しければ上限に達している');
+  assert.deepEqual(summary(5), [5, false, 3]);
+  const fresh = Date.parse(at) + 3600000;
+  assert.equal(approvalState(snapshot, fresh, 5).readyAllowed, true);
+  assert.equal(approvalState(snapshot, fresh, 2).readyAllowed, false);
+  assert.equal(approvalState(snapshot, Date.parse(at) + 25 * 3600000, 5).readyAllowed, null, '古いsnapshotは上限を変えても判断を保留する');
+});
+
+test('承認待ちの上限は1〜99の整数で、プロジェクトに設定がなければ既定の2件にする', () => {
+  assert.deepEqual([1, 2, 99].map(isApprovalLimit), [true, true, true]);
+  assert.deepEqual([0, 100, 1.5, -1, NaN, '2', null, undefined].map(isApprovalLimit), Array(8).fill(false));
+  assert.equal(projectApprovalLimit({}), APPROVAL_LIMIT);
+  assert.equal(projectApprovalLimit({ approvalLimit: 7 }), 7);
+});
+
+test('AIに伝える文は、プロジェクト名と保存した上限（未設定なら既定）で作る', () => {
+  assert.equal(approvalLimitMessage({ name: 'recipe-app', approvalLimit: 3 }), 'recipe-appの承認待ちのPRの上限は3件です。');
+  assert.equal(approvalLimitMessage({ name: 'recipe-app' }), `recipe-appの承認待ちのPRの上限は${APPROVAL_LIMIT}件です。`);
 });
 
 test('古いsnapshotや未取得では、承認待ちの件数だけでReadyにできると判断しない', () => {
