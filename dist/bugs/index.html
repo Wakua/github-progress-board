@@ -1,0 +1,14 @@
+<!doctype html>
+<html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>バグ報告 — 今日の進捗</title><link rel="stylesheet" href="/bugs/style.css"><script type="module" src="/bugs/app.mjs"></script></head>
+<body><header class="topbar"><a class="brand" href="/bugs/">✓ 今日の進捗 <span>バグ報告</span></a><div class="actions" id="account" hidden><a href="/" id="progress-link" hidden>進捗管理</a><span id="person"></span></div></header>
+<main>
+<section id="workspace"><div class="heading"><div><p class="eyebrow" id="scope"></p><h1>バグ報告</h1></div><div class="actions"><button id="refresh" class="quiet" disabled>更新</button><button id="new-report" disabled>＋ バグを報告</button></div></div>
+<p id="notice" class="notice" role="status" aria-live="polite" hidden></p>
+<div class="layout"><section class="card list" aria-label="報告一覧"><h2 id="list-heading">すべての報告</h2><div class="filters"><label>対応状況<select id="status-filter"><option value="all">すべての状況</option><option value="received">受付済み</option><option value="working">対応中</option><option value="fixed">修正済み・公開待ち</option><option value="checking">テスター確認待ち</option><option value="complete">確認完了</option></select></label><label>タグ<select id="tag-filter"><option value="all">すべてのタグ</option></select></label><label>GitHub登録<select id="registration-filter"><option value="all">すべて</option><option value="pending">登録待ち・未登録</option><option value="creating">登録中</option><option value="registered">登録済み</option><option value="failed">登録失敗</option><option value="unknown">作成結果が未確認</option></select></label></div><p id="report-count" class="meta"></p><div id="reports"></div></section><section class="card detail" id="detail" aria-label="報告詳細"><p class="empty">報告を選ぶと、本文と再現データを確認できます。</p></section></div></section>
+</main>
+<dialog id="report-dialog" aria-labelledby="form-title"><div class="heading"><h2 id="form-title">バグを報告</h2><button id="close-form" class="quiet" type="button">報告を閉じる</button></div><form id="report-form">
+<label>報告文<textarea name="body" rows="9" required maxlength="256000" placeholder="起きたこと、再現手順、期待した動作など。受け取ったテキストをそのまま貼り付けられます。"></textarea></label>
+<label>発生したバージョン<input name="reportedVersion" maxlength="200" placeholder="分かる場合に記入"></label>
+<label>再現データ<input name="files" type="file" multiple></label><p class="muted" id="policy"></p><div id="selected-files"></div><section id="recovered" hidden><h3>送信済みで報告に未登録のデータ</h3><p class="muted">前回の送信で保存されたデータです。この報告に付けるものを選んでください。</p><div id="pending-files"></div></section>
+<p id="form-error" role="alert"></p><p id="upload-progress" role="status" aria-live="polite"></p><button id="submit-report">報告を送信</button></form></dialog>
+</body></html>
