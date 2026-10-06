@@ -4,8 +4,8 @@
 
 - このリポジトリは汎用の進捗管理ツールを扱う。`samples/` と集計テストのデータは架空のサンプルである。
 - 公開リポジトリであるため、非公開のrepositoryの内容、個人の情報、他社サービスの画面をコミットしない。
-- 公開対象の条件は [README.md の公開対象](README.md#公開対象) に従う。
-- 仕様と実装状況は [README.md](README.md) を読む。
+- 公開対象の条件は [公開対象](docs/development.md#公開対象) に従う。
+- 仕様は [進捗管理の仕様](docs/specification.md)、実装状況は [開発と検証](docs/development.md#実装状況) を読む。
 - `dist/` は手書きのアプリ本体であり、Git管理する。
 - 検証はリポジトリ直下で `npm test` と `npm run check` を実行する。
 - 起動は `npm start`。GitHubを自動取得するrepositoryは `PROGRESS_GITHUB_REPOS` で指定する。

@@ -30,7 +30,3 @@ RPCの入力は64KiB、結果は500,000文字を上限とする。read_progress�
 ## 接続と検証範囲
 
 既存SiteのMCP capabilityは公開担当が管理する。ローカル統合でhosting manifest、Site identity、OAuthや公開範囲を変更しない。
-
-## 履歴
-
-- 2026-10-04: 公開差分のMCP操作と出力契約をPR4へ統合した。

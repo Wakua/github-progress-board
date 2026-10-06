@@ -2,7 +2,7 @@
 
 ## 対象
 
-[用意済み記録](prepared-workspace.md)の登録範囲に対応する案を、現在の本人workspaceと照合する。案の数値・幅・根拠・記録時点は[prepared-estimates.json](../dist/prepared-estimates.json)に保持する。見積の単位は[READMEの表示ルール](../README.md#表示ルール)に従う。案は低確度の計画値であり、実績時間や期限を表さない。
+[用意済み記録](prepared-workspace.md)の登録範囲に対応する案を、現在の本人workspaceと照合する。案の数値・幅・根拠・記録時点は[prepared-estimates.json](../dist/prepared-estimates.json)に保持する。見積の単位は[表示ルール](specification.md#表示ルール)に従う。案は低確度の計画値であり、実績時間や期限を表さない。
 
 project ID、repository、task ID、goal/parent ID、Issue番号、作業名、条件本文、依存が原本に一致し、見積がnullで、既存の見積注記がない作業だけを対象とする。入力済み・範囲変更済み・未登録・原本にない作業は変更しない。チェック状態、状態、証拠、担当、追加metadataは保持する。
 
@@ -13,9 +13,3 @@ project ID、repository、task ID、goal/parent ID、Issue番号、作業名、�
 保存時に原本ID、ポイント、幅、根拠、日付、事後フラグをestimateProvenanceへ記録する。完了済み作業への登録には「事後の仮見積」を表示する。見積を手動で異なる値へ変更すると、この原本由来の注記だけを解除する。同じ値の再保存では解除しない。
 
 仮見積を含む範囲の割合は「暫定」と表示する。割合は登録計画の見積による完了率であり、製品全体の成熟度を示さない。見積が欠ける範囲は割合を算出しない。
-
-## 検証
-
-## 履歴
-
-- 2026-10-04: 公開差分の仮見積と注記検証をPR4へ統合した。
