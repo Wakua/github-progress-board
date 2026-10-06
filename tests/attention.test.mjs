@@ -62,7 +62,8 @@ test('画面は一つの一覧で、承認待ちのPR・要対応・あなたの
   assert.ok(order.every(n => n >= 0) && order[0] < order[1] && order[1] < order[2], order.join());
   assert.match(html, /承認待ち<\/span>/);
   assert.match(html, /待ち<\/span>/);
-  assert.equal((html.match(/attention-label/g) || []).length, 2, '「あなたの担当」の行には、何もつけない');
+  assert.ok(html.includes(">担当</span>"));
+  assert.equal((html.match(/attention-label/g) || []).length, 3);
   assert.ok(!html.includes('→'), '操作の文は出さない');
   for (const heading of ['<h3', '<h2', 'attention-reason', '承認待ちのPR']) assert.ok(!html.includes(heading), `見出しや理由の行は出さない：${heading}`);
   assert.equal(attentionCount(model()), 3);

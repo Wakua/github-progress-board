@@ -57,7 +57,7 @@ export function attentionPanelMarkup(model) {
   const rows = [
     ...(model.approvals ?? []).map(pr => row(prLink(pr), '承認待ち')),
     ...orderAttention(model.items).map(item => row(item.nameHtml, [...new Set(item.reasons.map(labelFor))].join('・'))),
-    ...model.mine.map(item => row(item.nameHtml, '')),
+    ...model.mine.map(item => row(item.nameHtml, '担当')),
   ];
   return chips + (rows.length ? `<section class="my-work-section needs-action"><ul class="my-work-list">${rows.join('')}</ul></section>` : '<p class="empty-message">手が要る作業はありません。</p>');
 }
