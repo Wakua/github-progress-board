@@ -17,12 +17,18 @@ export function parseRepositoryList(value = '') {
 }
 export const configuredRepositories = (env = process.env) => parseRepositoryList(env.PROGRESS_GITHUB_REPOS);
 export class RefreshError extends Error {
-  constructor(code) { super(code); this.code = code; }
+  // resetAtは、rate_limitedのときだけ持つ取得再開の時刻（ミリ秒）。
+  constructor(code, resetAt) { super(code); this.code = code; if (resetAt !== undefined) this.resetAt = resetAt; }
 }
-export function createGithubRefresher({ repositories: urls = configuredRepositories(), run = runFile, now = Date.now, timeoutMs = 90000, commandTimeoutMs = 20000, cacheMs = 15000 } = {}) {
+// GraphQLの残りポイントがこの値を下回る間は、リセット時刻まで取得を始めない。
+// 同じ認証のghを使う、ほかの作業（`gh pr`・`gh issue`など）の分を残すための下限である。
+export const GRAPHQL_RESERVE = 1000;
+export function createGithubRefresher({ repositories: urls = configuredRepositories(), run = runFile, now = Date.now, timeoutMs = 90000, commandTimeoutMs = 20000, cacheMs = 15000, reserve = GRAPHQL_RESERVE } = {}) {
   const repositories = new Map(urls.map(url => [repositoryKey(url), url]));
   const cache = new Map();
-  let active = null;
+  // 直近のGraphQL応答が示した、全体の残りポイントとリセット時刻。応答がなければnull。
+  let active = null, budget = null;
+  const assertBudget = () => { if (budget && budget.remaining < reserve && now() < budget.resetAt) throw new RefreshError('rate_limited', budget.resetAt); };
   async function fetchSnapshot(key) {
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), timeoutMs);
     let bytes = 0;
@@ -60,7 +66,11 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
       const hierarchyPages = [], cursors = new Set();
       let cursor = null;
       for (let page = 1; page <= 50; page++) {
+        // 1ページ目は取得を始める前に確認済み。2ページ目以降は、直前の応答が示した残りで確認する。
+        if (page > 1) assertBudget();
         const result = await read(['graphql', '-f', 'query=' + planningQuery(repositoryUrl, cursor)]);
+        const limit = result?.data?.rateLimit, resetAt = Date.parse(limit?.resetAt);
+        if (Number.isSafeInteger(limit?.remaining) && Number.isFinite(resetAt)) budget = { remaining: limit.remaining, resetAt };
         const info = result?.data?.repository?.issues?.pageInfo;
         if (result.errors?.length || !info || typeof info.hasNextPage !== 'boolean') throw new RefreshError('invalid_snapshot');
         hierarchyPages.push(result);
@@ -81,6 +91,7 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
     const cached = cache.get(key);
     if (cached && now() < cached.expires) return Promise.resolve(cached.snapshot);
     if (active) return active.key === key ? active.promise : Promise.reject(new RefreshError('busy'));
+    try { assertBudget(); } catch (error) { return Promise.reject(error); }
     const promise = fetchSnapshot(key).finally(() => { active = null; });
     active = { key, promise };
     return promise;
