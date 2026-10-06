@@ -143,16 +143,19 @@ export function buildSnapshot({ repositoryUrl, fetchedAt, issuePages, pullPages,
 }
 
 // 承認待ちのPR：担当者が作業を終えてReadyにした、開いているPR。Draftは担当者が作業中として数えない。
-// 上限に達している間、AIは新しくReadyにしない（AGENTS.md）。
+// 上限に達している間、AIは新しくReadyにしない（AGENTS.md）。上限はプロジェクトごとの設定で、未設定なら既定のAPPROVAL_LIMITとする。
 export const APPROVAL_LIMIT = 2;
+export const APPROVAL_LIMIT_MAX = 99;
+export const isApprovalLimit = value => Number.isSafeInteger(value) && value >= 1 && value <= APPROVAL_LIMIT_MAX;
+export const projectApprovalLimit = project => project.approvalLimit ?? APPROVAL_LIMIT;
 export function approvalQueue(snapshot, limit = APPROVAL_LIMIT) {
   if (!snapshot) return null;
   const items = snapshot.items.filter(item => item.kind === 'pull_request' && item.state === 'open' && !item.draft).sort((a, b) => a.number - b.number);
   return { items, limit, full: items.length >= limit, remaining: Math.max(0, limit - items.length) };
 }
 // readyAllowed：true はReadyにできる、false は上限に達している、null は未取得か古いsnapshotのため判断できない。
-export function approvalState(snapshot, now = Date.now()) {
-  const queue = approvalQueue(snapshot);
+export function approvalState(snapshot, now = Date.now(), limit = APPROVAL_LIMIT) {
+  const queue = approvalQueue(snapshot, limit);
   if (!queue) return { queue, stale: false, readyAllowed: null };
   const stale = snapshotAge(snapshot, now).stale;
   return { queue, stale, readyAllowed: stale ? null : !queue.full };
