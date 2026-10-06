@@ -1,5 +1,6 @@
 import { githubPlan } from './github-planning.mjs';
 import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems, githubMineItems } from './github-planning-view.mjs';
+import { releaseSummaries, releasePanelMarkup } from './release.mjs';
 import { attentionPanelMarkup, attentionCount, manualEndedOn, MINE_GROUPS } from './attention.mjs';
 import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
 import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision } from './workspace.mjs';
@@ -39,7 +40,7 @@ function writeView(change) {
   try { storage.setItem(VIEW_KEY, JSON.stringify({ ...readView(), ...change })); } catch { /* 保存できなくても表示は切り替える */ }
 }
 const attentionMe = new Map(Object.entries(readView().attentionMe || {}).filter(([, value]) => typeof value === 'string'));
-let viewTab = ['iterations', 'attention'].includes(readView().tab) ? readView().tab : 'my-work';
+let viewTab = ['iterations', 'attention', 'release'].includes(readView().tab) ? readView().tab : 'my-work';
 // 担当者の絞り込みは { all: true } か { owner: 担当者名 | null（未担当） }。担当者名と「全員」が衝突しないように種類で分ける。
 const validOwnerFilter = value => value && typeof value === 'object' && (value.all === true || typeof value.owner === 'string' || value.owner === null);
 const githubDisclosures = new Map();
@@ -319,6 +320,9 @@ function renderAttention(project) {
   return attentionPanelMarkup(view.model);
 }
 function renderViewTabs(project) {
+  const hasRelease = !!githubPlan(project.githubSnapshot);
+  $('#tab-release').hidden = !hasRelease;
+  if (!hasRelease && viewTab === 'release') viewTab = 'my-work';
   for (const tab of document.querySelectorAll('.view-tab')) {
     const selected = tab.dataset.view === viewTab;
     tab.setAttribute('aria-selected', String(selected)); tab.tabIndex = selected ? 0 : -1;
@@ -326,6 +330,8 @@ function renderViewTabs(project) {
   $('#my-work-panel').hidden = viewTab !== 'my-work';
   $('#iterations-panel').hidden = viewTab !== 'iterations';
   $('#attention-panel').hidden = viewTab !== 'attention';
+  $('#release-panel').hidden = viewTab !== 'release';
+  if (hasRelease) $('#release-panel').innerHTML = releasePanelMarkup(releaseSummaries(project.githubSnapshot));
   $('#approval-queue').hidden = viewTab === 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
   const attention = attentionView(project), count = attention.model ? attentionCount(attention.model) : 0;
@@ -1039,9 +1045,12 @@ document.querySelector('.view-tabs').addEventListener('click', event => {
 });
 document.querySelector('.view-tabs').addEventListener('keydown', event => {
   if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key) || busy || !state) return;
-  const tabs = [...document.querySelectorAll('.view-tab')], index = tabs.findIndex(tab => tab.dataset.view === viewTab);
+  const tabs = [...document.querySelectorAll('.view-tab:not([hidden])')], index = tabs.findIndex(tab => tab.dataset.view === viewTab);
   const next = event.key === 'Home' ? 0 : event.key === 'End' ? tabs.length - 1 : (index + (event.key === 'ArrowRight' ? 1 : -1) + tabs.length) % tabs.length;
   event.preventDefault(); selectView(tabs[next].dataset.view, true);
+});
+$('#release-panel').addEventListener('click', event => {
+  const go = event.target.closest('[data-view-go]'); if (go && !busy && state) selectView(go.dataset.viewGo);
 });
 $('#attention-panel').addEventListener('click', event => {
   const choice = event.target.closest('[data-attention-me]'); if (!choice || busy || !state) return;

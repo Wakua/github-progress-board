@@ -5,7 +5,7 @@ import { MINE_GROUPS } from './attention.mjs';
 const shortDate = date => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
 const esc = v => String(v).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 const link = (url, label) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(label)}</a>`;
-const itemButton = i => `<button class="issue-name" data-action="github-item" data-id="issue:${i.number}">#${i.number} ${esc(i.item.title)}</button>`;
+export const itemButton = i => `<button class="issue-name" data-action="github-item" data-id="issue:${i.number}">#${i.number} ${esc(i.item.title)}</button>`;
 export const moduleName = module => module?.kind === 'assigned' ? module.name : ({ unassigned: 'モジュール未分類', unfetched: 'モジュール情報未取得' })[module?.kind] ?? 'モジュール情報未取得';
 const points = value => Number(value.toPrecision(12)) + 'pt';
 export function githubProgressMarkup(tasks, title, projectId = null) {

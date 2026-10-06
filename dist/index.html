@@ -18,9 +18,10 @@
       <section id="project-detail" hidden aria-label="選択したプロジェクト">
       <p id="project-meta" class="footnote"></p><p class="footnote" id="estimate-scope"></p>
       <section id="approval-queue" class="approval-queue" aria-label="承認待ちのPR"></section>
-      <div class="view-tabs" role="tablist" aria-label="表示する画面"><button type="button" role="tab" class="view-tab" id="tab-my-work" data-view="my-work" aria-controls="my-work-panel">自分の作業</button><button type="button" role="tab" class="view-tab" id="tab-iterations" data-view="iterations" aria-controls="iterations-panel">イテレーション</button><button type="button" role="tab" class="view-tab" id="tab-attention" data-view="attention" aria-controls="attention-panel">要対応</button></div>
+      <div class="view-tabs" role="tablist" aria-label="表示する画面"><button type="button" role="tab" class="view-tab" id="tab-my-work" data-view="my-work" aria-controls="my-work-panel">自分の作業</button><button type="button" role="tab" class="view-tab" id="tab-iterations" data-view="iterations" aria-controls="iterations-panel">イテレーション</button><button type="button" role="tab" class="view-tab" id="tab-attention" data-view="attention" aria-controls="attention-panel">要対応</button><button type="button" role="tab" class="view-tab" id="tab-release" data-view="release" aria-controls="release-panel" hidden>リリース</button></div>
       <section id="my-work-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-my-work"></section>
       <section id="attention-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-attention" hidden></section>
+      <section id="release-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-release" hidden></section>
       <div id="iterations-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-iterations">
       <section id="github-planning" class="github-snapshot" aria-label="GitHubの計画"></section>
       <section id="manual-periods"><h2 class="manual-heading">手動の目標・作業</h2>
