@@ -3,15 +3,17 @@ const fail = () => { throw new Error('GitHubの計画情報を全件取得でき
 export const SPEC_LABEL = '仕様';
 export function planningQuery(repositoryUrl, cursor = null) {
   const [owner, name] = repositoryUrl.slice(19).split('/');
-  return `query { repository(owner:${JSON.stringify(owner)},name:${JSON.stringify(name)}) {
+  // GitHubはGraphQLのコストを、入れ子の接続の親の件数の積から数える。blockedByとprojectItemsの上限を下げると、
+  // Issue 100件あたりのコストが73から33ポイントになる（実測）。上限を超えるIssueは不完全として更新を見送る。
+  return `query { rateLimit { remaining resetAt } repository(owner:${JSON.stringify(owner)},name:${JSON.stringify(name)}) {
     issues(first:100,after:${JSON.stringify(cursor)},states:[OPEN,CLOSED]) {
       totalCount pageInfo { hasNextPage endCursor }
       nodes { number url updatedAt parent { number url } subIssuesSummary { total }
-        blockedBy(first:50) { totalCount pageInfo { hasNextPage }
+        blockedBy(first:20) { totalCount pageInfo { hasNextPage }
           nodes { number url title state labels(first:50) { totalCount pageInfo { hasNextPage } nodes { name } } }
         }
         closedByPullRequestsReferences(first:20,includeClosedPrs:false) { totalCount pageInfo { hasNextPage } nodes { number url isDraft state } }
-        projectItems(first:20) { totalCount pageInfo { hasNextPage }
+        projectItems(first:10) { totalCount pageInfo { hasNextPage }
           nodes { project { id title url }
             fieldValues(first:100) { totalCount pageInfo { hasNextPage }
               nodes { __typename

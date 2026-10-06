@@ -9,18 +9,21 @@ export function restFixture(repositoryUrl, version = 1) {
   const pr = { number: 8, html_url: `${repositoryUrl}/pull/8`, title: 'QA Draft PR', state: 'open', updated_at: '2026-10-02T12:00:00Z', closed_at: null, merged_at: null, draft: true, base: { repo: { html_url: repositoryUrl } } };
   return { issuePages: [[issue, { number: 8, pull_request: { url: 'QA' } }]], pullPages: [[pr]] };
 }
-export function hierarchyFixture(records) {
+// rateLimitは、GraphQLの応答に含まれる全体の残りポイント（{ remaining, resetAt }）。省略すると応答に含めない。
+export function hierarchyFixture(records, rateLimit) {
   const nodes = records.map(i => ({ number: i.number, url: i.html_url, updatedAt: i.updated_at, parent: null, subIssuesSummary: { total: 0 }, projectItems: { totalCount: 0, pageInfo: { hasNextPage: false }, nodes: [] },
     blockedBy: { totalCount: 0, pageInfo: { hasNextPage: false }, nodes: [] }, closedByPullRequestsReferences: { totalCount: 0, pageInfo: { hasNextPage: false }, nodes: [] } }));
-  return { data: { repository: { issues: { totalCount: nodes.length, pageInfo: { hasNextPage: false, endCursor: null }, nodes } } } };
+  return { data: { ...(rateLimit ? { rateLimit } : {}), repository: { issues: { totalCount: nodes.length, pageInfo: { hasNextPage: false, endCursor: null }, nodes } } } };
 }
-export function mockGh({ version = () => 1, beforeRead = async () => {} } = {}) {
+// 既定では、残りが十分ある応答を返す。残りを変えるテストはrateLimitに関数を渡す。
+const healthyRateLimit = () => ({ remaining: 5000, resetAt: new Date(Date.now() + 3600 * 1000).toISOString() });
+export function mockGh({ version = () => 1, beforeRead = async () => {}, rateLimit = healthyRateLimit } = {}) {
   return async (command, args, options) => {
     await beforeRead(command, args, options);
     if (args[3] === 'graphql') {
       const query = args.at(-1), match = query.match(/repository\(owner:("[^"]+"),name:("[^"]+")\)/);
       const repositoryUrl = 'https://github.com/' + JSON.parse(match[1]) + '/' + JSON.parse(match[2]);
-      return { stdout: JSON.stringify(hierarchyFixture(restFixture(repositoryUrl, version()).issuePages.flat().filter(i => !i.pull_request))) };
+      return { stdout: JSON.stringify(hierarchyFixture(restFixture(repositoryUrl, version()).issuePages.flat().filter(i => !i.pull_request), rateLimit())) };
     }
     const url = new URL(`https://api.github.com/${args.at(-1)}`), parts = url.pathname.split('/');
     const repositoryUrl = `https://github.com/${parts[2]}/${parts[3]}`;
