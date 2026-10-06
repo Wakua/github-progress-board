@@ -23,6 +23,27 @@ export class RefreshError extends Error {
 // GraphQLの残りポイントがこの値を下回る間は、リセット時刻まで取得を始めない。
 // 同じ認証のghを使う、ほかの作業（`gh pr`・`gh issue`など）の分を残すための下限である。
 export const GRAPHQL_RESERVE = 1000;
+// ghが利用制限の応答を返しても、再開の時刻が分からないときに取得を止める時間。
+const RATE_LIMIT_FALLBACK_MS = 5 * 60 * 1000;
+// `gh api --include` の出力は、状態行・ヘッダー・空行・本文の順に並ぶ。模擬のghは本文だけを返してよい。
+function splitResponse(output) {
+  const match = /^HTTP\/\S+ (\d{3})[^\r\n]*\r?\n([\s\S]*?)\r?\n\r?\n([\s\S]*)$/.exec(output);
+  if (!match) return { status: 0, headers: {}, body: output };
+  const headers = {};
+  for (const line of match[2].split(/\r?\n/)) { const colon = line.indexOf(':'); if (colon > 0) headers[line.slice(0, colon).toLowerCase()] = line.slice(colon + 1).trim(); }
+  return { status: Number(match[1]), headers, body: match[3] };
+}
+// 利用制限に達した応答なら、取得を再開できる時刻（ミリ秒）を返す。制限でなければnullを返す。
+// 一次制限は `x-ratelimit-reset`、二次制限は `retry-after` が時刻を示す。GraphQLの一次制限は、状態200の応答のerrorsに現れる。
+function limitedUntil({ status, headers, data, stderr }, at) {
+  const errors = Array.isArray(data?.errors) ? data.errors : [];
+  const message = [data?.message, ...errors.map(error => error?.message), stderr].filter(text => typeof text === 'string').join('\n');
+  if (status !== 429 && !errors.some(error => error?.type === 'RATE_LIMITED') && !/rate limit/i.test(message)) return null;
+  const reset = Number(headers['x-ratelimit-reset']), after = Number(headers['retry-after']), times = [];
+  if (headers['x-ratelimit-remaining'] === '0' && Number.isFinite(reset)) times.push(reset * 1000);
+  if (after > 0) times.push(at + after * 1000);
+  return Math.max(at + 1000, times.length ? Math.max(...times) : at + RATE_LIMIT_FALLBACK_MS);
+}
 export function createGithubRefresher({ repositories: urls = configuredRepositories(), run = runFile, now = Date.now, timeoutMs = 90000, commandTimeoutMs = 20000, cacheMs = 15000, reserve = GRAPHQL_RESERVE } = {}) {
   const repositories = new Map(urls.map(url => [repositoryKey(url), url]));
   const cache = new Map();
@@ -35,7 +56,7 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
     try {
       async function read(args) {
         if (controller.signal.aborted) throw new RefreshError('timeout');
-        let stdout;
+        let stdout, failure = null;
         try {
           ({ stdout } = await run('gh', ['api', '--hostname', 'github.com', ...args], {
             encoding: 'utf8', shell: false, windowsHide: true, maxBuffer: 20 * 1024 * 1024,
@@ -43,18 +64,29 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
             env: { ...process.env, GH_HOST: 'github.com', GH_PROMPT_DISABLED: '1', GH_PAGER: 'cat' },
           }));
         } catch (error) {
-          throw new RefreshError(controller.signal.aborted || error.killed || error.name === 'AbortError' ? 'timeout' : error.code === 'ENOENT' ? 'gh_unavailable' : 'gh_failed');
+          if (controller.signal.aborted || error.killed || error.name === 'AbortError') throw new RefreshError('timeout');
+          // HTTPの失敗でも、`--include` を付けたghは応答のヘッダーと本文をstdoutへ出す。
+          failure = error; stdout = typeof error.stdout === 'string' ? error.stdout : '';
         }
         if (controller.signal.aborted) throw new RefreshError('timeout');
         bytes += Buffer.byteLength(stdout);
         if (bytes > 20 * 1024 * 1024) throw new RefreshError('invalid_snapshot');
-        return JSON.parse(stdout);
+        const response = splitResponse(stdout);
+        let data;
+        try { data = JSON.parse(response.body); } catch (error) { if (!failure) throw error; }
+        if (failure || data?.errors?.length) {
+          // ほかのプロセスが枠を使い切った場合など、利用制限の応答は再開の時刻まで取得を止める。
+          const until = limitedUntil({ ...response, data, stderr: failure?.stderr }, now());
+          if (until !== null) { budget = { remaining: 0, resetAt: until }; throw new RefreshError('rate_limited', until); }
+        }
+        if (failure) throw new RefreshError(failure.code === 'ENOENT' ? 'gh_unavailable' : 'gh_failed');
+        return data;
       }
       async function collect(endpoint) {
         const pages = [], sort = endpoint === 'milestones' ? 'due_on&direction=asc' : 'updated&direction=desc';
         for (let page = 1; page <= 50; page++) {
           const route = `repos/${repositories.get(key).slice(19)}/${endpoint}?state=all&per_page=100&sort=${sort}&page=${page}`;
-          const data = await read(['--method', 'GET', route]);
+          const data = await read(['--method', 'GET', '--include', route]);
           if (!Array.isArray(data) || data.length > 100) throw new RefreshError('invalid_snapshot');
           pages.push(data);
           if (data.length < 100) return pages;
@@ -68,7 +100,7 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
       for (let page = 1; page <= 50; page++) {
         // 1ページ目は取得を始める前に確認済み。2ページ目以降は、直前の応答が示した残りで確認する。
         if (page > 1) assertBudget();
-        const result = await read(['graphql', '-f', 'query=' + planningQuery(repositoryUrl, cursor)]);
+        const result = await read(['graphql', '--include', '-f', 'query=' + planningQuery(repositoryUrl, cursor)]);
         const limit = result?.data?.rateLimit, resetAt = Date.parse(limit?.resetAt);
         if (Number.isSafeInteger(limit?.remaining) && Number.isFinite(resetAt)) budget = { remaining: limit.remaining, resetAt };
         const info = result?.data?.repository?.issues?.pageInfo;

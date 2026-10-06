@@ -29,8 +29,9 @@ test('ローカルghは設定したrepositoryのREST GETとGraphQL queryだけ�
   const refresher = createGithubRefresher({ repositories: QA_REPOSITORIES, run: mockGh({ beforeRead: async (command, args, options) => {
     calls.push(args); assert.equal(command, 'gh');
     assert.deepEqual(args.slice(0, 3), ['api', '--hostname', 'github.com']);
-    if (args[3] === 'graphql') { assert.equal(args[4], '-f'); assert.match(args[5], /^query=query \{/); assert.ok(!args[5].includes('mutation')); }
-    else { assert.deepEqual(args.slice(3, 5), ['--method', 'GET']); assert.match(args.at(-1), /^repos\/qa-local\/board\/(issues|pulls|milestones)\?state=all&per_page=100&sort=(updated&direction=desc|due_on&direction=asc)&page=1$/); }
+    // 利用制限の応答のヘッダーを読むため、すべての呼び出しに--includeを付ける。
+    if (args[3] === 'graphql') { assert.deepEqual(args.slice(4, 6), ['--include', '-f']); assert.match(args[6], /^query=query \{/); assert.ok(!args[6].includes('mutation')); }
+    else { assert.deepEqual(args.slice(3, 6), ['--method', 'GET', '--include']); assert.match(args.at(-1), /^repos\/qa-local\/board\/(issues|pulls|milestones)\?state=all&per_page=100&sort=(updated&direction=desc|due_on&direction=asc)&page=1$/); }
     assert.equal(options.shell, false); assert.equal(options.env.GH_HOST, 'github.com'); assert.equal(options.env.GH_PROMPT_DISABLED, '1');
     assert.equal(options.killSignal, 'SIGKILL'); assert.equal(options.timeout, 20000); assert.ok(options.signal);
   } }) });
@@ -122,6 +123,57 @@ test('取得の途中で残りが下限を下回ったら、次のページを�
   };
   await assert.rejects(createGithubRefresher({ repositories: QA_REPOSITORIES, run }).refresh(key), { code: 'rate_limited' });
   assert.equal(graphql, 2);
+});
+
+// `gh api --include` の出力は、状態行・ヘッダー・空行・本文の順に並ぶ。失敗しても、stdoutにはこの形で出る。
+const ghOutput = (status, headers, body) => `HTTP/2.0 ${status} X\r\n${Object.entries(headers).map(([name, value]) => `${name}: ${value}`).join('\r\n')}\r\n\r\n${JSON.stringify(body)}`;
+const ghFailure = (status, headers, body, stderr = `gh: ${body.message} (HTTP ${status})`) => Object.assign(new Error('Command failed: gh SECRET'), { code: 1, stdout: ghOutput(status, headers, body), stderr });
+
+test('ghが利用制限を返したときも、応答のヘッダーが示す時刻まで取得を止め、再開できる', async () => {
+  const start = Date.now(), resetSeconds = Math.floor(start / 1000) + 90, limited = { message: 'API rate limit exceeded for user ID 1.' };
+  const primary = { 'X-Ratelimit-Remaining': 0, 'X-Ratelimit-Reset': resetSeconds };
+  const graphqlLimited = { errors: [{ type: 'RATE_LIMITED', message: 'API rate limit exceeded for user ID 1.' }] };
+  const cases = [
+    ['RESTの一次制限', (args, gh) => args[3] === '--method' ? { fail: ghFailure(403, primary, limited) } : null, resetSeconds * 1000, 1],
+    ['GraphQLの一次制限（ghが失敗で終わる）', args => args[3] === 'graphql' ? { fail: ghFailure(200, primary, graphqlLimited, 'gh: API rate limit exceeded for user ID 1.') } : null, resetSeconds * 1000, 4],
+    ['GraphQLの一次制限（ghが成功で終わる）', args => args[3] === 'graphql' ? { stdout: ghOutput(200, primary, graphqlLimited) } : null, resetSeconds * 1000, 4],
+    ['二次制限（retry-after）', args => args[3] === '--method' ? { fail: ghFailure(403, { 'Retry-After': 90, 'X-Ratelimit-Remaining': 4000 }, { message: 'You have exceeded a secondary rate limit.' }) } : null, start + 90000, 1],
+    ['429（時刻が分からない）', args => args[3] === '--method' ? { fail: ghFailure(429, {}, { message: 'Too Many Requests' }) } : null, start + 5 * 60 * 1000, 1],
+    ['stderrだけが制限を示す', args => args[3] === '--method' ? { fail: Object.assign(new Error('SECRET'), { code: 1, stderr: 'gh: API rate limit already exceeded for user ID 1.' }) } : null, start + 5 * 60 * 1000, 1],
+  ];
+  for (const [label, intercept, expectedReset, expectedCalls] of cases) {
+    let clock = start, calls = 0, limitedNow = true; const gh = mockGh();
+    const refresher = createGithubRefresher({ repositories: QA_REPOSITORIES, now: () => clock, run: async (command, args, options) => {
+      calls++; const hit = limitedNow && intercept(args);
+      if (hit?.fail) throw hit.fail; if (hit?.stdout) return { stdout: hit.stdout };
+      return gh(command, args, options);
+    } });
+    await assert.rejects(refresher.refresh(key), error => error.code === 'rate_limited' && error.resetAt === expectedReset && !error.message.includes('SECRET'), label);
+    assert.equal(calls, expectedCalls, label);
+    // 止めている間は、別のrepositoryを含めてghを呼ばない。
+    for (const target of [key, repositoryKey(QA_REPOSITORIES[0])]) await assert.rejects(refresher.refresh(target), { code: 'rate_limited', resetAt: expectedReset }, label);
+    assert.equal(calls, expectedCalls, label);
+    if (expectedReset - start <= 2 * 60 * 1000) {
+      clock = expectedReset - 1; await assert.rejects(refresher.refresh(key), { code: 'rate_limited' }, label);
+      clock = expectedReset; limitedNow = false; await refresher.refresh(key); assert.equal(calls, expectedCalls + 4, label);
+    }
+  }
+});
+
+test('利用制限でない失敗はgh_failedのままで、取得を止めない', async () => {
+  for (const failure of [ghFailure(403, { 'X-Ratelimit-Remaining': 4000 }, { message: 'Resource not accessible by personal access token' }), ghFailure(404, {}, { message: 'Not Found' }), new Error('SECRET')]) {
+    let calls = 0;
+    const refresher = createGithubRefresher({ repositories: QA_REPOSITORIES, run: async () => { calls++; throw failure; } });
+    await assert.rejects(refresher.refresh(key), error => error.code === 'gh_failed' && !error.message.includes('SECRET'));
+    await assert.rejects(refresher.refresh(key), { code: 'gh_failed' }); assert.equal(calls, 2);
+  }
+});
+
+test('--include付きの成功応答（状態行とヘッダー付き）を読み、本文だけをsnapshotにする', async () => {
+  const gh = mockGh();
+  const refresher = createGithubRefresher({ repositories: QA_REPOSITORIES, run: async (...args) => ({ stdout: `HTTP/2.0 200 OK\r\nContent-Type: application/json; charset=utf-8\r\nX-Ratelimit-Remaining: 4000\r\n\r\n${(await gh(...args)).stdout}` }) });
+  const result = await refresher.refresh(key);
+  assert.equal(result.items.length, 2); assert.equal(result.repositoryUrl, repo);
 });
 
 test('gh不在・コマンド失敗・総timeout・実subprocess timeoutを安全なエラーにする', async () => {
@@ -354,7 +406,8 @@ test('clientはHTTP失敗・異なるrepo・巨大応答・timeoutで既存計�
 
 test('clientは取得を止めている理由と再開の時刻を示し、既存計画を保持する', async () => {
   const resetAt = '2026-10-07T01:30:00.000Z', time = new Date(resetAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' });
-  for (const [body, expected] of [[{ error: 'rate_limited', resetAt }, `GitHubのAPIの残りが少ないため、${time}まで取得を止めています。`], [{ error: 'rate_limited' }, 'GitHubのAPIの残りが少ないため、取得を止めています。'], [{ error: 'rate_limited', resetAt: 'soon' }, 'GitHubのAPIの残りが少ないため、取得を止めています。']]) {
+  const plain = 'GitHubのAPIの利用制限に近いか達したため、取得を止めています。';
+  for (const [body, expected] of [[{ error: 'rate_limited', resetAt }, `GitHubのAPIの利用制限に近いか達したため、${time}まで取得を止めています。`], [{ error: 'rate_limited' }, plain], [{ error: 'rate_limited', resetAt: 'soon' }, plain]]) {
     const h = clientHarness({ fetchImpl: async url => url.endsWith('local-github') ? Response.json({ schemaVersion: 1, repositories: QA_REPOSITORIES, csrfToken: 'a'.repeat(64) }) : Response.json(body, { status: 429 }) });
     const before = h.storage.getItem(STORAGE_KEY); await h.client.connect(); await h.client.refresh();
     assert.equal(h.client.state(key).phase, 'error'); assert.ok(h.client.state(key).message.includes(expected), h.client.state(key).message);

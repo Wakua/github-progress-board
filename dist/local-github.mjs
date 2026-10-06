@@ -55,14 +55,14 @@ const messages = {
   gh_failed: 'GitHubを取得できません。既存ghの認証とrepositoryの読み取り許可を確認してください。',
   timeout: 'GitHub取得が時間内に完了しませんでした。',
   busy: '別repositoryを取得中です。次回の自動更新または再取得を待ってください。',
-  rate_limited: 'GitHubのAPIの残りが少ないため、取得を止めています。',
+  rate_limited: 'GitHubのAPIの利用制限に近いか達したため、取得を止めています。',
   invalid_snapshot: '全ページの整合性を確認できず、更新を見送りました。',
   forbidden: 'ローカル接続を確認するため、ページを再読み込みしてください。',
 };
 // 取得を止めているときは、再開できる時刻が分かれば示す。
 function failureMessage(value) {
   const resetAt = value.error === 'rate_limited' ? Date.parse(value.resetAt) : NaN;
-  if (Number.isFinite(resetAt)) return `GitHubのAPIの残りが少ないため、${new Date(resetAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}まで取得を止めています。`;
+  if (Number.isFinite(resetAt)) return `GitHubのAPIの利用制限に近いか達したため、${new Date(resetAt).toLocaleTimeString('ja-JP', { hour: '2-digit', minute: '2-digit' })}まで取得を止めています。`;
   return messages[value.error] || 'ローカル取得に失敗しました。';
 }
 
