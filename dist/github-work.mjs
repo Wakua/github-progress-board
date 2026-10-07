@@ -1,6 +1,7 @@
 // GitHubで計画しているプロジェクトの「自分の作業」。手動の作業と同じ順（要対応 → 確認待ち → 作業中 → 前提待ち → 着手可能）で分類する。
 import { githubPlan } from './github-planning.mjs';
 import { todayInTokyo } from './engine.mjs';
+import { capacityLimit, sumEstimates, assessLoad } from './capacity.mjs';
 
 const DAY = 86400000;
 const lastDay = iteration => new Date(Date.parse(iteration.startDate + 'T00:00:00Z') + (iteration.duration - 1) * DAY).toISOString().slice(0, 10);
@@ -80,5 +81,22 @@ export function githubMyWork(snapshot, filter = { all: true }, today = todayInTo
   }
   return { currents, dependenciesFetched: plan.issues.every(i => Object.hasOwn(i, 'spec')),
     sections: sections.filter(section => section.tasks.length) };
+}
+// 期間（GitHubのProject × Iteration）の担当別の負荷。そのProjectの担当・Estimate・Statusだけを使い、ClosedとDoneは除く。
+// 担当者は名前順に並べ、担当のない作業（未担当）は末尾に置く。未担当には上限を当てない。
+export function githubPeriodWorkload(period, today = todayInTokyo()) {
+  const limit = capacityLimit({ startDate: period.iteration.startDate, durationDays: period.iteration.duration }, today);
+  const groups = new Map();
+  for (const task of period.tasks) {
+    const entry = task.projects.find(p => p.id === period.project.id);
+    if (!entry) continue;
+    const owner = entry.owner ?? null;
+    if (!groups.has(owner)) groups.set(owner, []);
+    if (task.item.state !== 'closed' && entry.status !== 'Done') groups.get(owner).push(entry.estimatePoints > 0 ? entry.estimatePoints : null);
+  }
+  return [...groups].sort(([a], [b]) => a === null ? 1 : b === null ? -1 : a.localeCompare(b, 'ja')).map(([owner, values]) => {
+    const sum = sumEstimates(values);
+    return { owner, count: values.length, ...sum, load: owner === null ? null : assessLoad(sum, limit) };
+  });
 }
 export { lastDay as githubIterationLastDay };
