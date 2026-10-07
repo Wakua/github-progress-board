@@ -16,7 +16,7 @@
       <div class="project-bar"><h1 id="project-name">プロジェクト一覧</h1><button class="button secondary" id="open-overview" hidden>Issueツリー</button></div>
       <section id="projects-overview" aria-label="プロジェクトごとの次の作業・要対応・確認待ち"></section>
       <section id="project-detail" hidden aria-label="選択したプロジェクト">
-      <p id="project-meta" class="footnote"></p><p class="footnote" id="estimate-scope"></p>
+      <p id="project-meta" class="footnote"></p>
       <section id="approval-queue" class="approval-queue" aria-label="承認待ちのPR"></section>
       <div class="view-tabs" role="tablist" aria-label="表示する画面"><button type="button" role="tab" class="view-tab" id="tab-my-work" data-view="my-work" aria-controls="my-work-panel">自分の作業</button><button type="button" role="tab" class="view-tab" id="tab-iterations" data-view="iterations" aria-controls="iterations-panel">イテレーション</button><button type="button" role="tab" class="view-tab" id="tab-attention" data-view="attention" aria-controls="attention-panel">要対応</button><button type="button" role="tab" class="view-tab" id="tab-release" data-view="release" aria-controls="release-panel" hidden>リリース</button></div>
       <section id="my-work-panel" class="view-panel" role="tabpanel" aria-labelledby="tab-my-work"></section>
@@ -34,7 +34,6 @@
       </section>
       </div>
       </section>
-      <p class="footnote storage-scope">このブラウザ・このURLの保存領域に保存します。手動の計画をサーバーやGitHubに書き込みません。ブラウザのデータ削除で失われるため、必要なデータは書き出してください。</p>
     </main>
   </div>
   <dialog id="detail-dialog" aria-labelledby="drawer-title"><div class="drawer-head"><div><button class="text-button panel-back" id="back-manage" aria-label="登録・取込へ戻る" hidden>← 登録・取込へ戻る</button><button class="text-button panel-back" id="back-workload" hidden>← 担当別一覧へ戻る</button><p class="eyebrow" id="drawer-kicker">作業の詳細</p><h2 id="drawer-title"></h2><p id="drawer-project"></p></div><button class="close-button" id="close-dialog" aria-label="詳細を閉じる">×</button></div><div id="drawer-body"></div></dialog>
