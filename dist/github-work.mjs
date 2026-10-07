@@ -26,10 +26,12 @@ export const taskIteration = task => task.projects.map(p => p.iteration).filter(
 // 期限超過は、どれか1つのProjectのIterationが終わっていれば当たる。
 const endedIteration = (issue, today) => issue.projects.map(p => p.iteration).filter(i => i && lastDay(i) < today).sort((a, b) => lastDay(a).localeCompare(lastDay(b)))[0] || null;
 export const taskOwners = task => [...new Set(task.projects.map(p => p.owner))];
-const blockerName = (blocker, repositoryUrl) => {
+// 前提の参照名。別のrepositoryの前提は「owner/repo#番号」とする。
+export const blockerRef = (blocker, repositoryUrl) => {
   const local = blocker.url.toLowerCase().startsWith(repositoryUrl.toLowerCase() + '/issues/');
-  return `${local ? '' : blocker.url.slice(19).replace(/\/issues\/\d+$/, '')}#${blocker.number} ${blocker.title}`;
+  return `${local ? '' : blocker.url.slice(19).replace(/\/issues\/\d+$/, '')}#${blocker.number}`;
 };
+const blockerName = (blocker, repositoryUrl) => `${blockerRef(blocker, repositoryUrl)} ${blocker.title}`;
 
 export function githubWorkCategory(plan, task, repositoryUrl, today = todayInTokyo()) {
   if (task.item.state === 'closed') return { group: 'done', reasons: [] };

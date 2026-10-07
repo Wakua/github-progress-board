@@ -232,7 +232,7 @@ test('自分の作業の表示は「緊急」を作業中より上に、1行1作
   const section = html.slice(html.indexOf('data-my-work-section="urgent"'), html.indexOf('</section>', html.indexOf('data-my-work-section="urgent"')));
   assert.ok(section.includes('緊急 <span class="my-work-count">3件</span>'));
   assert.deepEqual([...section.matchAll(/data-github-task="(\d+)"/g)].map(m => Number(m[1])), [1, 2, 6]);
-  assert.deepEqual([...section.matchAll(/<span class="urgent-label">([^<]*)<\/span>/g)].map(m => m[1]), ['作業中', '仕様待ち', '着手可能']);
+  assert.deepEqual([...section.matchAll(/<span class="urgent-label">([^<]*)<\/span>/g)].map(m => m[1]), ['作業中 Draft PR #101', '仕様待ち', '着手可能']);
   assert.ok(!section.includes('my-work-reasons'));
   for (const number of [1, 2, 6]) assert.equal(html.split(`data-github-task="${number}"`).length - 1, 1);
 });
@@ -247,4 +247,30 @@ test('「優先度」の取得でGraphQLのコストを増やさない：入れ�
   // GitHubはコストを入れ子の接続の件数の積から数える（#41）。件数を変えたときは、取得コストの実測と、仕様書の上限の記述を合わせて更新する。
   const sizes = [...planningQuery(repo).matchAll(/first:(\d+)/g)].map(m => Number(m[1]));
   assert.deepEqual(sizes, [100, 20, 50, 20, 10, 100]);
+});
+
+test('緊急の行は1行のまま、確認する前提とPRの番号を残す', () => {
+  const data = inputs();
+  for (const number of [3, 4, 5]) setPriority(data, number, '緊急');
+  data.hierarchyPages[0].data.repository.issues.nodes[2].blockedBy = connection([blocker(2, { spec: true }), blocker(7), blocker(8)]);
+  const html = renderGithubWork(snapshot(data), { all: true }, today);
+  const section = html.slice(html.indexOf('data-my-work-section="urgent"'), html.indexOf('</section>', html.indexOf('data-my-work-section="urgent"')));
+  assert.deepEqual([...section.matchAll(/<span class="urgent-label">([^<]*)<\/span>/g)].map(m => m[1]),
+    ['前提待ち #2・#7ほか1件', '前提待ち qa-fixture/spec#5', '確認待ち PR #102']);
+  assert.ok(!section.includes('my-work-reasons'));
+});
+
+test('詳細で、作業の前提と開いたPRを全件確認できる。無い作業と旧snapshotには出さない', () => {
+  const data = inputs();
+  data.hierarchyPages[0].data.repository.issues.nodes[2].blockedBy = connection([blocker(2, { spec: true }), blocker(9), blocker(12, { state: 'CLOSED' })]);
+  const value = snapshot(data);
+  const detail = number => githubItemPlanning(value, number);
+  assert.ok(detail(3).includes('<h3>前提とPR</h3>'));
+  assert.ok(detail(3).includes(`<a href="${repo}/issues/2` + '" target="_blank" rel="noopener noreferrer">#2</a> QA 前提 2（未完了・仕様）'));
+  assert.ok(detail(3).includes('#9</a> QA 前提 9（未完了）') && detail(3).includes('#12</a> QA 前提 12（完了）'));
+  assert.ok(detail(4).includes('qa-fixture/spec#5</a>'));
+  assert.ok(detail(1).includes('#101</a>（Draft）') && detail(5).includes('#102</a>（Ready）'));
+  assert.ok(!detail(7).includes('前提とPR'));
+  for (const issue of value.planning.issues) { delete issue.blockedBy; delete issue.pullRequests; delete issue.spec; }
+  assert.ok(!githubItemPlanning(value, 3).includes('前提とPR'));
 });

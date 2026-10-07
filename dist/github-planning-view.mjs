@@ -1,5 +1,5 @@
 import { githubPlan, githubProgress, githubModules } from './github-planning.mjs';
-import { githubMyWork, taskIteration, githubIterationLastDay } from './github-work.mjs';
+import { githubMyWork, taskIteration, githubIterationLastDay, blockerRef } from './github-work.mjs';
 import { todayInTokyo } from './engine.mjs';
 import { MINE_GROUPS, labelFor } from './attention.mjs';
 const shortDate = date => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
@@ -46,9 +46,17 @@ export function githubUrgentSummary(snapshot, today = todayInTokyo()) {
 export function githubOwners(snapshot) {
   return [...new Set((githubPlan(snapshot)?.tasks || []).flatMap(t => t.projects.length ? t.projects.map(p => p.owner) : [null]))];
 }
-// 緊急の行は1行にする。本来のまとまり（作業中・確認待ちなど）を短い言葉で添え、要対応は理由を短くして添える。
-const GROUP_LABELS = { active: '作業中', review: '確認待ち', waiting: '前提待ち', ready: '着手可能' };
-const urgentLabel = ({ group, reasons }) => group === 'action' ? [...new Set(reasons.map(labelFor))].join('・') : GROUP_LABELS[group];
+// 緊急の行は1行にする。本来のまとまり（作業中・確認待ちなど）に、確認する前提とPRの番号を添える。要対応は理由を短くして添える。
+// 前提とPRの全件と題名は、詳細で確認する。
+const refList = (refs, max = 2) => refs.slice(0, max).join('・') + (refs.length > max ? `ほか${refs.length - max}件` : '');
+const urgentLabel = ({ task, group, reasons }, repositoryUrl) => {
+  const open = (task.blockedBy || []).filter(b => b.state === 'open'), pulls = task.pullRequests || [];
+  if (group === 'action') return [...new Set(reasons.map(labelFor))].join('・');
+  if (group === 'waiting') return `前提待ち ${refList(open.map(b => blockerRef(b, repositoryUrl)))}`;
+  if (group === 'review') return `確認待ち PR ${refList(pulls.filter(pr => !pr.draft).map(pr => '#' + pr.number))}`;
+  if (group === 'active') return pulls.length ? `作業中 Draft PR ${refList(pulls.map(pr => '#' + pr.number))}` : '作業中';
+  return '着手可能';
+};
 export function renderGithubWork(snapshot, filter = { all: true }, today = undefined) {
   const work = githubMyWork(snapshot, filter, today, { urgentFirst: true });
   if (!work) return '<p class="empty-message">親子Issue・Projectの計画情報は未取得です。</p>';
@@ -60,7 +68,7 @@ export function renderGithubWork(snapshot, filter = { all: true }, today = undef
   const row = (item, section) => {
     const { task: t, reasons } = item;
     const shown = section === 'waiting' ? reasons.slice(0, 1) : reasons;
-    const reasonList = section === 'urgent' ? `<span class="urgent-label">${esc(urgentLabel(item))}</span>`
+    const reasonList = section === 'urgent' ? `<span class="urgent-label">${esc(urgentLabel(item, snapshot.repositoryUrl))}</span>`
       : shown.length ? `<ul class="my-work-reasons">${shown.map(r => `<li>${esc(r)}</li>`).join('')}${reasons.length > shown.length ? `<li class="my-work-more">ほか${reasons.length - shown.length}件</li>` : ''}</ul>` : '';
     // 一覧は作業名と理由、担当・期限だけにする。モジュール・目標・Estimateは詳細で見る。
     const owners = t.projects.length ? t.projects.map(p => `${t.projects.length > 1 ? esc(p.title) + '：' : ''}${esc(p.owner ?? '担当未設定')}`).join(' / ') : 'Project未登録';
@@ -114,5 +122,9 @@ export function githubItemPlanning(snapshot, number) {
   if (!i) return '<p class="empty-message">親子Issue・Project・Milestoneは未取得です。</p>';
   const task = plan.tasks.find(t => t.number === number);
   const milestone = plan.releases.find(m => m.number === i.milestoneNumber);
-  return `<section class="detail-section"><h3>${i.childCount ? '集約用Issue' : '作業Issue'}</h3>${task ? `<p>モジュール：${esc(moduleName(task.module))}${task.module.source && task.module.source !== number ? ' · 親Issue #' + task.module.source + 'から継承' : ''}</p>` : ''}<p>${task?.goal ? '目標：' + esc(task.goal.item.title) : ''}</p><p>親Issue：${i.parent ? link(i.parent.url, '#' + i.parent.number) : 'なし'}</p><p>リリース：${milestone ? link(milestone.url, milestone.title) : 'Milestone未設定'}</p>${i.childCount ? githubGoalTree(snapshot, number) : ''}</section>${i.projects.map(p => `<section class="detail-section"><h3>${link(p.url, p.title)}</h3><dl class="snapshot-facts"><dt>担当</dt><dd>${esc(p.owner ?? '未設定')}</dd><dt>Status</dt><dd>${esc(p.status ?? '未設定')}</dd><dt>優先度</dt><dd>${esc(p.priority ?? '未設定')}</dd><dt>Estimate</dt><dd>${p.estimatePoints === null ? '未設定' : p.estimatePoints + 'pt'}</dd><dt>Iteration</dt><dd>${p.iteration ? esc(p.iteration.title) + ' · ' + p.iteration.startDate + '–' + iterationEnd(p.iteration) : '未設定'}</dd></dl></section>`).join('') || '<p class="footnote">Project未登録</p>'}`;
+  // 作業の行で省略した前提と開いたPRは、ここで全件を確認する。
+  const blockers = (i.blockedBy ?? []).map(b => `${link(b.url, blockerRef(b, snapshot.repositoryUrl))} ${esc(b.title)}（${b.state === 'open' ? '未完了' : '完了'}${b.spec ? '・仕様' : ''}）`);
+  const pulls = (i.pullRequests ?? []).map(pr => `${link(pr.url, '#' + pr.number)}（${pr.draft ? 'Draft' : 'Ready'}）`);
+  const relations = blockers.length || pulls.length ? `<section class="detail-section"><h3>前提とPR</h3><dl class="snapshot-facts">${blockers.length ? `<dt>前提</dt><dd>${blockers.join('<br>')}</dd>` : ''}${pulls.length ? `<dt>開いたPR</dt><dd>${pulls.join('<br>')}</dd>` : ''}</dl></section>` : '';
+  return `<section class="detail-section"><h3>${i.childCount ? '集約用Issue' : '作業Issue'}</h3>${task ? `<p>モジュール：${esc(moduleName(task.module))}${task.module.source && task.module.source !== number ? ' · 親Issue #' + task.module.source + 'から継承' : ''}</p>` : ''}<p>${task?.goal ? '目標：' + esc(task.goal.item.title) : ''}</p><p>親Issue：${i.parent ? link(i.parent.url, '#' + i.parent.number) : 'なし'}</p><p>リリース：${milestone ? link(milestone.url, milestone.title) : 'Milestone未設定'}</p>${i.childCount ? githubGoalTree(snapshot, number) : ''}</section>${relations}${i.projects.map(p => `<section class="detail-section"><h3>${link(p.url, p.title)}</h3><dl class="snapshot-facts"><dt>担当</dt><dd>${esc(p.owner ?? '未設定')}</dd><dt>Status</dt><dd>${esc(p.status ?? '未設定')}</dd><dt>優先度</dt><dd>${esc(p.priority ?? '未設定')}</dd><dt>Estimate</dt><dd>${p.estimatePoints === null ? '未設定' : p.estimatePoints + 'pt'}</dd><dt>Iteration</dt><dd>${p.iteration ? esc(p.iteration.title) + ' · ' + p.iteration.startDate + '–' + iterationEnd(p.iteration) : '未設定'}</dd></dl></section>`).join('') || '<p class="footnote">Project未登録</p>'}`;
 }
