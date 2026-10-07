@@ -20,13 +20,21 @@ test('上限は期間内の平日の日数 × 1pt。7日は5pt、14日は10pt', 
   assert.equal(capacityLimit({ startDate: '2026-10-11', durationDays: 1 }, '2026-10-01').points, 0, '日曜1日は稼働日がない');
 });
 
-test('進行中の期間は今日を含む残りの平日だけを数え、週末は0ptになる', () => {
+test('進行中の期間は今日を含む残りの平日だけを数え、終了日までに平日が残らなければ0ptになる', () => {
   const days = today => capacityLimit(week, today);
   assert.deepEqual(days('2026-10-05'), { phase: 'active', days: 5, points: 5 });
   assert.equal(days('2026-10-07').points, 3);
   assert.equal(days('2026-10-09').points, 1);
   assert.deepEqual(days('2026-10-10'), { phase: 'active', days: 0, points: 0 });
   assert.equal(days('2026-10-11').points, 0);
+});
+
+test('期間の途中の土日は、翌週以降の平日を数える', () => {
+  const twoWeeks = { startDate: '2026-09-28', durationDays: 14 };
+  assert.deepEqual(capacityLimit(twoWeeks, '2026-10-03'), { phase: 'active', days: 5, points: 5 });
+  assert.equal(capacityLimit(twoWeeks, '2026-10-04').points, 5);
+  assert.equal(capacityLimit(twoWeeks, '2026-10-09').points, 1);
+  assert.equal(capacityLimit(twoWeeks, '2026-10-10').points, 0, '最終週の土曜日は平日が残らない');
 });
 
 test('終了した期間と日付の不明な期間には上限を当てない', () => {
