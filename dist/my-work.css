@@ -12,6 +12,9 @@
 .my-work-section > h3 { display: block; }
 .my-work-section.needs-action { border-color: #6b5233; }
 .my-work-section.needs-action > h3 { background: #2a2520; color: var(--amber); }
+.my-work-section.urgent { border-color: #7a403b; }
+.my-work-section.urgent > h3 { background: #2d2121; color: #e4a9a1; }
+.urgent-label { margin-left: 10px; font-size: 12px; color: #b79a95; }
 .my-work-section > summary { list-style: none; cursor: pointer; padding: 11px 18px; background: #1c232d; }
 .my-work-section > summary::-webkit-details-marker { display: none; }
 .my-work-section > summary h3 { padding: 0; background: none; color: var(--muted); }

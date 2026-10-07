@@ -82,6 +82,7 @@
 .approval-limit-message { margin: 10px 0; overflow-wrap: anywhere; }
 .approval-limit-message code { padding: 6px 10px; border: 1px solid #343d4a; border-radius: 6px; background: #1a2029; user-select: all; }
 .project-card .summary-approval.full { color: #e4a9a1; }
+.project-card .summary-urgent { color: #e4a9a1; }
 
 :root .goal-list > .button { min-width: 0; max-width: 100%; white-space: normal; overflow-wrap: anywhere; text-align: left; }
 
