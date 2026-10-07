@@ -1,3 +1,4 @@
+import { capacityLimit, sumEstimates, assessLoad } from './capacity.mjs';
 export function createSample() {
   const sampleEstimates = { read: 0.5, timeline: 1, preview: 2, move: 3, multi: 1, delete: 1, format: 0.5, save: 2, restore: 1, check: 1,
     'notice-sort': 0.5, 'notice-format': 1.5, 'notice-register': 0.5, 'notice-check': 0.5, 'guide-check': 0.5, 'guide-write': 1, 'guide-review': 0.5 };
@@ -207,11 +208,10 @@ export function taskOwner(task) {
   return typeof task.owner === 'string' && task.owner.trim() ? task.owner.trim() : null;
 }
 function workloadBucket(tasks) {
-  const missingEstimates = tasks.filter(t => !hasEstimate(t)).length;
-  const knownPoints = tasks.filter(hasEstimate).reduce((sum, t) => sum + t.estimatePoints, 0);
-  return { tasks, missingEstimates, knownPoints, points: missingEstimates ? null : knownPoints };
+  return { tasks, ...sumEstimates(tasks.map(t => hasEstimate(t) ? t.estimatePoints : null)) };
 }
-export function workloadForTasks(state, tasks) {
+// limit は capacityLimit の結果。渡さないとき、と担当者のいない作業（未担当）には、上限を当てない。
+export function workloadForTasks(state, tasks, limit = null) {
   const groups = new Map();
   for (const task of tasks) {
     const owner = taskOwner(task);
@@ -227,11 +227,14 @@ export function workloadForTasks(state, tasks) {
       else if (task.status === 'todo') ready.push(task);
       else waiting.push(task);
     }
-    return { owner, assigned, ...workloadBucket(remaining), active: workloadBucket(active), ready: workloadBucket(ready), waiting: workloadBucket(waiting) };
+    const bucket = workloadBucket(remaining);
+    return { owner, assigned, ...bucket, load: owner === null ? null : assessLoad(bucket, limit), active: workloadBucket(active), ready: workloadBucket(ready), waiting: workloadBucket(waiting) };
   });
 }
-export function iterationWorkload(state, iterationId, goalId) {
-  return workloadForTasks(state, iterationWork(state, iterationId, goalId).tasks);
+// 上限との比較は期間全体の作業で行う。目標を絞った内訳には、その目標以外の作業が入らないため当てない。
+export function iterationWorkload(state, iterationId, goalId, today = todayInTokyo()) {
+  const { iteration, tasks } = iterationWork(state, iterationId, goalId);
+  return workloadForTasks(state, tasks, goalId ? null : capacityLimit({ startDate: iteration.startDate, durationDays: iteration.durationDays }, today));
 }
 export function criteriaProgress(task) {
   const achieved = task.criteria.filter(c => c.checked === true).length;

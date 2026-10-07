@@ -9,6 +9,7 @@ import { createLocalGithubClient, applyRefreshedSnapshot, localRepositoryKey, is
 import { createCloudWorkspaceStore, MAX_CLOUD_BYTES } from './cloud-workspace.mjs';
 import { planPreparedEstimates, applyPreparedEstimates, isProvisionalEstimate } from './estimate-proposals.mjs';
 import { registerProgressTools } from './progress-tools.mjs';
+import { workloadChipClass, workloadChipTitle, workloadChipLabel, workloadFigures, workloadLimitMarkup } from './workload-view.mjs';
 let storage;
 try { storage = window.localStorage; } catch { storage = { getItem() { throw new Error('ブラウザの保存領域を利用できません。'); } }; }
 const cloudMode = document.documentElement.dataset.storageMode === 'cloud';
@@ -143,9 +144,9 @@ function workloadPoints(bucket) {
   return bucket.points === null ? `<span class="workload-unknown">未入力<small>${bucket.missingEstimates}件</small></span>` : formatEstimate(bucket.points);
 }
 function renderWorkload(tasks, iterationId, goalId = '') {
-  const rows = workloadForTasks(state, tasks);
+  const rows = iterationId ? iterationWorkload(state, iterationId, goalId || undefined) : workloadForTasks(state, tasks);
   if (!rows.length) return '';
-  return `<section class="workload-strip" aria-label="担当別の残りポイント"><h3>担当別の残り</h3><div class="workload-chips">${rows.map(row => `<button class="workload-chip" data-action="workload" data-id="${escape(iterationId)}" data-goal-id="${escape(goalId)}" data-owner="${escape(row.owner || '')}" data-workload-owner="${escape(row.owner || '')}" aria-label="${escape(row.owner || '未担当')}の未完了作業"><span class="workload-avatar" aria-hidden="true">${escape((row.owner || '未')[0])}</span><span>${escape(row.owner || '未担当')}</span><strong>${workloadPoints(row)}</strong><span class="workload-chevron" aria-hidden="true">›</span></button>`).join('')}</div></section>`;
+  return `<section class="workload-strip" aria-label="担当別の残りポイント"><h3>担当別の残り</h3><div class="workload-chips">${rows.map(row => `<button class="${workloadChipClass(row)}" title="${escape(workloadChipTitle(row))}" data-action="workload" data-id="${escape(iterationId)}" data-goal-id="${escape(goalId)}" data-owner="${escape(row.owner || '')}" data-workload-owner="${escape(row.owner || '')}" aria-label="${escape(workloadChipLabel(row))}"><span class="workload-avatar" aria-hidden="true">${escape((row.owner || '未')[0])}</span><span>${escape(row.owner || '未担当')}</span>${workloadFigures(row)}<span class="workload-chevron" aria-hidden="true">›</span></button>`).join('')}</div></section>`;
 }
 function taskBlocker(task) {
   const causes = task.status === 'done' ? [] : blockers(state, task);
@@ -715,7 +716,7 @@ function renderPanelContent() {
     const rows = period ? iterationWorkload(state, id, goalId || undefined) : workloadForTasks(state, orderedTasks(state, goalId || undefined).filter(t => !state.iterations.some(i => i.id === t.iterationId)));
     const row = rows.find(item => item.owner === owner);
     $('#drawer-title').textContent = `${owner || '未担当'}の未完了作業`;
-    body.innerHTML = `<p class="panel-goal">${escape(period ? iterationLabel(period) : '未割当・割当未確認')}${goalId ? ` · ${escape(findGoal(state, goalId).shortTitle || findGoal(state, goalId).title)}` : ''}</p><p class="workload-detail-total">${row ? workloadPoints(row) : '0pt'}<small>残り ${row?.tasks.length || 0}件</small></p>${row?.tasks.length ? [['active', '作業中'], ['ready', '着手可能'], ['waiting', '待ち・確認']].filter(([key]) => row[key].tasks.length).map(([key, label]) => `<section class="detail-section workload-detail-section"><h3>${label} <span class="muted-count">${workloadPoints(row[key])}</span></h3><ul class="compact-task-list">${row[key].tasks.map(task => workloadTaskRow(task, !goalId)).join('')}</ul></section>`).join('') : '<p class="empty-message">未完了の作業はありません。</p>'}<details class="panel-note"><summary>ポイントの集計方法</summary><p>未完了のEstimate合計。作業中も全額を含みます。実際の残り日数や稼働率は表しません。</p></details>`;
+    body.innerHTML = `<p class="panel-goal">${escape(period ? iterationLabel(period) : '未割当・割当未確認')}${goalId ? ` · ${escape(findGoal(state, goalId).shortTitle || findGoal(state, goalId).title)}` : ''}</p><p class="workload-detail-total">${row ? workloadPoints(row) : '0pt'}<small>残り ${row?.tasks.length || 0}件</small></p>${workloadLimitMarkup(row?.load)}${row?.tasks.length ? [['active', '作業中'], ['ready', '着手可能'], ['waiting', '待ち・確認']].filter(([key]) => row[key].tasks.length).map(([key, label]) => `<section class="detail-section workload-detail-section"><h3>${label} <span class="muted-count">${workloadPoints(row[key])}</span></h3><ul class="compact-task-list">${row[key].tasks.map(task => workloadTaskRow(task, !goalId)).join('')}</ul></section>`).join('') : '<p class="empty-message">未完了の作業はありません。</p>'}<details class="panel-note"><summary>ポイントの集計方法</summary><p>未完了のEstimate合計。作業中も全額を含みます。上限は1日1ptの目安で、実際の稼働時間や不在は表しません。</p></details>`;
     return;
   }
   if (type === 'overdue') {

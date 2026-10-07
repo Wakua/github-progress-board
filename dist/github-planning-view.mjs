@@ -1,5 +1,6 @@
 import { githubPlan, githubProgress, githubModules } from './github-planning.mjs';
-import { githubMyWork, taskIteration, githubIterationLastDay, blockerRef } from './github-work.mjs';
+import { githubMyWork, taskIteration, githubIterationLastDay, githubPeriodWorkload, blockerRef } from './github-work.mjs';
+import { workloadChipClass, workloadChipTitle, workloadChipLabel, workloadFigures } from './workload-view.mjs';
 import { todayInTokyo } from './engine.mjs';
 import { MINE_GROUPS, labelFor } from './attention.mjs';
 const shortDate = date => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
@@ -99,7 +100,13 @@ export function githubGoalTree(snapshot, selectedNumber = null, taskNumbers = nu
   const roots = selectedNumber === null ? plan.issues.filter(i => !i.parent || !plan.issues.some(p => p.item.url.toLowerCase() === i.parent.url.toLowerCase())) : plan.issues.filter(i => i.number === selectedNumber);
   return `<ul class="tree">${roots.map(branch).join('')}</ul>`;
 }
-export function renderGithubPeriods(snapshot) {
+// 期間の担当別の負荷。上限との比較は、このProjectのIterationに割り当てた作業だけで行う。
+function githubWorkloadMarkup(period, today) {
+  const rows = githubPeriodWorkload(period, today);
+  if (!rows.length) return '';
+  return '<section class="workload-strip" aria-label="担当別の残りポイント"><h3>担当別の残り</h3><div class="workload-chips" role="list">' + rows.map(row => '<span class="' + workloadChipClass(row) + ' static" role="listitem" data-github-workload="' + esc(row.owner ?? '') + '" title="' + esc(workloadChipTitle(row)) + '" aria-label="' + esc(workloadChipLabel(row)) + '"><span class="workload-avatar" aria-hidden="true">' + esc((row.owner || '未')[0]) + '</span><span>' + esc(row.owner || '未担当') + '</span>' + workloadFigures(row) + '</span>').join('') + '</div></section>';
+}
+export function renderGithubPeriods(snapshot, today = todayInTokyo()) {
   const plan = githubPlan(snapshot);
   if (!plan) return '';
   const grouped = (tasks, projectId = null) => {
@@ -114,7 +121,7 @@ export function renderGithubPeriods(snapshot) {
     const name = moduleName(module);
     return '<details class="github-module" data-github-module="' + esc(module.key) + '" data-github-disclosure="module:' + esc(module.key) + '"><summary><span class="github-scope-name">' + esc(name) + '<small>作業 ' + module.tasks.length + '件</small></span>' + githubProgressMarkup(module.tasks, name) + '</summary><div class="github-module-body"><p class="footnote">このモジュールに属する、取得したrepository内の作業だけを集計</p>' + goals(module.goals.map(g => ({ ...g, moduleKey: module.key }))) + releases(module.releases.map(m => ({ ...m, moduleKey: module.key }))) + (module.tasks.some(t => !t.goal) ? '<section class="github-plan-section"><h4>目標に属さない作業</h4>' + githubTaskRows(module.tasks.filter(t => !t.goal)) + '</section>' : '') + '</div></details>';
   }).join('');
-  const periodHtml = plan.periods.map(p => '<details class="github-period" data-github-disclosure="period:' + esc(p.key) + '"><summary><span class="github-scope-name">' + esc(p.iteration.title) + '<small>' + p.iteration.startDate + '–' + iterationEnd(p.iteration) + '</small></span>' + githubProgressMarkup(p.tasks, p.iteration.title, p.project.id) + '</summary><p class="footnote">' + link(p.project.url, p.project.title) + ' · 集計はこのProjectの期間内</p>' + grouped(p.tasks, p.project.id) + '</details>').join('');
+  const periodHtml = plan.periods.map(p => '<details class="github-period" data-github-disclosure="period:' + esc(p.key) + '"><summary><span class="github-scope-name">' + esc(p.iteration.title) + '<small>' + p.iteration.startDate + '–' + iterationEnd(p.iteration) + '</small></span>' + githubProgressMarkup(p.tasks, p.iteration.title, p.project.id) + '</summary><p class="footnote">' + link(p.project.url, p.project.title) + ' · 集計はこのProjectの期間内</p>' + githubWorkloadMarkup(p, today) + grouped(p.tasks, p.project.id) + '</details>').join('');
   return '<section class="github-plan-section"><h3>モジュール別の進み具合</h3><p class="footnote">GitHubの終了率はClosedの末端IssueのEstimateで集計。複数モジュールの共有作業を含むため、モジュール間の件数は合算しません。</p>' + (moduleHtml || '<p class="empty-message">作業Issueはありません。</p>') + '</section><details class="github-period-browse" data-github-disclosure="periods"><summary>イテレーションから確認</summary>' + periodHtml + (plan.unassigned.length ? '<details class="github-period" data-github-disclosure="unassigned"><summary><span class="github-scope-name">期間未設定 ' + plan.unassigned.length + '件</span></summary>' + grouped(plan.unassigned) + '</details>' : '') + '</details>';
 }
 export function githubItemPlanning(snapshot, number) {

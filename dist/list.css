@@ -313,3 +313,17 @@
 @media(max-width:520px){.workload-strip{align-items:flex-start;flex-direction:column;gap:8px}.workload-chip{padding:6px 7px}.workload-chips{gap:6px}}
 
 .list-progress strong > small { display: block; font-size: 10px; white-space: nowrap; }
+
+/* 担当別の負荷：上限と超過量。超過した担当者だけ強調する。 */
+.workload-chip .workload-limit { margin-left: -4px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.workload-over { color: #e4a9a1; font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.workload-chip.is-over { border-color: #7a4b4b; background: #2a1f22; }
+.workload-chip.is-over:hover { border-color: #a96b6b; background: #33262a; }
+.workload-chip.static { cursor: default; }
+.workload-chip.static:hover { border-color: var(--line); background: #1b222c; }
+.workload-chip.static.is-over:hover { border-color: #7a4b4b; background: #2a1f22; }
+.workload-detail-limit { display: grid; grid-template-columns: auto 1fr; gap: 6px 18px; align-items: baseline; margin: 0 0 22px; }
+.workload-detail-limit dt { margin: 0; font-size: 12px; color: var(--muted); }
+.workload-detail-limit dd { margin: 0; font-size: 14px; font-variant-numeric: tabular-nums; }
+.workload-detail-limit dd > small { margin-left: 8px; font-size: 11px; color: var(--muted); }
+.workload-detail-limit dd.workload-over { font-size: 14px; }
