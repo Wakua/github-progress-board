@@ -1,7 +1,7 @@
 import { githubPlan } from './github-planning.mjs';
 import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems, githubMineItems } from './github-planning-view.mjs';
 import { releaseSummaries, releasePanelMarkup } from './release.mjs';
-import { attentionPanelMarkup, attentionCount, manualEndedOn, MINE_GROUPS } from './attention.mjs';
+import { attentionPanelMarkup, attentionCount, attentionReasons, manualEndedOn, MINE_GROUPS } from './attention.mjs';
 import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
 import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision, setApprovalLimit } from './workspace.mjs';
 import { MAX_IMPORT_BYTES, parseSnapshotImport, repositoryKey, snapshotAge, githubStateLabel, approvalQueue, approvalState, projectApprovalLimit, approvalLimitMessage, APPROVAL_LIMIT, APPROVAL_LIMIT_MAX } from './github-snapshot.mjs';
@@ -39,6 +39,7 @@ function readView() {
 function writeView(change) {
   try { storage.setItem(VIEW_KEY, JSON.stringify({ ...readView(), ...change })); } catch { /* 保存できなくても表示は切り替える */ }
 }
+const attentionReasonFilters = new Map();
 const attentionMe = new Map(Object.entries(readView().attentionMe || {}).filter(([, value]) => typeof value === 'string'));
 let viewTab = ['iterations', 'attention', 'release'].includes(readView().tab) ? readView().tab : 'my-work';
 // 担当者の絞り込みは { all: true } か { owner: 担当者名 | null（未担当） }。担当者名と「全員」が衝突しないように種類で分ける。
@@ -318,7 +319,7 @@ function attentionView(project) {
 function renderAttention(project) {
   const view = attentionView(project);
   if (!view.model) return '<p class="empty-message">GitHubの計画情報は未取得です。取得すると、手が要る作業を表示します。</p>';
-  return attentionPanelMarkup(view.model);
+  return attentionPanelMarkup(view.model, attentionReasonFilters.get(project.id));
 }
 function renderViewTabs(project) {
   const hasRelease = !!githubPlan(project.githubSnapshot);
@@ -335,7 +336,9 @@ function renderViewTabs(project) {
   if (hasRelease) $('#release-panel').innerHTML = releasePanelMarkup(releaseSummaries(project.githubSnapshot));
   $('#approval-queue').hidden = viewTab === 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
-  const attention = attentionView(project), count = attention.model ? attentionCount(attention.model) : 0;
+  const attention = attentionView(project);
+  if (!attention.model || !attentionReasons(attention.model).includes(attentionReasonFilters.get(project.id))) attentionReasonFilters.delete(project.id);
+  const count = attention.model ? attentionCount(attention.model, attentionReasonFilters.get(project.id)) : 0;
   $('#tab-attention').innerHTML = `要対応${count ? `<span class="tab-count">${count}</span>` : ''}`;
   $('#attention-panel').innerHTML = renderAttention(project);
 }
@@ -1080,6 +1083,14 @@ $('#release-panel').addEventListener('click', event => {
   const go = event.target.closest('[data-view-go]'); if (go && !busy && state) selectView(go.dataset.viewGo);
 });
 $('#attention-panel').addEventListener('click', event => {
+  if (busy || !state) return;
+  const reasonChoice = event.target.closest('[data-attention-reason]');
+  if (reasonChoice) {
+    const reason = reasonChoice.dataset.attentionReason;
+    attentionReasonFilters.set(workspace.selectedProjectId, reason || null); render();
+    [...document.querySelectorAll('[data-attention-reason]')].find(button => button.dataset.attentionReason === reason)?.focus();
+    return;
+  }
   const choice = event.target.closest('[data-attention-me]'); if (!choice || busy || !state) return;
   const owner = choice.dataset.attentionMe, id = workspace.selectedProjectId;
   if (attentionMe.get(id) === owner) attentionMe.delete(id); else attentionMe.set(id, owner);
