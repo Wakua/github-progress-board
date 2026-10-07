@@ -18,6 +18,9 @@ const issueUrl = (url, number) => {
   if (typeof url !== 'string' || !/^https:\/\/github\.com\/[\w.-]+\/[\w.-]+\/issues\/[1-9]\d*$/.test(url) || !url.endsWith('/' + number)) fail();
 };
 const WORK_KEYS = ['blockedBy', 'pullRequests', 'spec'];
+// Projectの「優先度」の値。どれかのProjectで緊急なら、その作業は緊急。
+export const URGENT_PRIORITY = '緊急';
+export const isUrgent = task => task.projects.some(p => p.priority === URGENT_PRIORITY);
 export function validatePlanning(planning, snapshot) {
   keys(planning, ['sources', 'issues', 'milestones']);
   keys(planning.sources, ['hierarchy', 'milestones']);
@@ -31,7 +34,7 @@ export function validatePlanning(planning, snapshot) {
   });
   if (!Array.isArray(planning.issues) || !Array.isArray(planning.milestones) || planning.milestones.length > 5000) fail();
   const issues = new Map(snapshot.items.filter(i => i.kind === 'issue').map(i => [i.number, i]));
-  const metadata = new Map(), milestones = new Set(), projectSources = new Map(), iterationSources = new Map();
+  const metadata = new Map(), milestones = new Set(), projectSources = new Map(), iterationSources = new Map(), projectEntries = [];
   for (const m of planning.milestones) {
     keys(m, ['number', 'url', 'title', 'description', 'state', 'dueOn', 'updatedAt', 'closedAt']);
     integer(m.number, 1); text(m.title);
@@ -76,8 +79,11 @@ export function validatePlanning(planning, snapshot) {
     if (!Array.isArray(m.projects) || m.projects.length > 100) fail();
     const projects = new Set();
     for (const p of m.projects) {
-      keys(p, ['id', 'title', 'url', 'owner', 'status', 'estimatePoints', 'iteration']);
+      // 優先度は後から取得に加えた。古いsnapshotには無く、新しいsnapshotではすべてのProject登録に有る。
+      keys(p, ['id', 'title', 'url', 'owner', 'status', 'estimatePoints', 'iteration'], ['priority']);
       text(p.id); text(p.title); nullableText(p.owner); nullableText(p.status);
+      if (Object.hasOwn(p, 'priority')) nullableText(p.priority);
+      projectEntries.push(p);
       if (projects.has(p.id) || typeof p.url !== 'string' || !/^https:\/\/github\.com\/(users|orgs)\/[\w.-]+\/projects\/[1-9]\d*$/.test(p.url)) fail();
       if (p.estimatePoints !== null && (typeof p.estimatePoints !== 'number' || !Number.isFinite(p.estimatePoints) || p.estimatePoints < 0)) fail();
       if (p.iteration !== null) {
@@ -102,6 +108,8 @@ export function validatePlanning(planning, snapshot) {
   if (moduleCoverage && moduleCoverage !== planning.issues.length) fail();
   const workCoverage = planning.issues.filter(i => Object.hasOwn(i, 'spec')).length;
   if (workCoverage && workCoverage !== planning.issues.length) fail();
+  const priorityCoverage = projectEntries.filter(p => Object.hasOwn(p, 'priority')).length;
+  if (priorityCoverage && priorityCoverage !== projectEntries.length) fail();
   const childCounts = new Map();
   for (const m of metadata.values()) {
     let node = m, seen = new Set([m.number]);

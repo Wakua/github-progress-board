@@ -35,7 +35,7 @@ PRにはDraft・merge日時も保持する。
 識別にはrepository URL（大文字小文字を同一視）・種類・番号の組を使う。
 Issue・PRの基本項目の見積・期限はnullを保持する。
 
-任意の`planning`に親子Issue、Milestone、Projectの「担当」「Iteration」「Estimate」「Status」、依存関係（blocked by）、紐づく開いたPR、`仕様` ラベルを保持する。
+任意の`planning`に親子Issue、Milestone、Projectの「担当」「Iteration」「Estimate」「Status」「優先度」、依存関係（blocked by）、紐づく開いたPR、`仕様` ラベルを保持する。
 planningを含まない既存snapshotも読み込める。
 Issue本文、コメント、CI、レビュー、完了条件は取得しない。
 
@@ -108,6 +108,7 @@ GitHubソースと隔離QAを確認している。
 ## 未実装・未決定事項
 
 - 双方向同期、プロジェクト名・repository URLの変更や削除、イテレーションの新規登録、親子Issueの構造編集は未実装である。
+- 手動の作業に緊急を指定する機能は未実装である。緊急はGitHub Projectの「優先度」だけで決める。
 - 手動計画とGitHubの作業の統合・移行、明示された完了条件の取得は未決定である。
 - 子Issueを持つIssue自身に独立した作業量がある場合は、作業Issueへ分ける運用か、別の集計規則を採用するかを接続前に決定する。
 - GitHubの計画の担当別負荷と週間の上限比較は未実装である。[Issue #18](https://github.com/Wakua/github-progress-board/issues/18)で管理する。
