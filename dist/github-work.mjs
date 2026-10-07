@@ -1,11 +1,11 @@
 // GitHubで計画しているプロジェクトの「自分の作業」。手動の作業と同じ順（要対応 → 確認待ち → 作業中 → 前提待ち → 着手可能）で分類する。
-import { githubPlan } from './github-planning.mjs';
+import { githubPlan, isUrgent } from './github-planning.mjs';
 import { todayInTokyo } from './engine.mjs';
 
 const DAY = 86400000;
 const lastDay = iteration => new Date(Date.parse(iteration.startDate + 'T00:00:00Z') + (iteration.duration - 1) * DAY).toISOString().slice(0, 10);
 const shortDate = date => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
-export const SECTIONS = [['active', '作業中'], ['action', '要対応'], ['review', '確認待ち'], ['ready-now', '着手可能（今の期間）'],
+export const SECTIONS = [['urgent', '緊急'], ['active', '作業中'], ['action', '要対応'], ['review', '確認待ち'], ['ready-now', '着手可能（今の期間）'],
   ['ready-later', '着手可能（先の期間・未割当・期間不明）'], ['waiting', '前提待ち'], ['done', '完了・Closed']];
 
 // 今の期間：Projectごとに、進行中のIteration、なければ次に始まるIteration。Projectが違えば期間も別に数える。
@@ -26,10 +26,12 @@ export const taskIteration = task => task.projects.map(p => p.iteration).filter(
 // 期限超過は、どれか1つのProjectのIterationが終わっていれば当たる。
 const endedIteration = (issue, today) => issue.projects.map(p => p.iteration).filter(i => i && lastDay(i) < today).sort((a, b) => lastDay(a).localeCompare(lastDay(b)))[0] || null;
 export const taskOwners = task => [...new Set(task.projects.map(p => p.owner))];
-const blockerName = (blocker, repositoryUrl) => {
+// 前提の参照名。別のrepositoryの前提は「owner/repo#番号」とする。
+export const blockerRef = (blocker, repositoryUrl) => {
   const local = blocker.url.toLowerCase().startsWith(repositoryUrl.toLowerCase() + '/issues/');
-  return `${local ? '' : blocker.url.slice(19).replace(/\/issues\/\d+$/, '')}#${blocker.number} ${blocker.title}`;
+  return `${local ? '' : blocker.url.slice(19).replace(/\/issues\/\d+$/, '')}#${blocker.number}`;
 };
+const blockerName = (blocker, repositoryUrl) => `${blockerRef(blocker, repositoryUrl)} ${blocker.title}`;
 
 export function githubWorkCategory(plan, task, repositoryUrl, today = todayInTokyo()) {
   if (task.item.state === 'closed') return { group: 'done', reasons: [] };
@@ -62,7 +64,8 @@ export function githubWorkCategory(plan, task, repositoryUrl, today = todayInTok
 }
 
 // filter は { all: true } か { owner: 担当者名 | null（担当未設定） }。
-export function githubMyWork(snapshot, filter = { all: true }, today = todayInTokyo()) {
+// urgentFirst：緊急の未完了の作業を、ほかのまとまりへ重ねず先頭の「緊急」に集める。各項目の group は、本来のまとまり。
+export function githubMyWork(snapshot, filter = { all: true }, today = todayInTokyo(), { urgentFirst = false } = {}) {
   const plan = githubPlan(snapshot);
   if (!plan) return null;
   const currents = githubCurrentIterations(plan, today);
@@ -75,8 +78,9 @@ export function githubMyWork(snapshot, filter = { all: true }, today = todayInTo
     .sort((a, b) => { const [x, y] = [order(a), order(b)]; return x[0].localeCompare(y[0]) || x[1] - y[1]; });
   for (const task of tasks) {
     const category = githubWorkCategory(plan, task, snapshot.repositoryUrl, today);
-    const id = category.group !== 'ready' ? category.group : isCurrent(task) ? 'ready-now' : 'ready-later';
-    byId.get(id).tasks.push({ task, reasons: category.reasons });
+    const id = urgentFirst && category.group !== 'done' && isUrgent(task) ? 'urgent'
+      : category.group !== 'ready' ? category.group : isCurrent(task) ? 'ready-now' : 'ready-later';
+    byId.get(id).tasks.push({ task, reasons: category.reasons, group: category.group });
   }
   return { currents, dependenciesFetched: plan.issues.every(i => Object.hasOwn(i, 'spec')),
     sections: sections.filter(section => section.tasks.length) };

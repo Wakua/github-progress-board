@@ -55,16 +55,16 @@ export function buildPlanning({ repositoryUrl, issuePages, milestonePages, hiera
     if (!record || n.url.toLowerCase() !== record.html_url.toLowerCase() || Date.parse(n.updatedAt) !== Date.parse(record.updated_at)) fail();
     const projects = connection(n.projectItems).map(item => {
       if (!item.project) fail();
-      const p = { ...item.project, owner: null, status: null, estimatePoints: null, iteration: null };
+      const p = { ...item.project, owner: null, status: null, priority: null, estimatePoints: null, iteration: null };
       const seen = new Set();
       for (const value of connection(item.fieldValues)) {
         const field = value.field?.name;
-        if (!['担当', 'Status', 'Estimate', 'Iteration'].includes(field)) continue;
+        if (!['担当', 'Status', '優先度', 'Estimate', 'Iteration'].includes(field)) continue;
         if (seen.has(field)) fail();
         seen.add(field);
-        if (field === '担当' || field === 'Status') {
+        if (field === '担当' || field === 'Status' || field === '優先度') {
           if (value.__typename !== 'ProjectV2ItemFieldSingleSelectValue') fail();
-          p[field === '担当' ? 'owner' : 'status'] = value.name;
+          p[{ 担当: 'owner', Status: 'status', 優先度: 'priority' }[field]] = value.name;
         } else if (field === 'Estimate') {
           if (value.__typename !== 'ProjectV2ItemFieldNumberValue') fail();
           p.estimatePoints = value.number;
