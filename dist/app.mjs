@@ -337,8 +337,9 @@ function renderViewTabs(project) {
   $('#approval-queue').hidden = viewTab === 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
   const attention = attentionView(project);
-  if (!attention.model || !attentionReasons(attention.model).includes(attentionReasonFilters.get(project.id))) attentionReasonFilters.delete(project.id);
-  const count = attention.model ? attentionCount(attention.model, attentionReasonFilters.get(project.id)) : 0;
+  const reasons = attention.model ? attentionReasons(attention.model) : [];
+  if (reasons.length < 2 || !reasons.includes(attentionReasonFilters.get(project.id))) attentionReasonFilters.delete(project.id);
+  const count = attention.model ? attentionCount(attention.model) : 0;
   $('#tab-attention').innerHTML = `要対応${count ? `<span class="tab-count">${count}</span>` : ''}`;
   $('#attention-panel').innerHTML = renderAttention(project);
 }

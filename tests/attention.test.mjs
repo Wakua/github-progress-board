@@ -89,7 +89,7 @@ test('理由を一つ選び、承認待ち・要対応・あなたの担当を�
   for (const [reason, expected] of [['承認待ち', ['#31']], ['期限切れ', ['#6']], ['担当なし', ['#6']], ['待ち', ['#5']], ['担当', ['#8']], [null, ['#31', '#6', '#5', '#8']]]) {
     const html = attentionPanelMarkup(data, reason);
     assert.deepEqual(visibleNames(html), expected, reason);
-    assert.equal(attentionCount(data, reason), expected.length, reason);
+    assert.equal(attentionCount(data), 4, '全体の件数を保つ');
     assert.match(html, new RegExp('data-attention-reason="' + (reason ?? '') + '" aria-pressed="true"'));
     assert.equal((html.match(/data-attention-reason="[^"]*" aria-pressed="true"/g) || []).length, 1);
   }
@@ -103,16 +103,29 @@ test('理由の選択肢は絞り込み前の一覧から作り、同じ理由�
   ] });
   const html = attentionPanelMarkup(data, '前提が期限切れ');
   assert.deepEqual(visibleNames(html), ['#6']);
-  assert.equal(attentionCount(data, '前提が期限切れ'), 1);
+  assert.equal(attentionCount(data), 2);
   assert.equal((html.match(/data-attention-reason="前提が期限切れ"/g) || []).length, 1);
   assert.match(html, /data-attention-reason="判断待ち"/);
   assert.ok(!html.includes('data-attention-reason="承認待ち"'));
   for (const unavailable of ['承認待ち', '担当', '知らない理由']) {
     assert.deepEqual(visibleNames(attentionPanelMarkup(data, unavailable)), ['#6', '#9']);
-    assert.equal(attentionCount(data, unavailable), 2);
+    assert.equal(attentionCount(data), 2);
     assert.match(attentionPanelMarkup(data, unavailable), /data-attention-reason="" aria-pressed="true"/);
   }
   const empty = model({ approvals: [], mine: [], items: [] });
-  assert.equal(attentionCount(empty, '期限切れ'), 0);
+  assert.equal(attentionCount(empty), 0);
   assert.ok(!attentionPanelMarkup(empty, '期限切れ').includes('data-attention-reason'));
+});
+
+test('理由が一種類だけならボタンを表示せず、以前の選択があっても全件を表示する', () => {
+  const data = model({ approvals: null, owners: [], me: null, mine: [], items: [
+    { endedOn: null, reasons: ['待ち：確認する'], nameHtml: '<button>#5</button>' },
+    { endedOn: null, reasons: ['待ち：回答を受け取る'], nameHtml: '<button>#6</button>' },
+  ] });
+  for (const selected of [null, '待ち', '担当']) {
+    const html = attentionPanelMarkup(data, selected);
+    assert.deepEqual(visibleNames(html), ['#5', '#6']);
+    assert.ok(!html.includes('data-attention-reason'));
+    assert.equal(attentionCount(data), 2);
+  }
 });

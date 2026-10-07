@@ -62,15 +62,15 @@ export function attentionReasons(model) {
 function filteredAttention(model, requestedReason) {
   const rows = attentionRows(model);
   const reasons = [...new Set(rows.flatMap(item => item.labels))];
-  const reason = reasons.includes(requestedReason) ? requestedReason : null;
+  const reason = reasons.length > 1 && reasons.includes(requestedReason) ? requestedReason : null;
   return { reasons, reason, rows: reason ? rows.filter(item => item.labels.includes(reason)) : rows };
 }
-export function attentionCount(model, reason = null) {
-  return filteredAttention(model, reason).rows.length;
+export function attentionCount(model) {
+  return attentionRows(model).length;
 }
 export function attentionPanelMarkup(model, requestedReason = null) {
   const { rows, reasons, reason } = filteredAttention(model, requestedReason);
-  const chips = model.owners.length ? `<div class="owner-filter attention-me" role="group" aria-label="あなたの担当者名"><span class="attention-me-label">あなた：</span>${model.owners.map(owner => `<button type="button" class="owner-choice" data-attention-me="${esc(owner)}" aria-pressed="${owner === model.me}">${esc(owner)}</button>`).join('')}</div>` : '';
-  const filters = reasons.length ? `<div class="owner-filter attention-reasons" role="group" aria-label="理由で絞り込む"><span class="attention-me-label">理由：</span>${[null, ...reasons].map(value => `<button type="button" class="owner-choice" data-attention-reason="${esc(value ?? '')}" aria-pressed="${value === reason}">${esc(value ?? 'すべて')}</button>`).join('')}</div>` : '';
+  const chips = model.owners.length ? `<div class="owner-filter attention-me" role="group" aria-label="あなたの担当者名"><span class="attention-control-label">あなた：</span>${model.owners.map(owner => `<button type="button" class="owner-choice" data-attention-me="${esc(owner)}" aria-pressed="${owner === model.me}">${esc(owner)}</button>`).join('')}</div>` : '';
+  const filters = reasons.length > 1 ? `<div class="owner-filter attention-reasons" role="group" aria-label="理由で絞り込む"><span class="attention-control-label">理由：</span>${[null, ...reasons].map(value => `<button type="button" class="owner-choice" data-attention-reason="${esc(value ?? '')}" aria-pressed="${value === reason}">${esc(value ?? 'すべて')}</button>`).join('')}</div>` : '';
   return chips + filters + (rows.length ? `<section class="my-work-section needs-action"><ul class="my-work-list">${rows.map(item => row(item.nameHtml, item.labels.join('・'))).join('')}</ul></section>` : '<p class="empty-message">手が要る作業はありません。</p>');
 }
