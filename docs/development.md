@@ -87,7 +87,9 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 ## 実装状況
 
 ローカル機能は、[操作説明](usage.md)にある登録・編集と、[進捗管理の仕様](specification.md)にある表示・保存に対応する。
-要対応・リリースのタブは試作として扱い、幅の狭い画面と複数のProjectに登録したIssueの表示は未確認である。
+要対応・リリースのタブは試作として扱う。
+要対応タブの狭い画面は、[理由による絞り込みの観察](attention-filter-observation.md#操作結果)で確認した。
+リリースタブの狭い画面と、複数のProjectに登録したIssueの表示は未確認である。
 リリースの変更前後の画面は `docs/screens/6/` にある。
 
 担当別の負荷の上限は、手動計画とGitHubの計画の画面で確認した。
