@@ -228,3 +228,43 @@ test('changed repository preserves old queues and processes only new reports',as
   assert.equal(client.posts.length,1);assert.equal(fx.store.registration(fresh.id).repository,client.repository);
   assert.equal(fx.store.registration(fresh.id).url,url(101,client.repository));
 });
+function switchRepository(fx,repository) {
+  const client=fake(repository);
+  return fx.worker.stop().then(()=>({client,worker:new GitHubWorker(fx.store,client)}));
+}
+test('a report that failed against a wrong repository registers again after the setting is fixed',async t=>{
+  const fx=fixture(t,{enabled:false});const wrong=fake('qa-fixture/booking-reportz');
+  wrong.createIssue=async()=>{throw new GitHubFailure('GitHubリポジトリまたはIssueを確認してください。',{status:404});};
+  const first=new GitHubWorker(fx.store,wrong);const report=fx.report();
+  await first.processOne();assert.equal(fx.store.registration(report.id).state,'failed');assert.equal(fx.store.registration(report.id).repository,wrong.repository);
+  await first.stop();
+  const worker=new GitHubWorker(fx.store,fx.client);
+  await assert.rejects(worker.reconcile(fx.actors.admin,report.id),error=>error.status===409);
+  await worker.register(fx.actors.admin,report.id);
+  assert.equal(fx.store.registration(report.id).repository,approvedRepository);assert.equal(fx.store.registration(report.id).state,'pending');
+  await worker.serialize(()=>worker.processOne());
+  const saved=fx.store.registration(report.id);
+  assert.equal(saved.state,'registered');assert.equal(saved.url,url(101));assert.equal(fx.client.posts.length,1);
+});
+test('a registered report cannot be registered again under another repository',async t=>{
+  const fx=fixture(t);const report=fx.report();await fx.worker.processOne();
+  const before=fx.store.registration(report.id);assert.equal(before.state,'registered');
+  const {client,worker}=await switchRepository(fx,'qa-fixture/another');
+  for(const action of [()=>worker.register(fx.actors.admin,report.id),()=>worker.reconcile(fx.actors.admin,report.id),()=>worker.refreshLabels(fx.actors.admin,report.id)])await assert.rejects(action(),error=>error.status===409);
+  await worker.processOne();
+  const after=fx.store.registration(report.id);
+  assert.equal(client.posts.length,0);assert.equal(client.reads.length,0);
+  assert.deepEqual([after.repository,after.number,after.url,after.state],[before.repository,before.number,before.url,before.state]);
+});
+test('an unconfirmed report is reconciled and confirmed before registering, even after the repository changes',async t=>{
+  const fx=fixture(t);fx.client.createIssue=async(...args)=>{fx.client.posts.push({});throw new GitHubFailure('不明',{uncertain:true});};
+  const report=fx.report();await fx.worker.processOne();assert.equal(fx.store.registration(report.id).state,'unknown');
+  const {client,worker}=await switchRepository(fx,'qa-fixture/another');
+  for(const action of [()=>worker.register(fx.actors.admin,report.id),()=>worker.reconcile(fx.actors.admin,report.id),()=>worker.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:fx.store.registration(report.id).revision})])await assert.rejects(action(),error=>error.status===409);
+  await worker.processOne();
+  assert.equal(client.posts.length,0);assert.equal(fx.store.registration(report.id).state,'unknown');assert.equal(fx.store.registration(report.id).repository,approvedRepository);
+  await worker.stop();const original=new GitHubWorker(fx.store,fx.client);
+  await assert.rejects(original.register(fx.actors.admin,report.id),error=>error.status===409);
+  await assert.rejects(original.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:fx.store.registration(report.id).revision}),error=>error.status===409);
+  await original.reconcile(fx.actors.admin,report.id);assert.equal(fx.store.registration(report.id).candidates.length,0);
+});

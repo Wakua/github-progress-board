@@ -1,4 +1,4 @@
-import {registrationName,tagOptions,matchesFilters,statusNames,nextStatusNames,nextAction} from './view.mjs';
+import {registrationName,registrationTarget,tagOptions,matchesFilters,statusNames,nextStatusNames,nextAction} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
@@ -200,7 +200,7 @@ function renderGitHub(report) {
   if(tags.fetchedAt)box.append(element('p','取得：'+time(tags.fetchedAt)+(tags.state==='error'?'（前回成功時）':''),'meta'));
   if(tags.error)box.append(element('p',tags.error,'error-text'));
   if(actor.role!=='admin')return box;
-  box.append(element('p','登録先：'+(github.repository||actor.github.repository||'未設定'),'meta'));
+  box.append(element('p',registrationTarget(github,actor.github.repository),'meta'));
   if(!actor.github.enabled) {box.append(element('p','GitHub接続を有効にすると登録管理を利用できます。','muted'));return box;}
   const controls=element('div',undefined,'actions'),actionError=element('p','','error-text');
   function action(text,route,input={},enabled=true) {

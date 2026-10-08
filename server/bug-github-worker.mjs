@@ -97,10 +97,11 @@ export class GitHubWorker {
       this.store.db.prepare("UPDATE registration_queue SET label_state='error',labels_error=?,revision=revision+1 WHERE report_id=?").run(this.safeError(error),id);
     }
   }
-  authorize(actor,id) {this.store.assertActive(actor);if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');this.store.reportRow(actor,id);const row=this.row(id);if(row.repository&&row.repository!==this.client.repository)throw new BugError(409,'保存されたGitHub接続先が一致しません。');return row;}
+  // A failed creation never made an issue, so only a failed report may move to the current repository.
+  authorize(actor,id,{retarget=false}={}) {this.store.assertActive(actor);if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');this.store.reportRow(actor,id);const row=this.row(id);if(row.repository&&row.repository!==this.client.repository&&!(retarget&&row.state==='failed'))throw new BugError(409,'保存されたGitHub接続先が一致しません。');return row;}
   register(actor,id) {
     return this.serialize(()=>{
-      const row=this.authorize(actor,id);this.requireAvailable();
+      const row=this.authorize(actor,id,{retarget:true});this.requireAvailable();
       if(!['pending','failed'].includes(row.state))throw new BugError(409,'作成結果を照合してから操作してください。');
       this.store.db.prepare("UPDATE registration_queue SET repository=?,state='pending',retry_at=0,error=NULL,revision=revision+1 WHERE report_id=?").run(this.client.repository,id);
       this.wake();return this.store.getReport(actor,id);
