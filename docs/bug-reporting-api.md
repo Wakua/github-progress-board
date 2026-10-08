@@ -97,7 +97,7 @@ confirmationsはhistoryのうち確認結果だけを返す。
 | reports/:reportId/github/tags | {} | 登録済みIssueのタグを再取得する |
 
 成功時は200と `{report: ...}` を返す。
-接続が無効なら503、指定外の接続元は403、対象状態や照合結果が古い場合は409、利用制限の待機中は429を返す。
+接続が無効なら503、指定外の接続元は403、対象状態や照合結果が古い場合と、作成の直後の照合を根拠にした再試行は409、利用制限の待機中は429を返す。
 タグの取得失敗は報告内のタグ取得状態に記録し、Issue登録済みの関連は保持する。
 
 ## 登録情報のJSON
@@ -112,7 +112,8 @@ confirmationsはhistoryのうち確認結果だけを返す。
 | error / retryAt | 登録のエラーと自動再試行時刻。時刻はUnixミリ秒 |
 | revision | 登録情報の更新番号。再試行の競合検査に使う |
 | tags | state（unfetched、ok、error）、labels（id・name・colorの配列）、fetchedAt（成功した取得日時）、error |
-| checkedAt / candidates | 照合時刻（Unixミリ秒）と候補のnumber・url。照合していなければnull |
+| checkedAt / candidates | 照合を始めた時刻（Unixミリ秒）と候補のnumber・url。照合していなければnull |
+| holdUntil | 結果未確認の報告で、checkedAtがこの時刻より前なら、該当なしを確定せず再試行も拒否する。待ち時間は[GitHub登録](bug-reporting.md#github登録)に従う。結果未確認でなければnull |
 
 ticketStateはgithub.stateと同じ値である。
 報告自身のrevisionとupdatedAtは、登録状況やタグの取得だけでは変更しない。

@@ -50,7 +50,7 @@ export class GitHubClient {
   }
   async request(method,route,body) {
     const allowed=method==='POST' ? route==='issues' :
-      method==='GET' && (/^issues\/\d+$/.test(route)||/^issues\?state=all&sort=created&direction=asc&per_page=100&page=\d+$/.test(route));
+      method==='GET' && (/^issues\/\d+$/.test(route)||/^issues\?state=all&sort=created&direction=desc&per_page=100&page=\d+$/.test(route));
     if(!allowed)throw new Error('許可されたGitHub操作ではありません。');
     const args=['api','--hostname','github.com','--method',method,'--include','-H','Accept: application/vnd.github+json','-H','X-GitHub-Api-Version: 2022-11-28','repos/'+this.repository+'/'+route];
     if(body)args.push('--input','-');
@@ -69,17 +69,18 @@ export class GitHubClient {
     if(!Number.isSafeInteger(number)||number<1)throw new Error('Issue番号が不正です。');
     return validateIssue(await this.request('GET','issues/'+number),this.repository);
   }
-  async findIssues(marker) {
-    const found=[];
+  // 識別子を持つIssueを、新しい順の一覧から探す。createdAfterより1時間以上古いIssueに達したら、それ以前は読まない。
+  async findIssues(marker,{createdAfter}={}) {
+    const found=new Map(),bound=createdAfter?Date.parse(createdAfter)-3600000:NaN;
     for(let page=1;page<=50;page++){
-      const items=await this.request('GET','issues?state=all&sort=created&direction=asc&per_page=100&page='+page);
+      const items=await this.request('GET','issues?state=all&sort=created&direction=desc&per_page=100&page='+page);
       if(!Array.isArray(items)||items.length>100)throw new GitHubFailure('Issue一覧の応答を確認できません。');
       for(const item of items) {
         if(item.pull_request)continue;
         validateIssue({...item,body:item.body??''},this.repository);
-        if(typeof item.body==='string'&&item.body.startsWith(marker+'\n'))found.push(item);
+        if(typeof item.body==='string'&&item.body.startsWith(marker+'\n'))found.set(item.number,item);
       }
-      if(items.length<100)return found;
+      if(items.length<100||Date.parse(items.at(-1).created_at)<bound)return [...found.values()];
     }
     throw new GitHubFailure('Issue一覧を全件取得できませんでした。照合結果を確定しません。');
   }

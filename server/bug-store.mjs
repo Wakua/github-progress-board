@@ -3,6 +3,8 @@ import { mkdirSync, existsSync } from 'node:fs';
 import path from 'node:path';
 import { randomBytes, randomUUID, createHash } from 'node:crypto';
 
+// 作成要求の開始からこの時間が過ぎるまで、Issue一覧に載らないことが「該当なし」の根拠にならない。
+export const creationSettleMs = 60000;
 export const initialPolicy = { maxBytes: 1024 ** 3, maxFiles: 20 };
 export class BugError extends Error {
   constructor(status, message) { super(message); this.status = status; }
@@ -27,7 +29,7 @@ export class BugStore {
     try {
       this.db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;');
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (version !== 0 && version !== 1 && version !== 2 && version !== 3) throw new Error('未対応の報告データです。保存先を保持しました。');
+      if (![0,1,2,3,4].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
       if (version === 0) {
         if (!initialize || this.db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table'").get().n) throw new Error('報告データの形式を確認できません。');
         validatePolicy(policy);
@@ -83,6 +85,9 @@ export class BugStore {
             UNIQUE(report_id,actor_id,request_id)) STRICT;
           PRAGMA user_version=3;
         `);
+      });
+      if(this.db.prepare('PRAGMA user_version').get().user_version===3) this.transaction(()=>{
+        this.db.exec('ALTER TABLE registration_queue ADD COLUMN attempted_at INTEGER; PRAGMA user_version=4;');
       });
     } catch (error) { this.db.close(); throw error; }
   }
@@ -150,7 +155,8 @@ export class BugStore {
     const value=this.db.prepare('SELECT * FROM registration_queue WHERE report_id=?').get(id);
     return {state:value.state,repository:value.repository,number:value.issue_number,url:value.issue_url,error:value.error,retryAt:value.retry_at,revision:value.revision,
       tags:{state:value.label_state,labels:value.labels?JSON.parse(value.labels):[],fetchedAt:value.labels_at,error:value.labels_error},
-      checkedAt:value.checked_at,candidates:value.candidates?JSON.parse(value.candidates):null};
+      checkedAt:value.checked_at,candidates:value.candidates?JSON.parse(value.candidates):null,
+      holdUntil:value.state==='unknown'&&value.attempted_at!==null?value.attempted_at+creationSettleMs:null};
   }
   summary(row,actor) {
     const totals = this.db.prepare("SELECT count(*) AS count,coalesce(sum(size),0) AS bytes FROM attachments WHERE report_id=? AND state<>'uploading'").get(row.id);
