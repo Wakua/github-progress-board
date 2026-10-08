@@ -111,7 +111,8 @@ test('revoked actors cannot commit either workflow action',async t=>{
 test('GitHub Closed and tag failures do not complete a tester confirmation or change its history',async t=>{
   const client={repository:approvedRepository,issue:null,fail:false,
     async createIssue(title,body){return this.issue={number:101,html_url:'https://github.com/'+approvedRepository+'/issues/101',body,title,state:'closed',labels:[]};},
-    async getIssue(){if(this.fail)throw new GitHubFailure('模擬取得失敗');return this.issue;}};
+    async getIssue(){if(this.fail)throw new GitHubFailure('模擬取得失敗');return this.issue;},
+    async findIssues(){return [];}};
   const fx=await fixture(t,{githubClient:client});const report=await fx.checking();
   await fx.worker.serialize(()=>fx.worker.processOne());
   const actor=fx.store.actorForKey(fx.keys.admin.secret),before=fx.store.getReport(actor,report.id);assert.equal(before.status,'checking');
@@ -125,7 +126,7 @@ test('schema v2 migration and subsequent restart preserve report, attachment and
   const file=store.reserveAttachment(actor,null,{name:'sound.raw',size:3,type:''});writeFileSync(store.filePath(file.id),'abc');store.finishAttachment(file.id,digest('abc'),actor);
   const report=store.createReport(actor,{body:'既存報告',reportedVersion:'v1',requestId:'initial',uploadIds:[file.id]});store.close();
   const db=new DatabaseSync(path.join(dir,'reports.sqlite'));
-  db.exec("DROP TABLE report_events; ALTER TABLE reports DROP COLUMN status; ALTER TABLE reports DROP COLUMN target_version; ALTER TABLE reports DROP COLUMN developer_note; PRAGMA user_version=2;");db.close();
-  store=new BugStore(dir);try{const migrated=store.getReport(store.actorForKey(key.secret),report.id);assert.equal(migrated.status,'received');assert.equal(migrated.targetVersion,'');assert.equal(migrated.body,report.body);assert.deepEqual(migrated.attachments,report.attachments);assert.deepEqual(migrated.github,report.github);assert.deepEqual(readFileSync(store.filePath(file.id)),Buffer.from('abc'));assert.equal(store.db.prepare('PRAGMA user_version').get().user_version,3);}finally{store.close();}
+  db.exec("DROP TABLE report_events; ALTER TABLE reports DROP COLUMN status; ALTER TABLE reports DROP COLUMN target_version; ALTER TABLE reports DROP COLUMN developer_note; ALTER TABLE registration_queue DROP COLUMN attempted_at; PRAGMA user_version=2;");db.close();
+  store=new BugStore(dir);try{const migrated=store.getReport(store.actorForKey(key.secret),report.id);assert.equal(migrated.status,'received');assert.equal(migrated.targetVersion,'');assert.equal(migrated.body,report.body);assert.deepEqual(migrated.attachments,report.attachments);assert.deepEqual(migrated.github,report.github);assert.deepEqual(readFileSync(store.filePath(file.id)),Buffer.from('abc'));assert.equal(store.db.prepare('PRAGMA user_version').get().user_version,4);}finally{store.close();}
   store=new BugStore(dir);try{assert.equal(store.getReport(store.actorForKey(key.secret),report.id).status,'received');}finally{store.close();}
 });

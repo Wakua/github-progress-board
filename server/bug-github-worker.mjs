@@ -1,4 +1,4 @@
-import {BugError} from './bug-store.mjs';
+import {BugError,creationSettleMs} from './bug-store.mjs';
 import {GitHubFailure,parseBugRepository,validateIssue,validateLabels} from './bug-github-client.mjs';
 export function retryTime(error,now,attempt=1) {
   const h=error.headers||{};
@@ -19,6 +19,7 @@ export class GitHubWorker {
     store.db.prepare("UPDATE registration_queue SET state='unknown',error='前回の作成結果を確認してください。',revision=revision+1 WHERE state='creating' AND repository=?").run(client.repository);
   }
   marker(id) {return '<!-- github-progress-board-report:'+this.store.db.prepare('SELECT instance_id FROM github_runtime WHERE id=1').get().instance_id+':'+id+' -->';}
+  reportCreatedAt(id) {return this.store.db.prepare('SELECT created_at FROM reports WHERE id=?').get(id).created_at;}
   row(id) {const row=this.store.db.prepare('SELECT * FROM registration_queue WHERE report_id=?').get(id);if(!row)throw new BugError(404,'報告が見つかりません。');return row;}
   serialize(action) {
     const result=this.tail.then(()=>{if(this.stopped)throw new BugError(503,'サーバーを停止しています。');return action();});
@@ -62,13 +63,25 @@ export class GitHubWorker {
     const row=this.store.transaction(()=>{
       const next=this.store.db.prepare("SELECT * FROM registration_queue WHERE state='pending' AND repository=? AND retry_at<=? ORDER BY rowid LIMIT 1").get(this.client.repository,this.clock());
       if(!next)return null;
-      this.store.db.prepare("UPDATE registration_queue SET state='creating',attempts=attempts+1,error=NULL,revision=revision+1 WHERE report_id=? AND state='pending'").run(next.report_id);
+      this.store.db.prepare("UPDATE registration_queue SET state='creating',attempts=attempts+1,attempted_at=?,error=NULL,revision=revision+1 WHERE report_id=? AND state='pending'").run(this.clock(),next.report_id);
       return this.row(next.report_id);
     });
     if(!row)return;
+    let sent=false;
     try {
       const input=this.payload(row.report_id);
-      const issue=validateIssue(await this.client.createIssue(input.title,input.body),this.client.repository);
+      // 古いバックアップの復元などで、作成済みのIssueが未登録に戻っていることがある。作成の前に必ず探す。
+      const existing=await this.client.findIssues(this.marker(row.report_id),{createdAfter:this.reportCreatedAt(row.report_id)});
+      if(existing.length>1) {
+        this.store.db.prepare("UPDATE registration_queue SET state='unknown',error='同じ識別子のIssueが複数あります。',checked_at=?,candidates=?,revision=revision+1 WHERE report_id=?").run(this.clock(),JSON.stringify(existing.map(issue=>({number:issue.number,url:issue.html_url}))),row.report_id);
+        return;
+      }
+      let issue;
+      if(existing.length===1)issue=validateIssue(existing[0],this.client.repository);
+      else {
+        sent=true;
+        issue=validateIssue(await this.client.createIssue(input.title,input.body),this.client.repository);
+      }
       if(!issue.body.startsWith(this.marker(row.report_id)+'\n'))throw new GitHubFailure('作成結果の識別子を確認できません。',{uncertain:true});
       this.link(row.report_id,issue);
       await this.refreshLabelsInternal(row.report_id);
@@ -76,7 +89,8 @@ export class GitHubWorker {
       // The association is committed before labels are fetched. Never undo a successful creation.
       if(this.row(row.report_id).state==='registered')return;
       const retryAt=this.rememberRate(error,row.attempts);
-      const state=retryAt?'pending':error instanceof GitHubFailure&&!error.uncertain&&error.status>=400&&error.status<500?'failed':'unknown';
+      // 作成要求を送る前の失敗では、Issueは作られていない。
+      const state=retryAt?'pending':!sent||error instanceof GitHubFailure&&!error.uncertain&&error.status>=400&&error.status<500?'failed':'unknown';
       this.store.db.prepare('UPDATE registration_queue SET state=?,error=?,retry_at=?,revision=revision+1 WHERE report_id=?').run(state,this.safeError(error),retryAt,row.report_id);
     }
   }
@@ -113,10 +127,12 @@ export class GitHubWorker {
     return this.serialize(async()=>{
       const row=this.authorize(actor,id);this.requireAvailable();if(row.state!=='unknown')throw new BugError(409,'結果未確認の報告を選んでください。');
       let candidates;
-      try{candidates=await this.client.findIssues(this.marker(id));}
+      // 照合時刻は読み取りを始めた時刻にする。一覧への反映の遅れを、読み取りの後ではなく前から数える。
+      const checkedAt=this.clock();
+      try{candidates=await this.client.findIssues(this.marker(id),{createdAfter:this.reportCreatedAt(id)});}
       catch(error){this.rememberRate(error);throw new BugError(503,this.safeError(error));}
       if(candidates.length===1) {this.link(id,validateIssue(candidates[0],this.client.repository));await this.refreshLabelsInternal(id);}
-      else this.store.db.prepare('UPDATE registration_queue SET checked_at=?,candidates=?,revision=revision+1 WHERE report_id=?').run(this.clock(),JSON.stringify(candidates.map(issue=>({number:issue.number,url:issue.html_url}))),id);
+      else this.store.db.prepare('UPDATE registration_queue SET checked_at=?,candidates=?,revision=revision+1 WHERE report_id=?').run(checkedAt,JSON.stringify(candidates.map(issue=>({number:issue.number,url:issue.html_url}))),id);
       return this.store.getReport(actor,id);
     });
   }
@@ -124,6 +140,8 @@ export class GitHubWorker {
     return this.serialize(()=>{
       const row=this.authorize(actor,id);this.requireAvailable();
       if(row.state!=='unknown'||input.confirmNoIssue!==true||input.revision!==row.revision||!row.checked_at||this.clock()-row.checked_at>300000||row.candidates!=='[]')throw new BugError(409,'最新の照合結果を確認してから再試行してください。');
+      // 作成要求の直後は、Issueがあっても一覧に載らない。作成の試行から一定時間が過ぎたあとの照合だけを根拠にする。
+      if(row.attempted_at!==null&&row.checked_at<row.attempted_at+creationSettleMs)throw new BugError(409,'作成の直後は該当なしを確定できません。時間をおいて、もう一度照合してください。');
       this.store.db.prepare("UPDATE registration_queue SET state='pending',checked_at=NULL,candidates=NULL,error=NULL,retry_at=0,revision=revision+1 WHERE report_id=?").run(id);
       this.wake();return this.store.getReport(actor,id);
     });

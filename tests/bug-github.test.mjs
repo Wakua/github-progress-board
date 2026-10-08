@@ -12,11 +12,11 @@ const approvedRepository='qa-fixture/booking-reports';
 
 const url=(number,repository=approvedRepository)=>'https://github.com/'+repository+'/issues/'+number;
 const label={id:7,name:'UI',color:'336699'};
-function fake(repository=approvedRepository) {
-  return {repository,posts:[],reads:[],issues:[],labels:[label],
-    async createIssue(title,body){const issue={number:this.issues.length+101,html_url:url(this.issues.length+101,this.repository),title,body,labels:this.labels};this.posts.push({title,body});this.issues.push(issue);return issue;},
+function fake(repository=approvedRepository,now=()=>0) {
+  return {repository,now,lag:0,posts:[],reads:[],issues:[],labels:[label],
+    async createIssue(title,body){const issue={number:this.issues.length+101,html_url:url(this.issues.length+101,this.repository),title,body,labels:this.labels,at:this.now()};this.posts.push({title,body});this.issues.push(issue);return issue;},
     async getIssue(number){this.reads.push(number);const issue=this.issues.find(issue=>issue.number===number);if(!issue)throw new GitHubFailure('見つかりません。',{status:404});return{...issue,labels:this.labels};},
-    async findIssues(marker){return this.issues.filter(issue=>issue.body.startsWith(marker+'\n'));}
+    async findIssues(marker){return this.issues.filter(issue=>issue.body.startsWith(marker+'\n')&&this.now()-(issue.at??-Infinity)>=this.lag);}
   };
 }
 function fixture(t,{enabled=true}={}) {
@@ -24,7 +24,7 @@ function fixture(t,{enabled=true}={}) {
   for(const [id,role]of [['a','tester'],['b','tester'],['admin','admin']])store.createUser(id,id,role);
   const keys=Object.fromEntries(['a','b','admin'].map(id=>[id,store.issueKey(id)]));
   const actors=Object.fromEntries(Object.entries(keys).map(([id,key])=>[id,store.actorForKey(key.secret)]));
-  const client=fake();let clock=100000;
+  let clock=100000;const client=fake(approvedRepository,()=>clock);
   const worker=enabled?new GitHubWorker(store,client,{clock:()=>clock}):null;
   t.after(async()=>{await (store.githubWorker||worker)?.stop();store.close();const relative=path.relative(tmpdir(),dir);assert.ok(relative&&!relative.startsWith('..'));rmSync(dir,{recursive:true,force:true});});
   const report=(id='a',body='バグ報告')=>store.createReport(actors[id],{body,reportedVersion:'test',requestId:crypto.randomUUID(),uploadIds:[]});
@@ -67,6 +67,74 @@ test('reconciliation reads all pages, excludes PRs, and matches only the generat
 test('failed or incomplete reads do not establish a zero-candidate reconciliation',async()=>{
   let page=0;const client=new GitHubClient(approvedRepository,{run:async()=>{page++;if(page===2)throw new GitHubFailure('途中で失敗しました。');return{status:200,headers:{},data:Array.from({length:100},(_,index)=>({number:index+1,html_url:url(index+1),body:''}))};}});
   await assert.rejects(client.findIssues('marker'));
+});
+test('issue lookup reads newest first, stops at issues older than the report, and counts a repeated issue once',async()=>{
+  const marker='<!-- marker -->',calls=[],base=Date.parse('2026-10-01T12:00:00Z');
+  const issue=(number,minutesAgo,body='')=>({number,html_url:url(number),body,created_at:new Date(base-minutesAgo*60000).toISOString()});
+  const old=new GitHubClient(approvedRepository,{run:async args=>{
+    calls.push(args.at(-1));const page=Number(/&page=(\d+)$/.exec(args.at(-1))[1]);
+    return{status:200,headers:{},data:Array.from({length:100},(_,index)=>issue(10000-(page-1)*100-index,(page-1)*1000+index*10,index===3?marker+'\n':''))};
+  }});
+  const found=await old.findIssues(marker,{createdAfter:new Date(base-60*60000).toISOString()});
+  assert.match(calls[0],/sort=created&direction=desc&/);
+  assert.equal(calls.length,1);assert.deepEqual(found.map(item=>item.number),[9997]);
+  let pages=0;const shifted=new GitHubClient(approvedRepository,{run:async()=>{
+    pages++;return{status:200,headers:{},data:pages===1?Array.from({length:100},(_,index)=>issue(500-index,index,index===99?marker+'\n':'')):[issue(401,100,marker+'\n')]};
+  }});
+  assert.deepEqual((await shifted.findIssues(marker)).map(item=>item.number),[401]);assert.equal(pages,2);
+});
+test('right after a lost creation, neither reconciliation nor retry can create a second issue',async t=>{
+  const fx=fixture(t);fx.client.lag=8000;const original=fx.client.createIssue.bind(fx.client);
+  fx.client.createIssue=async(...args)=>{await original(...args);throw new GitHubFailure('応答欠落',{uncertain:true});};
+  const report=fx.report();await fx.worker.processOne();
+  assert.equal(fx.store.registration(report.id).state,'unknown');assert.equal(fx.client.posts.length,1);
+  fx.setClock(101100);await fx.worker.reconcile(fx.actors.admin,report.id);
+  const early=fx.store.registration(report.id);
+  assert.deepEqual(early.candidates,[]);assert.equal(early.holdUntil,160000);
+  await assert.rejects(fx.worker.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:early.revision}),error=>error.status===409&&/直後/.test(error.message));
+  assert.equal(fx.store.registration(report.id).state,'unknown');
+  fx.setClock(160000);await fx.worker.reconcile(fx.actors.admin,report.id);
+  assert.equal(fx.store.registration(report.id).state,'registered');assert.equal(fx.client.posts.length,1);
+});
+test('a zero-candidate check releases a retry only when it started a full settle period after the attempt',async t=>{
+  const fx=fixture(t);fx.client.lag=Infinity;fx.client.createIssue=async()=>{throw new GitHubFailure('不明',{uncertain:true});};
+  const report=fx.report();await fx.worker.processOne();
+  for(const [time,released] of [[159999,false],[160000,true]]) {
+    fx.setClock(time);await fx.worker.reconcile(fx.actors.admin,report.id);
+    const checked=fx.store.registration(report.id),retry=fx.worker.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:checked.revision});
+    if(released)await retry;else await assert.rejects(retry,error=>error.status===409);
+  }
+  assert.equal(fx.store.registration(report.id).state,'pending');
+});
+test('registering after a restore to an older backup links the existing issue instead of creating another',async t=>{
+  const fx=fixture(t);const report=fx.report();await fx.worker.processOne();
+  const registered=fx.store.registration(report.id);assert.equal(registered.state,'registered');
+  const restore=repository=>fx.store.db.prepare("UPDATE registration_queue SET state='pending',repository=?,issue_number=NULL,issue_url=NULL,attempts=0,attempted_at=NULL,label_state='unfetched',labels=NULL,labels_at=NULL,revision=1 WHERE report_id=?").run(repository,report.id);
+  restore(fx.client.repository);fx.setClock(900000);await fx.worker.serialize(()=>fx.worker.processOne());
+  assert.equal(fx.client.posts.length,1);assert.equal(fx.store.registration(report.id).state,'registered');assert.equal(fx.store.registration(report.id).number,registered.number);
+  restore(null);await fx.worker.register(fx.actors.admin,report.id);await fx.worker.serialize(()=>fx.worker.processOne());
+  assert.equal(fx.client.posts.length,1);assert.equal(fx.store.registration(report.id).number,registered.number);
+});
+test('several issues with the same identifier stop registration for a manual check',async t=>{
+  const fx=fixture(t);const report=fx.report();
+  fx.client.issues=[201,202].map(number=>({number,html_url:url(number),body:fx.worker.marker(report.id)+'\n',labels:[]}));
+  await fx.worker.processOne();
+  const row=fx.store.registration(report.id);
+  assert.equal(row.state,'unknown');assert.deepEqual(row.candidates.map(item=>item.number),[201,202]);assert.equal(fx.client.posts.length,0);
+  await assert.rejects(fx.worker.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:row.revision}),error=>error.status===409);
+});
+test('a failed lookup never reaches creation and does not mark the result unknown',async t=>{
+  const fx=fixture(t);const find=fx.client.findIssues.bind(fx.client);
+  const report=fx.report(),limited=fx.report();
+  fx.client.findIssues=async()=>{throw new GitHubFailure('GitHubの処理を完了できませんでした。',{status:503});};
+  await fx.worker.processOne();
+  assert.equal(fx.store.registration(report.id).state,'failed');assert.equal(fx.client.posts.length,0);
+  fx.client.findIssues=async()=>{throw new GitHubFailure('利用制限',{status:429,headers:{'retry-after':'120'}});};
+  await fx.worker.processOne();
+  assert.equal(fx.store.registration(limited.id).state,'pending');assert.equal(fx.store.registration(limited.id).retryAt,220000);assert.equal(fx.client.posts.length,0);
+  fx.client.findIssues=find;fx.setClock(220001);
+  await fx.worker.register(fx.actors.admin,report.id);await fx.worker.serialize(()=>fx.worker.processOne());await fx.worker.serialize(()=>fx.worker.processOne());
+  assert.equal(fx.client.posts.length,2);
 });
 test('creation is serialized, linked durably, and tags are fetched without changing the report',async t=>{
   const fx=fixture(t);const report=fx.report();const before=fx.store.getReport(fx.actors.a,report.id);
@@ -136,7 +204,7 @@ test('retry time observes remaining/reset headers and backs off on secondary lim
 });
 test('zero candidates require a fresh matching revision and explicit administrator acknowledgement',async t=>{
   const fx=fixture(t);fx.client.createIssue=async()=>{throw new GitHubFailure('不明',{uncertain:true});};
-  const report=fx.report();await fx.worker.processOne();await fx.worker.reconcile(fx.actors.admin,report.id);
+  const report=fx.report();await fx.worker.processOne();fx.setClock(160000);await fx.worker.reconcile(fx.actors.admin,report.id);
   const checked=fx.store.registration(report.id);
   for(const input of [{confirmNoIssue:false,revision:checked.revision},{confirmNoIssue:true,revision:checked.revision-1}])await assert.rejects(fx.worker.retryUnknown(fx.actors.admin,report.id,input),error=>error.status===409);
   await fx.worker.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:checked.revision});
@@ -180,7 +248,7 @@ test('schema v1 migration preserves reports, attachments, and the pending queue'
   fx.store.db.prepare('INSERT INTO registration_queue(report_id) VALUES(?)').run(report.id);
   // Reopen another connection only for migration; the fixture closes the original handle afterwards.
   const reopened=new BugStore(fx.dir);
-  try{assert.equal(reopened.getReport(fx.actors.a,report.id).body,'バグ報告');assert.equal(reopened.registration(report.id).state,'pending');assert.equal(readFileSync(reopened.filePath(attached.id),'utf8'),'abc');assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,3);}finally{reopened.close();}
+  try{assert.equal(reopened.getReport(fx.actors.a,report.id).body,'バグ報告');assert.equal(reopened.registration(report.id).state,'pending');assert.equal(readFileSync(reopened.filePath(attached.id),'utf8'),'abc');assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,4);}finally{reopened.close();}
 });
 test('HTTP GitHub operations use the common local user and report reads use saved metadata',async t=>{
   const fx=fixture(t,{enabled:false});const report=fx.report();const server=createProgressServer({dataDir:fx.dir,githubClient:fx.client});
