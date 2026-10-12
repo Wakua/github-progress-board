@@ -1,4 +1,5 @@
 import {registrationName,registrationTarget,tagOptions,matchesFilters,statusNames,nextStatusNames,nextAction} from './view.mjs';
+import {mountTagRoles} from './tag-roles.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
@@ -13,6 +14,7 @@ async function api(route,options={}) {
 }
 const json = value => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
 function notice(message,error=false) { const node=$('#notice'); node.textContent=message; node.classList.toggle('error',error); node.hidden=!message; }
+const tagRoles = mountTagRoles({api,json,element,notice});
 function clearDraft() { $('#report-form').reset(); uploaded.clear(); draftId=null; pending=[]; $('#selected-files').replaceChildren(); $('#pending-files').replaceChildren(); $('#form-error').textContent=''; }
 function savedDraftUploads() {
   return [...new Map([...pending,...uploaded.values()].map(file=>[file.id,file])).values()];
@@ -39,7 +41,7 @@ function showActor(value) {
   $('#policy').textContent='1報告あたり '+bytes(actor.policy.maxBytes)+'・'+actor.policy.maxFiles+'ファイルまで。形式は自由です。保存したデータは自動で削除しません。';
 }
 async function refresh() {
-  const current=actor,result=await api('reports'); if(actor!==current)return; reports=result.reports; renderFilters(); renderList();
+  const current=actor,result=await api('reports'); if(actor!==current)return; reports=result.reports; renderFilters(); renderList(); await tagRoles.load();
   if(selected && reports.some(report=>report.id===selected)) await openReport(selected,false);
   else if(deepLink) {const id=deepLink;deepLink=null;try{await openReport(id);}catch(error){notice(error.message,true);}}
   scheduleStatusRefresh();
@@ -253,7 +255,7 @@ function scheduleStatusRefresh() {
     try {
       const result=await api('reports');
       if(actor!==current)return;
-      reports=result.reports;renderFilters();renderList();
+      reports=result.reports;renderFilters();renderList();await tagRoles.load();
       const report=reports.find(item=>item.id===selected),box=$('#github-status');
       if(report&&box)box.replaceChildren(renderGitHub(report));
     } catch(error) {notice(error.message,true);}

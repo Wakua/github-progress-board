@@ -12,6 +12,8 @@
 | GET | reports/:reportId | 本文、添付情報、対応状況と確認履歴 |
 | POST | reports/:reportId/status | 対応状況を次の段階へ進める |
 | POST | reports/:reportId/confirmations | 修正版の確認結果を保存する |
+| GET | tag-roles | タグの一覧と、タグごとの役割 |
+| POST | tag-roles | タグの役割を保存する |
 | GET | uploads | 全確定済み・未登録データの情報 |
 | POST | uploads | 新しい報告へ付ける再現データを保存する |
 | POST | reports/:reportId/attachments | 既存報告に再現データを追加する |
@@ -118,6 +120,26 @@ confirmationsはhistoryのうち確認結果だけを返す。
 ticketStateはgithub.stateと同じ値である。
 報告自身のrevisionとupdatedAtは、登録状況やタグの取得だけでは変更しない。
 未取得、空の取得結果、取得失敗の表示条件は[タグの仕様](bug-reporting.md#タグの表示と取得)に従う。
+
+## タグの役割
+
+タグの一覧、未設定、新しいタグの定義は[カテゴリの設定](bug-reporting.md#カテゴリの設定)に従う。
+
+`GET tag-roles` は、次の形で返す。
+
+| フィールド | 内容 |
+| --- | --- |
+| tags | タグの配列。名前順に並べる。各要素はid（GitHubのタグのid）、name、color、roleを持つ |
+| role | none（使わない）、main（メイン）、sub（サブ）。未設定はnull |
+| newCount | roleがnullのタグの数 |
+
+`POST tag-roles` は、JSONで `{roles: [{id, role}]}` を送る。
+rolesは1〜1,000件で、idは正の整数、roleはnone・main・subのどれかにする。同じidを重ねて送らない。
+送ったタグの役割を置き換え、送らなかったタグは変えない。再送しても結果は同じで、後から保存した役割が先の役割を置き換える。
+一件でも不正なら400を返し、どの役割も保存しない。JSON以外の要求は415を返す。
+成功時は200と、`GET tag-roles` と同じ形を返す。
+
+この操作は報告の本文、対応状況、更新番号を変えず、GitHubへ要求を送らない。
 
 ## PowerShellの例
 

@@ -6,6 +6,7 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 // 作成要求の開始からこの時間が過ぎるまで、Issue一覧に載らないことが「該当なし」の根拠にならない。
 export const creationSettleMs = 60000;
 export const initialPolicy = { maxBytes: 1024 ** 3, maxFiles: 20 };
+export const tagRoleNames = ['none', 'main', 'sub'];
 export class BugError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -29,7 +30,7 @@ export class BugStore {
     try {
       this.db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;');
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (![0,1,2,3,4].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
+      if (![0,1,2,3,4,5].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
       if (version === 0) {
         if (!initialize || this.db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table'").get().n) throw new Error('報告データの形式を確認できません。');
         validatePolicy(policy);
@@ -90,6 +91,13 @@ export class BugStore {
         this.db.exec('ALTER TABLE registration_queue ADD COLUMN attempted_at INTEGER; PRAGMA user_version=4;');
         // 更新前の版が作成要求を送った時刻は分からない。作成中と結果未確認の報告は、更新の時点を要求の時刻とみなす。
         this.db.prepare("UPDATE registration_queue SET attempted_at=? WHERE state IN ('creating','unknown')").run(Date.now());
+      });
+      if(this.db.prepare('PRAGMA user_version').get().user_version===4) this.transaction(()=>{
+        // 識別子はGitHubのタグのid。名前を変えても割り当てが残る。行がないタグは未設定で、新しいタグとして数える。
+        this.db.exec(`
+          CREATE TABLE tag_roles(label_id INTEGER PRIMARY KEY,role TEXT NOT NULL CHECK(role IN ('none','main','sub'))) STRICT;
+          PRAGMA user_version=5;
+        `);
       });
     } catch (error) { this.db.close(); throw error; }
   }
@@ -297,5 +305,27 @@ export class BugStore {
     const item = this.db.prepare("SELECT * FROM attachments WHERE id=? AND report_id=? AND state='ready'").get(id,reportId);
     if (!item) throw new BugError(404, '再現データが見つかりません。');
     return item;
+  }
+  // GitHubから読めるのは報告用のIssueだけで、repositoryのタグ一覧は読めない。そのため、タグの一覧は取得済みの報告に付いているタグから作る。
+  tagRoles() {
+    const assigned = new Map(this.db.prepare('SELECT label_id,role FROM tag_roles').all().map(row => [row.label_id,row.role]));
+    const found = new Map();
+    // 取得の時期が違う報告に同じタグがあるときは、新しい取得の名前と色を使う。
+    for (const row of this.db.prepare('SELECT labels FROM registration_queue WHERE labels IS NOT NULL ORDER BY labels_at').all())
+      for (const label of JSON.parse(row.labels)) found.set(label.id,{ id: label.id, name: label.name, color: label.color, role: assigned.get(label.id) ?? null });
+    const tags = [...found.values()].sort((a,b) => a.name.localeCompare(b.name,'ja') || a.id - b.id);
+    return { tags, newCount: tags.filter(tag => tag.role === null).length };
+  }
+  setTagRoles(actor, input) {
+    const roles = input?.roles;
+    if (!Array.isArray(roles) || !roles.length || roles.length > 1000
+        || roles.some(item => !Number.isSafeInteger(item?.id) || item.id < 1 || !tagRoleNames.includes(item.role))
+        || new Set(roles.map(item => item.id)).size !== roles.length) throw new BugError(400, 'タグと役割を確認してください。');
+    return this.transaction(() => {
+      this.assertActive(actor);
+      const upsert = this.db.prepare('INSERT INTO tag_roles(label_id,role) VALUES(?,?) ON CONFLICT(label_id) DO UPDATE SET role=excluded.role');
+      for (const item of roles) upsert.run(item.id,item.role);
+      return this.tagRoles();
+    });
   }
 }
