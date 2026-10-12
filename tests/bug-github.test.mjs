@@ -106,6 +106,21 @@ test('a zero-candidate check releases a retry only when it started a full settle
   }
   assert.equal(fx.store.registration(report.id).state,'pending');
 });
+test('the settle period counts from the creation request, not from the start of a slow lookup',async t=>{
+  const fx=fixture(t);fx.client.lag=8000;
+  const find=fx.client.findIssues.bind(fx.client),create=fx.client.createIssue.bind(fx.client);
+  let slow=true;
+  fx.client.findIssues=async(...args)=>{if(slow){slow=false;fx.setClock(155000);}return find(...args);};
+  fx.client.createIssue=async(...args)=>{await create(...args);throw new GitHubFailure('応答欠落',{uncertain:true});};
+  const report=fx.report();await fx.worker.processOne();
+  fx.setClock(160000);await fx.worker.reconcile(fx.actors.admin,report.id);
+  const early=fx.store.registration(report.id);
+  assert.deepEqual(early.candidates,[]);assert.equal(early.holdUntil,215000);
+  await assert.rejects(fx.worker.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:early.revision}),error=>error.status===409);
+  assert.equal(fx.client.posts.length,1);
+  fx.setClock(215000);await fx.worker.reconcile(fx.actors.admin,report.id);
+  assert.equal(fx.store.registration(report.id).state,'registered');assert.equal(fx.client.posts.length,1);
+});
 test('registering after a restore to an older backup links the existing issue instead of creating another',async t=>{
   const fx=fixture(t);const report=fx.report();await fx.worker.processOne();
   const registered=fx.store.registration(report.id);assert.equal(registered.state,'registered');
@@ -249,6 +264,18 @@ test('schema v1 migration preserves reports, attachments, and the pending queue'
   // Reopen another connection only for migration; the fixture closes the original handle afterwards.
   const reopened=new BugStore(fx.dir);
   try{assert.equal(reopened.getReport(fx.actors.a,report.id).body,'バグ報告');assert.equal(reopened.registration(report.id).state,'pending');assert.equal(readFileSync(reopened.filePath(attached.id),'utf8'),'abc');assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,4);}finally{reopened.close();}
+});
+test('schema v3 migration treats an unconfirmed report as attempted at the update',t=>{
+  const fx=fixture(t,{enabled:false});const unknown=fx.report(),failed=fx.report();
+  fx.store.db.prepare("UPDATE registration_queue SET state='unknown' WHERE report_id=?").run(unknown.id);
+  fx.store.db.prepare("UPDATE registration_queue SET state='failed' WHERE report_id=?").run(failed.id);
+  fx.store.db.exec('ALTER TABLE registration_queue DROP COLUMN attempted_at; PRAGMA user_version=3;');
+  const before=Date.now();const reopened=new BugStore(fx.dir);
+  try{
+    assert.ok(reopened.registration(unknown.id).holdUntil>=before+60000);
+    assert.equal(reopened.registration(failed.id).holdUntil,null);
+    assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,4);
+  }finally{reopened.close();}
 });
 test('HTTP GitHub operations use the common local user and report reads use saved metadata',async t=>{
   const fx=fixture(t,{enabled:false});const report=fx.report();const server=createProgressServer({dataDir:fx.dir,githubClient:fx.client});

@@ -88,6 +88,8 @@ export class BugStore {
       });
       if(this.db.prepare('PRAGMA user_version').get().user_version===3) this.transaction(()=>{
         this.db.exec('ALTER TABLE registration_queue ADD COLUMN attempted_at INTEGER; PRAGMA user_version=4;');
+        // 更新前の版が作成要求を送った時刻は分からない。作成中と結果未確認の報告は、更新の時点を要求の時刻とみなす。
+        this.db.prepare("UPDATE registration_queue SET attempted_at=? WHERE state IN ('creating','unknown')").run(Date.now());
       });
     } catch (error) { this.db.close(); throw error; }
   }

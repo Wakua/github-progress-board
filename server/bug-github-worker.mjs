@@ -63,7 +63,7 @@ export class GitHubWorker {
     const row=this.store.transaction(()=>{
       const next=this.store.db.prepare("SELECT * FROM registration_queue WHERE state='pending' AND repository=? AND retry_at<=? ORDER BY rowid LIMIT 1").get(this.client.repository,this.clock());
       if(!next)return null;
-      this.store.db.prepare("UPDATE registration_queue SET state='creating',attempts=attempts+1,attempted_at=?,error=NULL,revision=revision+1 WHERE report_id=? AND state='pending'").run(this.clock(),next.report_id);
+      this.store.db.prepare("UPDATE registration_queue SET state='creating',attempts=attempts+1,error=NULL,revision=revision+1 WHERE report_id=? AND state='pending'").run(next.report_id);
       return this.row(next.report_id);
     });
     if(!row)return;
@@ -79,6 +79,8 @@ export class GitHubWorker {
       let issue;
       if(existing.length===1)issue=validateIssue(existing[0],this.client.repository);
       else {
+        // 待ち時間は、探索の長さを含めず、作成要求を送る直前から数える。
+        this.store.db.prepare('UPDATE registration_queue SET attempted_at=? WHERE report_id=?').run(this.clock(),row.report_id);
         sent=true;
         issue=validateIssue(await this.client.createIssue(input.title,input.body),this.client.repository);
       }
