@@ -126,10 +126,10 @@ export async function handleBugApi(request,response,store,pathname,worker) {
       const report=await (action==='register'?worker.register(actor,id):action==='reconcile'?worker.reconcile(actor,id):action==='retry'?worker.retryUnknown(actor,id,input):worker.refreshLabels(actor,id));
       sendJson(response,200,{report});return true;
     }
-    const workflowAction=/^\/api\/bugs\/reports\/([0-9a-f-]+)\/(status|confirmations)$/.exec(pathname);
+    const workflowAction=/^\/api\/bugs\/reports\/([0-9a-f-]+)\/(status|confirmations|categories)$/.exec(pathname);
     if(workflowAction&&request.method==='POST') {
-      const input=await readJson(request),id=workflowAction[1];
-      const result=workflowAction[2]==='status'?{report:store.updateStatus(actor,id,input)}:store.recordConfirmation(actor,id,input);
+      const input=await readJson(request),id=workflowAction[1],kind=workflowAction[2];
+      const result=kind==='status'?{report:store.updateStatus(actor,id,input)}:kind==='categories'?{report:store.setCategories(actor,id,input)}:store.recordConfirmation(actor,id,input);
       sendJson(response,200,result);return true;
     }
     const detail = /^\/api\/bugs\/reports\/([0-9a-f-]+)$/.exec(pathname);
