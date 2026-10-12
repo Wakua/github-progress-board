@@ -233,6 +233,8 @@ function renderGitHub(report) {
     if(github.candidates?.length) {
       box.append(element('p','該当するIssueが複数あります。GitHubで内容を確認してください。','error-text'));
       for(const candidate of github.candidates){const link=element('a','#'+candidate.number);link.href=candidate.url;link.target='_blank';link.rel='noreferrer';box.append(link);}
+    } else if(github.candidates && github.checkedAt && github.holdUntil && github.checkedAt<github.holdUntil) {
+      box.append(element('p','作成の直後は該当なしを確定できません。'+(github.holdUntil>Date.now()?time(github.holdUntil)+'以降に、':'')+'もう一度照合してください。','muted'));
     } else if(github.candidates && github.checkedAt && Date.now()-github.checkedAt<=300000) {
       box.append(element('p','照合した範囲に該当するIssueはありません。GitHubでも確認してから再試行してください。','muted'));
       const label=element('label',undefined,'confirmation'),checkbox=element('input');checkbox.type='checkbox';
