@@ -9,6 +9,11 @@ export const registrationNames={pending:'GitHub登録待ち',creating:'GitHub登
 export function registrationName(report) {
   return report.github.state==='pending'&&!report.github.repository?'GitHub未登録':registrationNames[report.github.state]||'GitHub登録状況が不明';
 }
+// A failed report registers to the configured repository on retry, so show that one before the operation.
+export function registrationTarget(github,configured) {
+  if(github.state==='failed'&&configured&&github.repository&&github.repository!==configured)return '登録先：'+configured+'（失敗した登録先：'+github.repository+'）';
+  return '登録先：'+(github.repository||configured||'未設定');
+}
 export function tagOptions(reports) {
   const labels=new Map();
   for(const report of reports) for(const label of report.github.tags.labels) labels.set(label.id,label);

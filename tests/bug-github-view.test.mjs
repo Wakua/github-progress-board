@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {matchesFilters,tagOptions,registrationName,nextAction} from '../dist/bugs/view.mjs';
+import {matchesFilters,tagOptions,registrationName,registrationTarget,nextAction} from '../dist/bugs/view.mjs';
 const report=(state,labels=[],registration='registered')=>({github:{state:registration,repository:'Wakua/github-progress-board',tags:{state,labels}}});
 const bug={id:1,name:'bug',color:'cc0000'},otherTag={id:2,name:'別の報告者のタグ',color:'ffffff'};
 test('shared report lists include every reporter tag and collapse repeated tags',()=>{
@@ -39,4 +39,11 @@ test('共通の利用者へ対応と確認の次の操作を表示する',()=>{
   assert.match(nextAction({status:'fixed'},'shared'),/確認対象/);
   assert.match(nextAction({status:'checking',isOwn:false},'shared'),/結果を送って/);
   assert.match(nextAction({status:'complete'},'shared'),/解消を確認/);
+});
+test('a failed report shows the repository the retry will use before the operation',()=>{
+  const failed=repository=>({state:'failed',repository});
+  assert.equal(registrationTarget(failed('example/typo'),'example/fixed'),'登録先：example/fixed（失敗した登録先：example/typo）');
+  assert.equal(registrationTarget(failed('example/fixed'),'example/fixed'),'登録先：example/fixed');
+  assert.equal(registrationTarget({state:'registered',repository:'example/old'},'example/fixed'),'登録先：example/old');
+  assert.equal(registrationTarget({state:'pending',repository:null},null),'登録先：未設定');
 });
