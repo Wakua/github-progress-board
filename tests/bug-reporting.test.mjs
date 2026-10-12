@@ -244,3 +244,53 @@ test('以前の未登録添付も、共通の利用者の保存容量に含め�
   assert.equal((await fx.upload(Buffer.from('xx'),'new.dat')).status,413);
   assert.equal(readFileSync(fx.store.filePath(file.id),'utf8'),'abc');
 });
+
+test('本文の検索は、空白で区切った語をすべて含む報告を、本文全体から探す',t=>{
+  const {store,actors}=storeFixture(t);
+  const make=(n,body)=>store.createReport(actors.a,reportInput({body,requestId:'search-'+n}));
+  const list=make(1,'予約一覧が更新されない\n日付を切り替えても前の一覧が残る'),pay=make(2,'支払い画面で合計がずれる\nCSVを出力した後に起きる'),mail=make(3,'通知メールが届かない\nメール設定は有効');
+  assert.deepEqual(store.searchReports('一覧'),[list.id]);
+  assert.deepEqual(store.searchReports('メール 通知'),[mail.id]);
+  assert.deepEqual(store.searchReports('メール　通知'),[mail.id]);
+  assert.deepEqual(store.searchReports(' 通知  メール '),[mail.id]);
+  assert.deepEqual(store.searchReports('csv'),[pay.id]);
+  assert.deepEqual(store.searchReports('設定は有効'),[mail.id]);
+  assert.deepEqual(store.searchReports('一覧 メール'),[]);
+  assert.deepEqual(store.searchReports('存在しない語'),[]);
+});
+test('本文の検索結果は、更新が新しい順に並ぶ',t=>{
+  const {store,actors}=storeFixture(t);
+  const make=n=>store.createReport(actors.a,reportInput({body:'共通の語\n報告'+n,requestId:'order-'+n}));
+  const [first,second,third]=[1,2,3].map(make);
+  for(const [report,at] of [[first,'2030-01-03T00:00:00.000Z'],[second,'2030-01-01T00:00:00.000Z'],[third,'2030-01-02T00:00:00.000Z']])store.db.prepare('UPDATE reports SET updated_at=? WHERE id=?').run(at,report.id);
+  assert.deepEqual(store.searchReports('共通の語'),[first.id,third.id,second.id]);
+});
+test('検索語の%・_・引用符は、文字としてだけ扱う',t=>{
+  const {store,actors}=storeFixture(t);
+  const make=(n,body)=>store.createReport(actors.a,reportInput({body,requestId:'symbol-'+n}));
+  const discount=make(1,'割引率が100%と表示される'),snake=make(2,'名前の_区切りが消える'),quote=make(3,'「予約する」の"ボタン"が出ない'),plain=make(4,'何も付かない報告');
+  assert.deepEqual(store.searchReports('%'),[discount.id]);
+  assert.deepEqual(store.searchReports('_'),[snake.id]);
+  assert.deepEqual(store.searchReports('"ボタン"'),[quote.id]);
+  assert.deepEqual(store.searchReports("' OR 1=1 --"),[]);
+  assert.ok(!store.searchReports('何も').includes(discount.id)&&store.searchReports('何も').includes(plain.id));
+});
+test('本文の検索は、空・長すぎる・語が多すぎる検索語と、文字列でない値を400で拒否する',t=>{
+  const {store}=storeFixture(t);
+  for(const query of ['','   ','　',' \t','a'.repeat(201),Array(11).fill('x').join(' '),123,null,undefined,['a'],{}])assert.throws(()=>store.searchReports(query),error=>error.status===400,String(query));
+  assert.deepEqual(store.searchReports('a'.repeat(200)),[]);
+  assert.deepEqual(store.searchReports(Array(10).fill('x').join(' ')),[]);
+});
+test('HTTPの本文検索は、POSTのJSONだけで受け付け、検索文字列と別の接続元を拒否する',async t=>{
+  const fx=await httpFixture(t);
+  const mail=(await(await fx.json('reports',reportInput({body:'通知メールが届かない',requestId:'http-search-1'}))).json()).report;
+  await fx.json('reports',reportInput({body:'支払い方法を変更できない',requestId:'http-search-2'}));
+  const found=await fx.json('reports/search',{query:'通知'});assert.equal(found.status,200);assert.deepEqual((await found.json()).ids,[mail.id]);
+  assert.deepEqual((await(await fx.json('reports/search',{query:'ない'})).json()).ids.length,2);
+  assert.equal((await fx.json('reports/search',{query:''})).status,400);
+  assert.equal((await fx.json('reports/search',{})).status,400);
+  assert.equal((await fx.call('/api/bugs/reports/search')).status,404);
+  assert.equal((await fx.call('/api/bugs/reports/search',{method:'POST',body:'{"query":"通知"}'})).status,415);
+  assert.equal((await fx.json('reports/search',{query:'通知'},{headers:{Origin:'https://other.example'}})).status,403);
+  assert.equal((await fx.call('/api/bugs/reports/search?query=%E9%80%9A%E7%9F%A5',{method:'POST',headers:{'Content-Type':'application/json'},body:'{"query":"通知"}'})).status,403);
+});
