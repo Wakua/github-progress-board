@@ -3,7 +3,7 @@ const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
 const time = value => new Date(value).toLocaleString('ja-JP');
-let actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer;
+let actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer, searchFailed=false;
 let deepLink=new URL(location.href).searchParams.get('report');
 async function api(route,options={}) {
   const response=await fetch('/api/bugs/'+route,{...options,credentials:'same-origin'});
@@ -39,14 +39,18 @@ function showActor(value) {
   $('#policy').textContent='1報告あたり '+bytes(actor.policy.maxBytes)+'・'+actor.policy.maxFiles+'ファイルまで。形式は自由です。保存したデータは自動で削除しません。';
 }
 // 検索欄に語があれば、本文の検索をやり直してから一覧を描く。語がなければ、検索の絞り込みを外す。
+// 検索できなかったときは、古い検索結果を残さず、絞り込みを外した一覧に理由を添える。
 async function search() {
   const query=$('#search').value.trim(),seq=++searchSeq;
-  if(!query){searchIds=null;renderList();return;}
+  const done=ids=>{searchIds=ids;renderList();if(searchFailed){searchFailed=false;notice('');}};
+  if(!query){done(null);return;}
   try {
     const {ids}=await api('reports/search',json({query}));
+    if(seq===searchSeq)done(new Set(ids));
+  } catch(error) {
     if(seq!==searchSeq)return;
-    searchIds=new Set(ids);renderList();
-  } catch(error) {if(seq===searchSeq)notice(error.message,true);}
+    searchIds=null;renderList();searchFailed=true;notice(error.message,true);
+  }
 }
 async function reload(result) {
   reports=result.reports; renderFilters(); await search();
@@ -276,7 +280,10 @@ function scheduleStatusRefresh() {
 }
 
 $('#tag-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
-$('#search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
+// 日本語の変換中は検索せず、確定してから検索する。
+const queueSearch=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
+$('#search').oninput=event=>{if(!event.isComposing)queueSearch();};
+$('#search').addEventListener('compositionend',queueSearch);
 $('#refresh').onclick=()=>refresh().then(()=>notice('最新の受付情報を読み込みました。')).catch(error=>notice(error.message,true));
 $('#new-report').onclick=async()=>{
   try {
@@ -306,6 +313,7 @@ $('#report-form').onsubmit=async event=>{
     $('#upload-progress').textContent='報告を保存しています…';
     const {report}=await api('reports',json({body:form.elements.body.value,reportedVersion:form.elements.reportedVersion.value,requestId:draftId,uploadIds}));
     form.reset(); uploaded.clear(); pending=[]; draftId=null; $('#report-dialog').close();
+    $('#search').value='';
     await refresh(); await openReport(report.id); notice('報告を受け付けました。受付ID: '+report.id);
   } catch(error) { $('#form-error').textContent=error.message+' 入力と保存済みデータは保持しています。'; }
   finally { renderDraftFiles(); for(const control of form.elements) control.disabled=false; $('#close-form').disabled=false; $('#upload-progress').textContent=''; }

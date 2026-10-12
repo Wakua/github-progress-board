@@ -174,8 +174,10 @@ export class BugStore {
     return rows.map(row => this.summary(row,actor));
   }
   searchReports(query) {
-    const words = typeof query === 'string' && query.length <= searchLimits.queryLength ? query.split(/[\s　]+/).filter(Boolean) : [];
-    if (!words.length || words.length > searchLimits.words) throw new BugError(400, '検索語を確認してください。');
+    if (typeof query !== 'string') throw new BugError(400, '検索語を文字列で指定してください。');
+    const words = query.split(/\s+/).filter(Boolean); // \s は全角空白を含む
+    if (!words.length) throw new BugError(400, '検索語を入力してください。');
+    if (query.length > searchLimits.queryLength || words.length > searchLimits.words) throw new BugError(400, `検索語は${searchLimits.queryLength}文字以内、${searchLimits.words}語までです。`);
     const match = words.map(() => 'instr(lower(body),lower(?))>0').join(' AND ');
     return this.db.prepare(`SELECT id FROM reports WHERE ${match} ORDER BY updated_at DESC,id`).all(...words).map(row => row.id);
   }
