@@ -8,13 +8,15 @@ export function retryTime(error,now,attempt=1) {
   const delay=Math.min(3600000,60000*2**Math.min(6,Math.max(0,attempt-1)));
   return Math.max(now+delay,Number.isFinite(after)&&after>=0?now+after*1000:0,h['x-ratelimit-remaining']==='0'&&Number.isFinite(reset)?reset*1000:0);
 }
+// 「更新」で、Issue一覧に載らなかった報告を番号で個別に取得する件数の上限。
+export const labelFallbackLimit=10;
 export class GitHubWorker {
   constructor(store,client,{clock=()=>Date.now(),origin='http://127.0.0.1:4319'}={}) {
     if(!parseBugRepository(client.repository))throw new Error('GitHubの接続先を設定してください。');
     const url=new URL(origin);if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.pathname!=='/'||url.search||url.hash||url.username||url.password)throw new Error('報告の入口はこのPCのURLを指定してください。');
     if(store.githubWorker&&!store.githubWorker.stopped)throw new Error('この保存先の登録処理は実行中です。');
     store.githubWorker=this;
-    this.store=store;this.client=client;this.clock=clock;this.origin=url.origin;this.stopped=false;this.tail=Promise.resolve();
+    this.store=store;this.client=client;this.clock=clock;this.origin=url.origin;this.stopped=false;this.tail=Promise.resolve();this.labelCursor=0;
     store.githubRepository=client.repository;
     store.db.prepare("UPDATE registration_queue SET state='unknown',error='前回の作成結果を確認してください。',revision=revision+1 WHERE state='creating' AND repository=?").run(client.repository);
   }
@@ -100,18 +102,62 @@ export class GitHubWorker {
   link(id,issue) {
     this.store.db.prepare("UPDATE registration_queue SET state='registered',issue_number=?,issue_url=?,error=NULL,retry_at=0,checked_at=NULL,candidates=NULL,revision=revision+1 WHERE report_id=?").run(issue.number,issue.html_url,id);
   }
+  saveLabels(id,labels) {
+    this.store.db.prepare("UPDATE registration_queue SET labels=?,label_state='ok',labels_at=?,labels_error=NULL,revision=revision+1 WHERE report_id=?").run(JSON.stringify(labels),new Date(this.clock()).toISOString(),id);
+  }
+  // 取得に失敗しても、前回のタグは消さない。
+  markLabelError(id,message) {
+    this.store.db.prepare("UPDATE registration_queue SET label_state='error',labels_error=?,revision=revision+1 WHERE report_id=?").run(message,id);
+  }
   async refreshLabelsInternal(id) {
     const row=this.row(id);
     try {
       this.requireAvailable();
       const issue=await this.client.getIssue(row.issue_number);
       if(issue.number!==row.issue_number)throw new GitHubFailure('関連付けたIssueと一致しません。');
-      const labels=validateLabels(issue.labels);
-      this.store.db.prepare("UPDATE registration_queue SET labels=?,label_state='ok',labels_at=?,labels_error=NULL,revision=revision+1 WHERE report_id=?").run(JSON.stringify(labels),new Date(this.clock()).toISOString(),id);
+      this.saveLabels(id,validateLabels(issue.labels));
     } catch(error) {
       this.rememberRate(error);
-      this.store.db.prepare("UPDATE registration_queue SET label_state='error',labels_error=?,revision=revision+1 WHERE report_id=?").run(this.safeError(error),id);
+      this.markLabelError(id,this.safeError(error));
     }
+  }
+  // 現在の接続先に登録済みの全報告のタグを、Issue一覧からまとめて取り直す。
+  // 一覧に載らなかった報告（作成の直後や削除されたIssue）は、番号で個別に取得する。個別の取得は直列の列を塞ぐため、labelFallbackLimit件までにし、超えた分は取得失敗にして、前回の続きから始める次の「更新」に回す。
+  // 一覧を読めなかったときは個別に取得せず、全報告を取得失敗にする。
+  refreshAllLabels(actor) {
+    return this.serialize(async()=>{
+      this.store.assertActive(actor);
+      if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');
+      this.requireAvailable();
+      const rows=this.store.db.prepare("SELECT q.report_id,q.issue_number,r.created_at FROM registration_queue q JOIN reports r ON r.id=q.report_id WHERE q.state='registered' AND q.repository=? ORDER BY q.issue_number").all(this.client.repository);
+      if(!rows.length)return{total:0,updated:0,failed:0};
+      let issues;
+      try {issues=await this.client.listIssues({createdAfter:rows.reduce((oldest,row)=>row.created_at<oldest?row.created_at:oldest,rows[0].created_at)});}
+      catch(error) {
+        this.rememberRate(error);
+        const message=this.safeError(error);
+        this.store.transaction(()=>{for(const row of rows)this.markLabelError(row.report_id,message);});
+        return{total:rows.length,updated:0,failed:rows.length};
+      }
+      let updated=0,failed=0;const missing=[];
+      this.store.transaction(()=>{
+        for(const row of rows) {
+          const issue=issues.get(row.issue_number);
+          if(!issue){missing.push(row);continue;}
+          try {this.saveLabels(row.report_id,validateLabels(issue.labels));updated++;}
+          catch(error) {this.markLabelError(row.report_id,this.safeError(error));failed++;}
+        }
+      });
+      // 毎回同じ報告から始めると、取れない報告が続いたとき、後ろの報告が取得されない。前回の続きから始める。
+      const start=missing.length?this.labelCursor%missing.length:0;
+      this.labelCursor+=Math.min(missing.length,labelFallbackLimit);
+      for(const [index,row] of [...missing.slice(start),...missing.slice(0,start)].entries()) {
+        if(index>=labelFallbackLimit){this.markLabelError(row.report_id,'一覧に載らなかったため、今回は取得していません。もう一度「更新」してください。');failed++;continue;}
+        await this.refreshLabelsInternal(row.report_id);
+        if(this.store.registration(row.report_id).tags.state==='ok')updated++;else failed++;
+      }
+      return{total:rows.length,updated,failed};
+    });
   }
   // A failed creation never made an issue, so only a failed report may move to the current repository.
   authorize(actor,id,{retarget=false}={}) {this.store.assertActive(actor);if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');this.store.reportRow(actor,id);const row=this.row(id);if(row.repository&&row.repository!==this.client.repository&&!(retarget&&row.state==='failed'))throw new BugError(409,'保存されたGitHub接続先が一致しません。');return row;}

@@ -1,10 +1,10 @@
-import {registrationName,registrationMark,registrationTarget,tagOptions,matchesFilters,statusNames,nextStatusNames,nextAction} from './view.mjs';
+import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
 const time = value => new Date(value).toLocaleString('ja-JP');
-let actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer, searchFailed=false;
+let rolesError='', actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer, searchFailed=false;
 let deepLink=new URL(location.href).searchParams.get('report');
 async function api(route,options={}) {
   const response=await fetch('/api/bugs/'+route,{...options,credentials:'same-origin'});
@@ -14,7 +14,7 @@ async function api(route,options={}) {
 }
 const json = value => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
 function notice(message,error=false) { const node=$('#notice'); node.textContent=message; node.classList.toggle('error',error); node.hidden=!message; }
-const tagRoles = mountTagRoles({api,json,element,notice});
+const tagRoles = mountTagRoles({api,json,element,notice,onSave:()=>{renderFilters();renderList();}});
 function clearDraft() { $('#report-form').reset(); uploaded.clear(); draftId=null; pending=[]; $('#selected-files').replaceChildren(); $('#pending-files').replaceChildren(); $('#form-error').textContent=''; }
 function savedDraftUploads() {
   return [...new Map([...pending,...uploaded.values()].map(file=>[file.id,file])).values()];
@@ -54,8 +54,13 @@ async function search() {
     searchIds=null;renderList();searchFailed=true;notice(error.message,true);
   }
 }
+// タグの役割を読み込めないと、割り当てが前回のまま（初回は空）になり、全報告が「未分類」に見える。
+const rolesNotice = message => 'タグの役割を読み込めませんでした。カテゴリの絞り込みと領域は、前回の読み込み（なければ未設定）のままです。'+message;
 async function reload(result) {
-  reports=result.reports; renderFilters(); await search(); await tagRoles.load();
+  reports=result.reports;
+  const failure=await tagRoles.load(); rolesError=failure?failure.message:'';
+  if(failure)notice(rolesNotice(failure.message),true);
+  renderFilters(); await search();
 }
 async function refresh() {
   const current=actor,result=await api('reports'); if(actor!==current)return; await reload(result);
@@ -65,7 +70,9 @@ async function refresh() {
 }
 function renderList() {
   const box=$('#reports'); box.replaceChildren();
-  const visible=reports.filter(report=>matchesFilters(report,$('#tag-filter').value,$('#registration-filter').value,$('#status-filter').value,searchIds));
+  const roles=roleMap(tagRoles.tags());
+  const filters={main:$('#main-filter').value,sub:$('#sub-filter').value,state:$('#registration-filter').value,status:$('#status-filter').value,found:searchIds,roles};
+  const visible=reports.filter(report=>matchesFilters(report,filters));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
   if(!reports.length) { box.append(element('p',actor.role==='admin'?'受付した報告はありません。':'報告はまだありません。「バグを報告」から送信できます。','empty')); return; }
@@ -74,7 +81,10 @@ function renderList() {
     row.title=report.title;
     states.append(element('span',statusNames[report.status],'status workflow-'+report.status));
     if(mark)states.append(element('span',mark,'status status-'+report.github.state));
-    row.append(element('span',report.title,'report-title'),states);
+    const text=element('span',undefined,'report-text'),area=areaText(report,roles);
+    text.append(element('span',report.title,'report-title'));
+    if(area)text.append(element('span',area,'report-area'));
+    row.append(text,states);
     row.addEventListener('click',()=>openReport(report.id).catch(error=>notice(error.message,true))); box.append(row);
   }
 }
@@ -197,13 +207,16 @@ function tagNodes(tags) {
   else if(tags.state==='error')box.append(element('span',tags.fetchedAt?'タグ取得失敗 · 前回の取得結果':'タグ取得失敗','error-text'));
   return box;
 }
+// メインを描いてから、選んだメインの報告に付いているサブを描く。選んでいた項目がなくなったときは「すべて」に戻す。
+function fillSelect(select,choices) {
+  const previous=select.value;
+  select.replaceChildren(...choices.map(({value,text})=>{const option=element('option',text);option.value=value;return option;}));
+  select.value=choices.some(choice=>choice.value===previous)?previous:'all';
+}
 function renderFilters() {
-  const select=$('#tag-filter'),previous=select.value;
-  select.replaceChildren(...[['all','すべてのタグ'],['none','タグなし（取得済み）'],['unfetched','タグ未取得'],['error','タグ取得失敗']].map(([value,text])=>{
-    const option=element('option',text);option.value=value;return option;
-  }));
-  for(const label of tagOptions(reports)) {const option=element('option',label.name);option.value='label:'+label.id;select.append(option);}
-  select.value=[...select.options].some(option=>option.value===previous)?previous:'all';
+  const tags=tagRoles.tags();
+  fillSelect($('#main-filter'),mainChoices(reports,tags));
+  fillSelect($('#sub-filter'),subChoices(reports,tags,$('#main-filter').value));
 }
 function renderGitHub(report) {
   const box=element('section',undefined,'github-panel'),github=report.github,tags=github.tags;
@@ -233,7 +246,7 @@ function renderGitHub(report) {
         const {report:updated}=await api('reports/'+report.id+'/github/'+route,json(input));
         if(!actor)return;
         await refresh();
-        notice(route==='register'||route==='retry'?'GitHub登録を受け付けました。':route==='tags'?(updated.github.tags.state==='error'?'タグを取得できませんでした。前回の結果を保持しています。':'GitHubのタグを取得しました。'):updated.github.state==='registered'?'既存のIssueと関連付けました。':'照合結果を表示しました。');
+        notice(route==='register'||route==='retry'?'GitHub登録を受け付けました。':updated.github.state==='registered'?'既存のIssueと関連付けました。':'照合結果を表示しました。');
       } catch(error) {
         actionError.textContent=error.message;
         for(const [control,wasDisabled] of disabled)control.disabled=wasDisabled;
@@ -241,10 +254,8 @@ function renderGitHub(report) {
     };
     controls.append(button);return button;
   }
-  if(github.state==='registered') {
-    action('GitHubのタグを取得','tags');
-    box.append(element('p','タグの編集はGitHubで行います。','muted'));
-  } else if(github.state==='failed')action('GitHub登録を再試行','register');
+  if(github.state==='registered')box.append(element('p','タグの編集はGitHubで行います。','muted'));
+  else if(github.state==='failed')action('GitHub登録を再試行','register');
   else if(github.state==='pending'&&!github.repository)action('GitHubに登録','register');
   else if(github.state==='unknown') {
     box.append(element('p','作成された可能性があるため、自動では再作成しません。既存のIssueを照合してください。','muted'));
@@ -281,12 +292,26 @@ function scheduleStatusRefresh() {
   },5000);
 }
 
-$('#tag-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
+$('#main-filter').onchange=()=>{renderFilters();renderList();};
+$('#sub-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
 // 日本語の変換中は検索せず、確定してから検索する。
 const queueSearch=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
 $('#search').oninput=event=>{if(!event.isComposing)queueSearch();};
 $('#search').addEventListener('compositionend',queueSearch);
-$('#refresh').onclick=()=>refresh().then(()=>notice('最新の受付情報を読み込みました。')).catch(error=>notice(error.message,true));
+// 「更新」は、GitHubに登録済みの全報告のタグをまとめて取り直してから、一覧を読み直す。タグを取れなくても、一覧は読み直す。
+$('#refresh').onclick=async()=>{
+  const button=$('#refresh');button.disabled=true;
+  try {
+    let tags=null,tagError='';
+    if(actor.github.enabled)try {tags=await api('github/tags',json({}));} catch(error) {tagError=error.message;}
+    await refresh();
+    if(tagError)notice('最新の受付情報を読み込みました。GitHubのタグは取得できませんでした。'+tagError+'前回の結果を保持しています。',true);
+    else if(tags?.failed)notice('最新の受付情報を読み込みました。タグを取得できなかった報告が'+tags.failed+'件あります。前回の結果を保持しています。',true);
+    else if(rolesError)notice('最新の受付情報を読み込みました。'+rolesNotice(rolesError),true);
+    else notice('最新の受付情報を読み込みました。');
+  } catch(error) {notice(error.message,true);}
+  finally {button.disabled=false;}
+};
 $('#new-report').onclick=async()=>{
   try {
     pending=(await api('uploads')).attachments;

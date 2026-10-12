@@ -6,7 +6,7 @@ import path from 'node:path';
 import {once} from 'node:events';
 import {BugStore} from '../server/bug-store.mjs';
 import {GitHubClient,GitHubFailure,parseBugRepository,parseResponse} from '../server/bug-github-client.mjs';
-import {GitHubWorker,retryTime} from '../server/bug-github-worker.mjs';
+import {GitHubWorker,labelFallbackLimit,retryTime} from '../server/bug-github-worker.mjs';
 import {createProgressServer} from '../server.mjs';
 const approvedRepository='qa-fixture/booking-reports';
 
@@ -16,7 +16,9 @@ function fake(repository=approvedRepository,now=()=>0) {
   return {repository,now,lag:0,posts:[],reads:[],issues:[],labels:[label],
     async createIssue(title,body){const issue={number:this.issues.length+101,html_url:url(this.issues.length+101,this.repository),title,body,labels:this.labels,at:this.now()};this.posts.push({title,body});this.issues.push(issue);return issue;},
     async getIssue(number){this.reads.push(number);const issue=this.issues.find(issue=>issue.number===number);if(!issue)throw new GitHubFailure('見つかりません。',{status:404});return{...issue,labels:this.labels};},
-    async findIssues(marker){return this.issues.filter(issue=>issue.body.startsWith(marker+'\n')&&this.now()-(issue.at??-Infinity)>=this.lag);}
+    async findIssues(marker){return this.issues.filter(issue=>issue.body.startsWith(marker+'\n')&&this.now()-(issue.at??-Infinity)>=this.lag);},
+    lists:0,notListed:new Set(),
+    async listIssues(){this.lists++;return new Map(this.issues.filter(issue=>!this.notListed.has(issue.number)).map(issue=>[issue.number,{...issue,labels:this.labels}]));}
   };
 }
 function fixture(t,{enabled=true}={}) {
@@ -250,6 +252,130 @@ test('invalid tag snapshots never replace the last valid cache',async t=>{
   const fx=fixture(t);const report=fx.report();await fx.worker.processOne();fx.client.labels=[{...label,color:'url(javascript:x)'}];
   await fx.worker.refreshLabels(fx.actors.admin,report.id);
   assert.equal(fx.store.registration(report.id).tags.state,'error');assert.deepEqual(fx.store.registration(report.id).tags.labels,[label]);
+});
+async function registerAll(fx,count) {
+  const reports=[];
+  for(let index=0;index<count;index++){reports.push(fx.report('a','報告'+index));await fx.worker.processOne();}
+  return reports;
+}
+const newTag={id:8,name:'入力画面',color:'abcdef'};
+test('Issue一覧を50ページで打ち切ったとき、listIssuesは読めた分を返し、findIssuesは確定せずに失敗する',async()=>{
+  const calls=[];
+  const client=new GitHubClient(approvedRepository,{run:async args=>{
+    calls.push(args.at(-1));const page=Number(/&page=(\d+)$/.exec(args.at(-1))[1]);
+    return{status:200,headers:{},data:Array.from({length:100},(_,index)=>({number:page*1000+index,html_url:url(page*1000+index),body:'',created_at:new Date().toISOString()}))};
+  }});
+  const all=await client.listIssues();
+  assert.equal(calls.length,50);assert.equal(all.size,5000);
+  calls.length=0;
+  await assert.rejects(client.findIssues('<!-- なし -->'),error=>error instanceof GitHubFailure&&/全件取得できませんでした/.test(error.message));
+  assert.equal(calls.length,50);
+});
+test('Issue一覧の読み取りは、新しい順に読み、PRを除き、境界で止まる',async()=>{
+  const calls=[],base=Date.parse('2026-10-01T12:00:00Z');
+  const issue=(number,minutesAgo,extra={})=>({number,html_url:url(number),body:'',created_at:new Date(base-minutesAgo*60000).toISOString(),...extra});
+  const client=new GitHubClient(approvedRepository,{run:async args=>{
+    calls.push(args.at(-1));const page=Number(/&page=(\d+)$/.exec(args.at(-1))[1]);
+    return{status:200,headers:{},data:page===1?[issue(1000,1),issue(999,2,{pull_request:{}}),...Array.from({length:98},(_,index)=>issue(900-index,3+index*2))]:[issue(5,9000)]};
+  }});
+  const all=await client.listIssues();
+  assert.equal(calls.length,2);assert.match(calls[0],/sort=created&direction=desc&/);
+  assert.ok(all.has(1000)&&all.has(5)&&!all.has(999));assert.equal(all.size,100);
+  calls.length=0;
+  const bounded=await client.listIssues({createdAfter:new Date(base-60*60000).toISOString()});
+  assert.equal(calls.length,1);assert.ok(bounded.has(1000));assert.ok(!bounded.has(5));
+});
+test('タグのまとめての取得は、一覧を1回だけ読み、登録済みの全報告のタグを取り直す',async t=>{
+  const fx=fixture(t);const reports=await registerAll(fx,3);const reads=fx.client.reads.length;
+  fx.client.labels=[newTag];
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:3,updated:3,failed:0});
+  assert.equal(fx.client.lists,1);assert.equal(fx.client.reads.length,reads);
+  for(const report of reports){const tags=fx.store.registration(report.id).tags;assert.equal(tags.state,'ok');assert.deepEqual(tags.labels,[newTag]);}
+  assert.equal(fx.store.getReport(fx.actors.a,reports[0].id).status,'received');
+});
+test('一覧に載らなかった報告だけ、番号で個別に取得する',async t=>{
+  const fx=fixture(t);await registerAll(fx,3);const reads=fx.client.reads.length;
+  fx.client.notListed.add(102);fx.client.labels=[newTag];
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:3,updated:3,failed:0});
+  assert.deepEqual(fx.client.reads.slice(reads),[102]);
+});
+test('一覧に載らなかった報告が上限を超えるときは、上限までを個別に取得し、残りは取得失敗にして前回のタグを残す',async t=>{
+  const fx=fixture(t);const count=labelFallbackLimit+2;const reports=await registerAll(fx,count);const reads=fx.client.reads.length;
+  for(let number=101;number<101+count;number++)fx.client.notListed.add(number);fx.client.labels=[newTag];
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:count,updated:labelFallbackLimit,failed:2});
+  assert.equal(fx.client.reads.length-reads,labelFallbackLimit);
+  const states=reports.map(report=>fx.store.registration(report.id).tags);
+  assert.deepEqual(states.map(tags=>tags.state),[...Array(labelFallbackLimit).fill('ok'),'error','error']);
+  assert.deepEqual(states.at(-1).labels,[label]);assert.match(states.at(-1).error,/もう一度/);
+  fx.client.notListed.clear();
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:count,updated:count,failed:0});
+});
+test('一覧に載らない報告が上限を超えて続いても、「更新」のたびに前回の続きから取得し、すべての報告に順番が回る',async t=>{
+  const fx=fixture(t);const count=labelFallbackLimit+2;const reports=await registerAll(fx,count);
+  for(let number=101;number<101+count;number++)fx.client.notListed.add(number);fx.client.labels=[newTag];
+  const fetched=new Set();
+  for(let round=0;round<2;round++) {
+    const reads=fx.client.reads.length;await fx.worker.refreshAllLabels(fx.actors.admin);
+    for(const number of fx.client.reads.slice(reads))fetched.add(number);
+  }
+  assert.equal(fetched.size,count);
+  for(const report of reports)assert.deepEqual(fx.store.registration(report.id).tags.labels,[newTag]);
+});
+test('Issueが見つからない報告だけが取得失敗になり、前回のタグを残す',async t=>{
+  const fx=fixture(t);const reports=await registerAll(fx,2);
+  fx.client.issues=fx.client.issues.filter(issue=>issue.number!==101);fx.client.labels=[newTag];
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:2,updated:1,failed:1});
+  const lost=fx.store.registration(reports[0].id).tags;assert.equal(lost.state,'error');assert.deepEqual(lost.labels,[label]);
+  assert.deepEqual(fx.store.registration(reports[1].id).tags.labels,[newTag]);
+});
+test('一覧を読めなかったときは、個別に取得せず、全報告を取得失敗にして前回のタグを残す',async t=>{
+  const fx=fixture(t);const reports=await registerAll(fx,2);const reads=fx.client.reads.length;
+  fx.client.listIssues=async()=>{throw new GitHubFailure('取得失敗',{status:500});};
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:2,updated:0,failed:2});
+  assert.equal(fx.client.reads.length,reads);
+  for(const report of reports){const tags=fx.store.registration(report.id).tags;assert.equal(tags.state,'error');assert.deepEqual(tags.labels,[label]);}
+});
+test('無効なタグを含むIssueだけが取得失敗になり、ほかの報告は更新される',async t=>{
+  const fx=fixture(t);const reports=await registerAll(fx,2);
+  const list=fx.client.listIssues.bind(fx.client);
+  fx.client.listIssues=async()=>{const issues=await list();issues.get(101).labels=[{...label,color:'url(javascript:x)'}];issues.get(102).labels=[newTag];return issues;};
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:2,updated:1,failed:1});
+  assert.equal(fx.store.registration(reports[0].id).tags.state,'error');assert.deepEqual(fx.store.registration(reports[0].id).tags.labels,[label]);
+  assert.deepEqual(fx.store.registration(reports[1].id).tags.labels,[newTag]);
+});
+test('現在の接続先でない報告と、登録済みでない報告は、タグの取得の対象にしない',async t=>{
+  const fx=fixture(t);const [moved]=await registerAll(fx,1);fx.report('a','登録待ちのまま');
+  fx.store.db.prepare('UPDATE registration_queue SET repository=? WHERE report_id=?').run('other/repository',moved.id);
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:0,updated:0,failed:0});
+  assert.equal(fx.client.lists,0);
+});
+test('タグのまとめての取得は、管理者だけが行え、利用制限の待機中は読み取らない',async t=>{
+  const fx=fixture(t);await registerAll(fx,1);
+  await assert.rejects(fx.worker.refreshAllLabels(fx.actors.a),error=>error.status===403);
+  fx.store.db.prepare('UPDATE github_runtime SET cooldown_until=? WHERE id=1').run(200000);
+  await assert.rejects(fx.worker.refreshAllLabels(fx.actors.admin),error=>error.status===429);
+  assert.equal(fx.client.lists,0);
+});
+test('HTTPのタグのまとめての取得は、共通の利用者で行い、POSTのJSONだけを受け付ける',async t=>{
+  const fx=fixture(t,{enabled:false});const report=fx.report();const server=createProgressServer({dataDir:fx.dir,githubClient:fx.client});
+  server.listen(0,'127.0.0.1');await once(server,'listening');const base='http://127.0.0.1:'+server.address().port+'/api/bugs/';
+  try {
+    assert.equal((await fetch(base+'reports/'+report.id+'/github/register',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,200);
+    await server.bugWorker.serialize(()=>server.bugWorker.processOne());
+    fx.client.labels=[newTag];
+    const post=(options={})=>fetch(base+'github/tags',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}',...options});
+    const done=await post();assert.equal(done.status,200);assert.deepEqual(await done.json(),{total:1,updated:1,failed:0});
+    assert.deepEqual(fx.store.registration(report.id).tags.labels,[newTag]);
+    assert.equal((await fetch(base+'github/tags')).status,404);
+    assert.equal((await post({headers:{'Content-Type':'application/json',Origin:'https://other.example'}})).status,403);
+    assert.equal((await post({headers:{}})).status,415);
+  } finally {await server.bugWorker.stop();await new Promise(resolve=>server.close(resolve));await server.bugClosed;}
+});
+test('GitHubの接続が無効なら、タグのまとめての取得は503を返す',async t=>{
+  const fx=fixture(t,{enabled:false});fx.report();
+  const server=createProgressServer({dataDir:fx.dir});server.listen(0,'127.0.0.1');await once(server,'listening');
+  try {assert.equal((await fetch('http://127.0.0.1:'+server.address().port+'/api/bugs/github/tags',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,503);}
+  finally {await new Promise(resolve=>server.close(resolve));await server.bugClosed;}
 });
 test('report excerpts keep the full text locally and a stable first-line marker in GitHub',t=>{
   const fx=fixture(t);const body='音'.repeat(20000);const report=fx.report('a',body),payload=fx.worker.payload(report.id);

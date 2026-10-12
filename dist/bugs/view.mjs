@@ -18,21 +18,53 @@ export function registrationTarget(github,configured) {
   if(github.state==='failed'&&configured&&github.repository&&github.repository!==configured)return '登録先：'+configured+'（失敗した登録先：'+github.repository+'）';
   return '登録先：'+(github.repository||configured||'未設定');
 }
-export function tagOptions(reports) {
-  const labels=new Map();
-  for(const report of reports) for(const label of report.github.tags.labels) labels.set(label.id,label);
-  return [...labels.values()].sort((a,b)=>a.name.localeCompare(b.name,'ja'));
+// カテゴリの絞り込み。割り当てた役割（メイン・サブ）は、GitHubのタグのidに付ける。使わないタグと、未設定のタグは、カテゴリに数えない。
+export const uncategorized='uncategorized';
+// タグのid → 役割と名前。名前は選択肢と同じ、最後に取得した名前を使う。
+export function roleMap(tags) {
+  return new Map(tags.filter(tag=>tag.role==='main'||tag.role==='sub').map(tag=>[tag.id,{role:tag.role,name:tag.name}]));
 }
-// found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。
-export function matchesFilters(report,tag='all',state='all',status='all',found=null) {
+// 報告に付いているタグを、役割ごとに分ける。タグの取得に失敗して前回の結果を保持している報告も、その結果で分ける。
+export function categoriesOf(report,roles) {
+  const found={main:[],sub:[]};
+  for(const label of report.github.tags.labels) {const assigned=roles.get(label.id);if(assigned)found[assigned.role].push({...label,name:assigned.name});}
+  return found;
+}
+// 行に添える領域。メインを「・」で並べ、サブを「 / 」の後ろに並べる。例：「予約・通知 / 一覧」
+export function areaText(report,roles) {
+  const {main,sub}=categoriesOf(report,roles);
+  return [main,sub].filter(group=>group.length).map(group=>group.map(label=>label.name).join('・')).join(' / ');
+}
+// 未対応は、受付済みと対応中。
+export const isUnaddressed=report=>report.status==='received'||report.status==='working';
+function inMain(report,main,roles) {
+  if(main==='all')return true;
+  const found=categoriesOf(report,roles);
+  return main===uncategorized?!found.main.length&&!found.sub.length:found.main.some(label=>'label:'+label.id===main);
+}
+const byName=(a,b)=>a.name.localeCompare(b.name,'ja');
+const countUnaddressed=reports=>reports.filter(isUnaddressed).length;
+// メインの選択肢。割り当てたメインのタグと「未分類」に、未対応の件数を添える。報告のないメインも、件数0で出す。
+export function mainChoices(reports,tags) {
+  const roles=roleMap(tags);
+  return [{value:'all',text:'すべて'},
+    ...tags.filter(tag=>tag.role==='main').sort(byName).map(tag=>({value:'label:'+tag.id,text:tag.name+'（'+countUnaddressed(reports.filter(report=>inMain(report,'label:'+tag.id,roles)))+'）'})),
+    {value:uncategorized,text:'未分類（'+countUnaddressed(reports.filter(report=>inMain(report,uncategorized,roles)))+'）'}];
+}
+// サブの選択肢。選んだメインの報告に付いているサブだけを出し、未対応の件数を添える。
+export function subChoices(reports,tags,main) {
+  const roles=roleMap(tags),scope=reports.filter(report=>inMain(report,main,roles));
+  return [{value:'all',text:'すべて'},
+    ...tags.filter(tag=>tag.role==='sub').sort(byName).map(tag=>({tag,reports:scope.filter(report=>categoriesOf(report,roles).sub.some(label=>label.id===tag.id))}))
+      .filter(entry=>entry.reports.length).map(entry=>({value:'label:'+entry.tag.id,text:entry.tag.name+'（'+countUnaddressed(entry.reports)+'）'}))];
+}
+// found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。roles: roleMapの結果。
+export function matchesFilters(report,{main='all',sub='all',state='all',status='all',found=null,roles=new Map()}={}) {
   if(found&&!found.has(report.id))return false;
   if(status!=='all'&&report.status!==status)return false;
   if(state!=='all'&&report.github.state!==state)return false;
-  const tags=report.github.tags;
-  if(tag==='all')return true;
-  if(tag==='none')return tags.state==='ok'&&tags.labels.length===0;
-  if(tag==='unfetched'||tag==='error')return tags.state===tag;
-  return tags.labels.some(label=>'label:'+label.id===tag);
+  if(!inMain(report,main,roles))return false;
+  return sub==='all'||categoriesOf(report,roles).sub.some(label=>'label:'+label.id===sub);
 }
 export function contrastColor(color) {
   const channels=[0,2,4].map(index=>parseInt(color.slice(index,index+2),16)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
