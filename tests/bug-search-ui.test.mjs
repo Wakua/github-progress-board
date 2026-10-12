@@ -184,3 +184,22 @@ test('タグの役割を読み込めなかったときは、理由を通知し�
   assert.match(notice.textContent,/タグの役割を読み込めませんでした/);assert.match(notice.textContent,/保存処理を完了できませんでした/);
   assert.equal(fx.titles().length,6);assert.equal(fx.areas()[0],'予約 / 一覧');
 });
+
+test('対応状況の「確認完了を除く」を選ぶと、確認完了の報告を一覧から外し、件数に反映する',()=>{
+  const reports=[report('r1','予約一覧が更新されない'),report('r2','通知メールが届かない',{status:'complete'}),report('r3','支払いの合計がずれる',{status:'working'}),report('r4','画面が崩れる',{status:'complete'})];
+  const fx=fixture({reports});fx.render();
+  assert.equal(fx.count(),'4 / 4件');
+  fx.node('#status-filter').value='incomplete';fx.node('#status-filter').onchange();
+  assert.deepEqual(fx.titles(),['予約一覧が更新されない','支払いの合計がずれる']);assert.equal(fx.count(),'2 / 4件');
+  fx.node('#status-filter').value='complete';fx.node('#status-filter').onchange();
+  assert.deepEqual(fx.titles(),['通知メールが届かない','画面が崩れる']);
+  fx.node('#status-filter').value='all';fx.node('#status-filter').onchange();
+  assert.equal(fx.titles().length,4);
+});
+test('「確認完了を除く」を選んでも、本文の検索の結果と重なる',async()=>{
+  const reports=[report('r1','予約一覧が更新されない'),report('r2','予約の確認メールが届かない',{status:'complete'})];
+  const fx=fixture({reports});fx.render();
+  fx.node('#status-filter').value='incomplete';fx.node('#status-filter').onchange();
+  fx.type('予約');await fx.flush();
+  assert.deepEqual(fx.titles(),['予約一覧が更新されない']);
+});
