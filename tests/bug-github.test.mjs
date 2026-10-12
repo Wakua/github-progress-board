@@ -6,7 +6,7 @@ import path from 'node:path';
 import {once} from 'node:events';
 import {BugStore} from '../server/bug-store.mjs';
 import {GitHubClient,GitHubFailure,parseBugRepository,parseResponse} from '../server/bug-github-client.mjs';
-import {GitHubWorker,retryTime} from '../server/bug-github-worker.mjs';
+import {GitHubWorker,labelFallbackLimit,retryTime} from '../server/bug-github-worker.mjs';
 import {createProgressServer} from '../server.mjs';
 const approvedRepository='qa-fixture/booking-reports';
 
@@ -286,6 +286,17 @@ test('一覧に載らなかった報告だけ、番号で個別に取得する',
   fx.client.notListed.add(102);fx.client.labels=[newTag];
   assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:3,updated:3,failed:0});
   assert.deepEqual(fx.client.reads.slice(reads),[102]);
+});
+test('一覧に載らなかった報告が上限を超えるときは、上限までを個別に取得し、残りは取得失敗にして前回のタグを残す',async t=>{
+  const fx=fixture(t);const count=labelFallbackLimit+2;const reports=await registerAll(fx,count);const reads=fx.client.reads.length;
+  for(let number=101;number<101+count;number++)fx.client.notListed.add(number);fx.client.labels=[newTag];
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:count,updated:labelFallbackLimit,failed:2});
+  assert.equal(fx.client.reads.length-reads,labelFallbackLimit);
+  const states=reports.map(report=>fx.store.registration(report.id).tags);
+  assert.deepEqual(states.map(tags=>tags.state),[...Array(labelFallbackLimit).fill('ok'),'error','error']);
+  assert.deepEqual(states.at(-1).labels,[label]);assert.match(states.at(-1).error,/もう一度/);
+  fx.client.notListed.clear();
+  assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:count,updated:count,failed:0});
 });
 test('Issueが見つからない報告だけが取得失敗になり、前回のタグを残す',async t=>{
   const fx=fixture(t);const reports=await registerAll(fx,2);

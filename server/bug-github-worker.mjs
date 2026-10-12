@@ -8,6 +8,8 @@ export function retryTime(error,now,attempt=1) {
   const delay=Math.min(3600000,60000*2**Math.min(6,Math.max(0,attempt-1)));
   return Math.max(now+delay,Number.isFinite(after)&&after>=0?now+after*1000:0,h['x-ratelimit-remaining']==='0'&&Number.isFinite(reset)?reset*1000:0);
 }
+// 「更新」で、Issue一覧に載らなかった報告を番号で個別に取得する件数の上限。
+export const labelFallbackLimit=10;
 export class GitHubWorker {
   constructor(store,client,{clock=()=>Date.now(),origin='http://127.0.0.1:4319'}={}) {
     if(!parseBugRepository(client.repository))throw new Error('GitHubの接続先を設定してください。');
@@ -120,7 +122,8 @@ export class GitHubWorker {
     }
   }
   // 現在の接続先に登録済みの全報告のタグを、Issue一覧からまとめて取り直す。
-  // 一覧に載らなかった報告（作成の直後や削除されたIssue）は、番号で個別に取得する。一覧を読めなかったときは個別に取得せず、全報告を取得失敗にする。
+  // 一覧に載らなかった報告（作成の直後や削除されたIssue）は、番号で個別に取得する。個別の取得は直列の列を塞ぐため、labelFallbackLimit件までにし、超えた分は取得失敗にして次の「更新」に回す。
+  // 一覧を読めなかったときは個別に取得せず、全報告を取得失敗にする。
   refreshAllLabels(actor) {
     return this.serialize(async()=>{
       this.store.assertActive(actor);
@@ -145,7 +148,8 @@ export class GitHubWorker {
           catch(error) {this.markLabelError(row.report_id,this.safeError(error));failed++;}
         }
       });
-      for(const row of missing) {
+      for(const [index,row] of missing.entries()) {
+        if(index>=labelFallbackLimit){this.markLabelError(row.report_id,'一覧に載らなかったため、取得していません。もう一度「更新」してください。');failed++;continue;}
         await this.refreshLabelsInternal(row.report_id);
         if(this.store.registration(row.report_id).tags.state==='ok')updated++;else failed++;
       }
