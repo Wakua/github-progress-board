@@ -102,6 +102,12 @@ export async function handleBugApi(request,response,store,pathname,worker) {
     if (pathname === '/api/bugs/uploads' && request.method === 'POST') {
       sendJson(response,201,{attachment:await upload(request,store,actor,null)}); return true;
     }
+    if(pathname==='/api/bugs/github/tags'&&request.method==='POST') {
+      if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');
+      if(!worker)throw new BugError(503,'GitHubの接続先を設定してサーバーを再起動してください。');
+      await readJson(request);
+      sendJson(response,200,await worker.refreshAllLabels(actor));return true;
+    }
     const githubAction=/^\/api\/bugs\/reports\/([0-9a-f-]+)\/github\/(register|reconcile|retry|tags)$/.exec(pathname);
     if(githubAction&&request.method==='POST') {
       if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');

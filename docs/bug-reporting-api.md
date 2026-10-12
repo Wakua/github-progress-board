@@ -95,8 +95,10 @@ confirmationsはhistoryのうち確認結果だけを返す。
 | reports/:reportId/github/reconcile | {} | 結果未確認の報告を既存Issueと照合する |
 | reports/:reportId/github/retry | confirmNoIssue: true、revision: 照合結果の更新番号 | 最新の該当なし結果を確認し、登録待ちへ戻す |
 | reports/:reportId/github/tags | {} | 登録済みIssueのタグを再取得する |
+| github/tags | {} | 現在の接続先に登録済みの全報告のタグを、Issue一覧からまとめて再取得する。画面の「更新」が使う |
 
-成功時は200と `{report: ...}` を返す。
+`reports/:reportId/github/` 以下の操作は、成功時に200と `{report: ...}` を返す。
+`github/tags` は、成功時に200と `{total, updated, failed}`（対象の報告数、取得できた数、取得に失敗した数）を返す。対象がなければ、すべて0になる。
 接続が無効なら503、指定外の接続元は403、対象状態や照合結果が古い場合と、作成の直後の照合を根拠にした再試行は409、利用制限の待機中は429を返す。
 タグの取得失敗は報告内のタグ取得状態に記録し、Issue登録済みの関連は保持する。
 

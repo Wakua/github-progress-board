@@ -69,19 +69,33 @@ export class GitHubClient {
     if(!Number.isSafeInteger(number)||number<1)throw new Error('Issue番号が不正です。');
     return validateIssue(await this.request('GET','issues/'+number),this.repository);
   }
-  // 識別子を持つIssueを、新しい順の一覧から探す。createdAfterより1時間以上古いIssueに達したら、それ以前は読まない。
-  async findIssues(marker,{createdAfter}={}) {
-    const found=new Map(),bound=createdAfter?Date.parse(createdAfter)-3600000:NaN;
+  // Issue一覧を新しい順に読み、PRを除いた各IssueをonItemへ渡す。createdAfterより1時間以上古いIssueに達したら、それ以前は読まない。
+  // 一覧の最後（または境界）まで読めたらtrue、50ページで打ち切ったらfalseを返す。
+  async readIssuePages(createdAfter,onItem) {
+    const bound=createdAfter?Date.parse(createdAfter)-3600000:NaN;
     for(let page=1;page<=50;page++){
       const items=await this.request('GET','issues?state=all&sort=created&direction=desc&per_page=100&page='+page);
       if(!Array.isArray(items)||items.length>100)throw new GitHubFailure('Issue一覧の応答を確認できません。');
       for(const item of items) {
         if(item.pull_request)continue;
         validateIssue({...item,body:item.body??''},this.repository);
-        if(typeof item.body==='string'&&item.body.startsWith(marker+'\n'))found.set(item.number,item);
+        onItem(item);
       }
-      if(items.length<100||Date.parse(items.at(-1).created_at)<bound)return [...found.values()];
+      if(items.length<100||Date.parse(items.at(-1).created_at)<bound)return true;
     }
-    throw new GitHubFailure('Issue一覧を全件取得できませんでした。照合結果を確定しません。');
+    return false;
+  }
+  // 識別子を持つIssueを、新しい順の一覧から探す。
+  async findIssues(marker,{createdAfter}={}) {
+    const found=new Map();
+    const complete=await this.readIssuePages(createdAfter,item=>{if(typeof item.body==='string'&&item.body.startsWith(marker+'\n'))found.set(item.number,item);});
+    if(!complete)throw new GitHubFailure('Issue一覧を全件取得できませんでした。照合結果を確定しません。');
+    return [...found.values()];
+  }
+  // 一覧に載ったIssueを、番号をキーにして返す。打ち切った場合も、読めた分を返す。載らなかった番号の扱いは、呼び出し側が決める。
+  async listIssues({createdAfter}={}) {
+    const found=new Map();
+    await this.readIssuePages(createdAfter,item=>found.set(item.number,item));
+    return found;
   }
 }

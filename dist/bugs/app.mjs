@@ -213,7 +213,7 @@ function renderGitHub(report) {
         const {report:updated}=await api('reports/'+report.id+'/github/'+route,json(input));
         if(!actor)return;
         await refresh();
-        notice(route==='register'||route==='retry'?'GitHub登録を受け付けました。':route==='tags'?(updated.github.tags.state==='error'?'タグを取得できませんでした。前回の結果を保持しています。':'GitHubのタグを取得しました。'):updated.github.state==='registered'?'既存のIssueと関連付けました。':'照合結果を表示しました。');
+        notice(route==='register'||route==='retry'?'GitHub登録を受け付けました。':updated.github.state==='registered'?'既存のIssueと関連付けました。':'照合結果を表示しました。');
       } catch(error) {
         actionError.textContent=error.message;
         for(const [control,wasDisabled] of disabled)control.disabled=wasDisabled;
@@ -221,10 +221,8 @@ function renderGitHub(report) {
     };
     controls.append(button);return button;
   }
-  if(github.state==='registered') {
-    action('GitHubのタグを取得','tags');
-    box.append(element('p','タグの編集はGitHubで行います。','muted'));
-  } else if(github.state==='failed')action('GitHub登録を再試行','register');
+  if(github.state==='registered')box.append(element('p','タグの編集はGitHubで行います。','muted'));
+  else if(github.state==='failed')action('GitHub登録を再試行','register');
   else if(github.state==='pending'&&!github.repository)action('GitHubに登録','register');
   else if(github.state==='unknown') {
     box.append(element('p','作成された可能性があるため、自動では再作成しません。既存のIssueを照合してください。','muted'));
@@ -262,7 +260,19 @@ function scheduleStatusRefresh() {
 }
 
 $('#tag-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
-$('#refresh').onclick=()=>refresh().then(()=>notice('最新の受付情報を読み込みました。')).catch(error=>notice(error.message,true));
+// 「更新」は、GitHubに登録済みの全報告のタグをまとめて取り直してから、一覧を読み直す。タグを取れなくても、一覧は読み直す。
+$('#refresh').onclick=async()=>{
+  const button=$('#refresh');button.disabled=true;
+  try {
+    let tags=null,tagError='';
+    if(actor.github.enabled)try {tags=await api('github/tags',json({}));} catch(error) {tagError=error.message;}
+    await refresh();
+    if(tagError)notice('最新の受付情報を読み込みました。GitHubのタグは取得できませんでした。'+tagError+'前回の結果を保持しています。',true);
+    else if(tags?.failed)notice('最新の受付情報を読み込みました。タグを取得できなかった報告が'+tags.failed+'件あります。前回の結果を保持しています。',true);
+    else notice('最新の受付情報を読み込みました。');
+  } catch(error) {notice(error.message,true);}
+  finally {button.disabled=false;}
+};
 $('#new-report').onclick=async()=>{
   try {
     pending=(await api('uploads')).attachments;
