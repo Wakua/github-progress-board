@@ -1,9 +1,9 @@
-import {registrationName,registrationTarget,tagOptions,matchesFilters,statusNames,nextStatusNames,nextAction} from './view.mjs';
+import {registrationName,registrationMark,registrationTarget,tagOptions,matchesFilters,statusNames,nextStatusNames,nextAction} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
 const time = value => new Date(value).toLocaleString('ja-JP');
-let actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer;
+let actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer;
 let deepLink=new URL(location.href).searchParams.get('report');
 async function api(route,options={}) {
   const response=await fetch('/api/bugs/'+route,{...options,credentials:'same-origin'});
@@ -38,23 +38,37 @@ function showActor(value) {
   $('#list-heading').textContent='すべての報告';
   $('#policy').textContent='1報告あたり '+bytes(actor.policy.maxBytes)+'・'+actor.policy.maxFiles+'ファイルまで。形式は自由です。保存したデータは自動で削除しません。';
 }
+// 検索欄に語があれば、本文の検索をやり直してから一覧を描く。語がなければ、検索の絞り込みを外す。
+async function search() {
+  const query=$('#search').value.trim(),seq=++searchSeq;
+  if(!query){searchIds=null;renderList();return;}
+  try {
+    const {ids}=await api('reports/search',json({query}));
+    if(seq!==searchSeq)return;
+    searchIds=new Set(ids);renderList();
+  } catch(error) {if(seq===searchSeq)notice(error.message,true);}
+}
+async function reload(result) {
+  reports=result.reports; renderFilters(); await search();
+}
 async function refresh() {
-  const current=actor,result=await api('reports'); if(actor!==current)return; reports=result.reports; renderFilters(); renderList();
+  const current=actor,result=await api('reports'); if(actor!==current)return; await reload(result);
   if(selected && reports.some(report=>report.id===selected)) await openReport(selected,false);
   else if(deepLink) {const id=deepLink;deepLink=null;try{await openReport(id);}catch(error){notice(error.message,true);}}
   scheduleStatusRefresh();
 }
 function renderList() {
   const box=$('#reports'); box.replaceChildren();
-  const visible=reports.filter(report=>matchesFilters(report,$('#tag-filter').value,$('#registration-filter').value,$('#status-filter').value));
+  const visible=reports.filter(report=>matchesFilters(report,$('#tag-filter').value,$('#registration-filter').value,$('#status-filter').value,searchIds));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
   if(!reports.length) { box.append(element('p',actor.role==='admin'?'受付した報告はありません。':'報告はまだありません。「バグを報告」から送信できます。','empty')); return; }
   for(const report of visible) {
-    const row=element('button',undefined,'report-row'+(report.id===selected?' active':''));
-    row.append(element('span',report.title,'report-title'),element('span',statusNames[report.status],'status workflow-'+report.status),element('span',registrationName(report),'status status-'+report.github.state),
-      element('span',report.reporterName+' · '+time(report.createdAt)+' · データ '+report.attachmentCount+'件','meta'));
-    row.append(tagNodes(report.github.tags));
+    const row=element('button',undefined,'report-row'+(report.id===selected?' active':'')),states=element('span',undefined,'row-states'),mark=registrationMark(report,actor.github.enabled);
+    row.title=report.title;
+    states.append(element('span',statusNames[report.status],'status workflow-'+report.status));
+    if(mark)states.append(element('span',mark,'status status-'+report.github.state));
+    row.append(element('span',report.title,'report-title'),states);
     row.addEventListener('click',()=>openReport(report.id).catch(error=>notice(error.message,true))); box.append(row);
   }
 }
@@ -253,7 +267,7 @@ function scheduleStatusRefresh() {
     try {
       const result=await api('reports');
       if(actor!==current)return;
-      reports=result.reports;renderFilters();renderList();
+      await reload(result);
       const report=reports.find(item=>item.id===selected),box=$('#github-status');
       if(report&&box)box.replaceChildren(renderGitHub(report));
     } catch(error) {notice(error.message,true);}
@@ -262,6 +276,7 @@ function scheduleStatusRefresh() {
 }
 
 $('#tag-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
+$('#search').oninput=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
 $('#refresh').onclick=()=>refresh().then(()=>notice('最新の受付情報を読み込みました。')).catch(error=>notice(error.message,true));
 $('#new-report').onclick=async()=>{
   try {

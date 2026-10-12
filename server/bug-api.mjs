@@ -96,6 +96,10 @@ export async function handleBugApi(request,response,store,pathname,worker) {
       } else throw new BugError(405,'この操作は利用できません。');
       return true;
     }
+    if (pathname === '/api/bugs/reports/search' && request.method === 'POST') {
+      const input = await readJson(request);
+      sendJson(response,200,{ids:store.searchReports(input.query)}); return true;
+    }
     if (pathname === '/api/bugs/uploads' && request.method === 'GET') {
       sendJson(response,200,{attachments:store.pendingUploads(actor)}); return true;
     }
