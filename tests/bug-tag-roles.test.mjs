@@ -6,7 +6,7 @@ import path from 'node:path';
 import {once} from 'node:events';
 import {BugStore,BugError,tagRoleNames} from '../server/bug-store.mjs';
 import {createProgressServer} from '../server.mjs';
-import {dialogOrder,rolesToSave,roleNames} from '../dist/bugs/tag-roles.mjs';
+import {dialogOrder,rolesToSave,roleNames,mountTagRoles} from '../dist/bugs/tag-roles.mjs';
 
 // 架空の予約管理アプリのタグ。idはGitHubのタグのid、名前は変えられる。
 const booking={id:11,name:'予約',color:'336699'},list={id:12,name:'一覧',color:'993366'},notice={id:13,name:'通知',color:'339966'},bug={id:14,name:'bug',color:'cc0000'};
@@ -156,4 +156,55 @@ test('the settings dialog lists new tags first and saves only the new and the ch
   assert.deepEqual(rolesToSave(tags,new Map([[11,'sub'],[12,'main'],[13,'sub'],[14,'none']])),[{id:11,role:'sub'},{id:12,role:'main'}]);
   assert.deepEqual(rolesToSave(tags,new Map()),[{id:12,role:'none'}]);
   assert.deepEqual(rolesToSave([{...booking,role:'main'}],new Map([[11,'main']])),[]);
+});
+
+// 設定画面の操作を、疑似のDOMとAPIで動かす。
+class Node {
+  constructor(tag) {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.checked=false;this.dataset={};this.style={setProperty(){}};}
+  append(...children) {this.children.push(...children);}
+  replaceChildren(...children) {this.children=[...children];}
+  setAttribute() {}
+  querySelectorAll() {const found=[],walk=node=>{for(const child of node.children){if(child.tag==='input'&&child.checked)found.push(child);walk(child);}};walk(this);return found;}
+  showModal() {this.open=true;}
+  close() {this.open=false;}
+}
+function dialogFixture(tags) {
+  const nodes=new Map(),posts=[],notices=[];
+  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Node('div'));return nodes.get(selector);};
+  const state=()=>({tags:tags.map(tag=>({...tag})),newCount:tags.filter(tag=>tag.role===null).length});
+  const api=async(route,options)=>{
+    if(options) {const input=JSON.parse(options.body);posts.push(input);for(const item of input.roles)tags.find(tag=>tag.id===item.id).role=item.role;}
+    return state();
+  };
+  const element=(tag,text,className)=>{const created=new Node(tag);if(text!==undefined)created.textContent=text;created.className=className;return created;};
+  globalThis.document={querySelector:node};
+  const ui=mountTagRoles({api,json:value=>({method:'POST',body:JSON.stringify(value)}),element,notice:(message,failed)=>notices.push([message,failed])});
+  return{node,posts,notices,ui,rows:()=>node('#category-tags').children.length,
+    add:tag=>tags.push({...tag,role:null}),
+    save:()=>node('#category-form').onsubmit({preventDefault(){}})};
+}
+test('a tag that appears while the dialog is open is not saved, because the person never saw it',async()=>{
+  const fx=dialogFixture([{...booking,role:null}]);
+  try {
+    await fx.node('#category-settings').onclick();
+    assert.equal(fx.rows(),1);assert.equal(fx.node('#new-tags').textContent,'新しいタグ 1');
+    fx.add(notice);await fx.ui.load();
+    assert.equal(fx.node('#new-tags').textContent,'新しいタグ 2');assert.equal(fx.rows(),1);
+    await fx.save();
+    assert.deepEqual(fx.posts,[{roles:[{id:11,role:'none'}]}]);
+    assert.equal(fx.node('#new-tags').textContent,'新しいタグ 1');assert.equal(fx.node('#new-tags').hidden,false);
+  } finally {delete globalThis.document;}
+});
+
+test('opening the dialog again lists the tag that appeared meanwhile and saving settles it',async()=>{
+  const fx=dialogFixture([{...booking,role:'main'}]);
+  try {
+    await fx.node('#category-settings').onclick();await fx.save();
+    assert.deepEqual(fx.posts,[]);assert.equal(fx.node('#category-dialog').open,false);
+    fx.add(notice);
+    await fx.node('#category-settings').onclick();assert.equal(fx.rows(),2);
+    await fx.save();
+    assert.deepEqual(fx.posts,[{roles:[{id:13,role:'none'}]}]);assert.equal(fx.node('#new-tags').hidden,true);
+    assert.deepEqual(fx.notices,[['カテゴリの設定を保存しました。',undefined]]);
+  } finally {delete globalThis.document;}
 });

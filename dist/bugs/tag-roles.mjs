@@ -21,6 +21,8 @@ export function mountTagRoles({ api, json, element, notice }) {
   const $ = selector => document.querySelector(selector);
   const dialog = $('#category-dialog'), form = $('#category-form'), list = $('#category-tags'), error = $('#category-error');
   let state = { tags: [], newCount: 0 };
+  // 設定画面に描いたタグ。開いている間に背景の更新で state が変わっても、見せたタグだけを保存の対象にする。
+  let shown = [];
 
   function showCount() {
     const badge = $('#new-tags');
@@ -32,7 +34,7 @@ export function mountTagRoles({ api, json, element, notice }) {
     try { state = await api('tag-roles'); showCount(); return null; } catch (failure) { return failure; }
   }
   function renderTags() {
-    list.replaceChildren();
+    shown = state.tags; list.replaceChildren();
     if (!state.tags.length) { list.append(element('p', '取得済みの報告にタグがありません。', 'empty')); }
     for (const tag of dialogOrder(state.tags)) {
       const row = element('div', undefined, 'role-row'), name = element('span', undefined, 'role-name');
@@ -62,7 +64,7 @@ export function mountTagRoles({ api, json, element, notice }) {
   form.onsubmit = async event => {
     event.preventDefault();
     const chosen = new Map([...list.querySelectorAll('input:checked')].map(radio => [Number(radio.dataset.tag), radio.value]));
-    const roles = rolesToSave(state.tags, chosen);
+    const roles = rolesToSave(shown, chosen);
     if (!roles.length) { dialog.close(); return; }
     const save = $('#save-category'); save.disabled = true; error.textContent = '';
     try {
