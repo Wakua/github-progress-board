@@ -112,6 +112,12 @@ export async function handleBugApi(request,response,store,pathname,worker) {
       await readJson(request);
       sendJson(response,200,await worker.refreshAllLabels(actor));return true;
     }
+    if (pathname === '/api/bugs/tag-roles') {
+      if (request.method === 'GET') sendJson(response,200,store.tagRoles());
+      else if (request.method === 'POST') sendJson(response,200,store.setTagRoles(actor,await readJson(request)));
+      else throw new BugError(405,'この操作は利用できません。');
+      return true;
+    }
     const githubAction=/^\/api\/bugs\/reports\/([0-9a-f-]+)\/github\/(register|reconcile|retry|tags)$/.exec(pathname);
     if(githubAction&&request.method==='POST') {
       if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');

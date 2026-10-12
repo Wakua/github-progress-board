@@ -40,11 +40,12 @@ function formFixture({pending=[],failFile,failReportOnce=false,maxFiles=20}={}) 
     } else throw new Error('Unexpected request: '+route);
     return{ok:status<400,status,json:async()=>value};
   };
-  const context=vm.createContext({document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID},setTimeout,clearTimeout});
+  const context=vm.createContext({document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID},setTimeout,clearTimeout,mountTagRoles:()=>({load:async()=>{}})});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const start=source.indexOf('\n')+1,end=source.lastIndexOf('\ntry { showActor');
-  assert.ok(start>0&&end>start,'App import and bootstrap boundaries must exist');
-  vm.runInContext(source.slice(start,end),context);
+  // importは仮想環境で実行できないので取り除く。importした関数のうち、読み込み時に呼ぶものはcontextに用意する。
+  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
+  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
+  vm.runInContext(app.slice(0,end),context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,policy:{maxFiles:'+maxFiles+',maxBytes:1000}};refresh=async()=>{};openReport=async()=>{};notice=()=>{};',context);
   return {
     node,requests,uploads,saved,

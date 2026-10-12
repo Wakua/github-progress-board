@@ -24,12 +24,13 @@ function fixture({githubEnabled=true,tags={status:200,value:{total:2,updated:2,f
     if(!result)throw new Error('Unexpected request: '+route);
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
-  const context=vm.createContext({...view,document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
+  // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、何もしない模擬にする。
+  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>{}}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
     setTimeout:()=>0,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const start=source.indexOf('\n')+1,end=source.lastIndexOf('\ntry { showActor');
-  assert.ok(start>0&&end>start,'App import and bootstrap boundaries must exist');
-  vm.runInContext(source.slice(start,end),context);
+  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
+  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
+  vm.runInContext(app.slice(0,end),context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,github:{enabled:'+githubEnabled+',repository:"qa/booking-reports"}};',context);
   return {
     calls,
