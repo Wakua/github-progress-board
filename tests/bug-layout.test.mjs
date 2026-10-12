@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 
-const css = readFileSync(new URL('../dist/bugs/style.css', import.meta.url), 'utf8');
+// 空白と改行を取り除いて照合する。CSSを整形しても、規則があれば、成功する。
+const css = readFileSync(new URL('../dist/bugs/style.css', import.meta.url), 'utf8').replace(/\s+/g, '');
 // 指定した幅の条件のブロックの中身を、すべて取り出す。
 function blocks(query) {
   const found = [];
@@ -20,6 +21,7 @@ test('幅761px以上では、詳細が画面の上に残り、画面より長い
   const wide = blocks('@media(min-width:761px)');
   assert.match(wide, /\.detail\{[^}]*position:sticky/);
   assert.match(wide, /\.detail\{[^}]*max-height:calc\(100vh/);
+  assert.match(wide, /\.detail\{[^}]*max-height:calc\(100dvh/);
   assert.match(wide, /\.detail\{[^}]*overflow:auto/);
 });
 test('幅760px以下では、詳細を追従させず、一覧と詳細を切り替える規則のままにする', () => {
