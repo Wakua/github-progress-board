@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {matchesFilters,tagOptions,registrationName,registrationTarget,nextAction} from '../dist/bugs/view.mjs';
+import {matchesFilters,tagOptions,registrationName,registrationMark,registrationTarget,nextAction} from '../dist/bugs/view.mjs';
 const report=(state,labels=[],registration='registered')=>({github:{state:registration,repository:'Wakua/github-progress-board',tags:{state,labels}}});
 const bug={id:1,name:'bug',color:'cc0000'},otherTag={id:2,name:'別の報告者のタグ',color:'ffffff'};
 test('shared report lists include every reporter tag and collapse repeated tags',()=>{
@@ -19,6 +19,27 @@ test('none, unfetched, failed fetch and cached labels remain distinct when filte
 test('reports saved before connection are distinguishable from the automatic registration queue',()=>{
   assert.equal(registrationName({github:{state:'pending',repository:null}}),'GitHub未登録');
   assert.equal(registrationName(report('unfetched',[],'pending')),'GitHub登録待ち');
+});
+
+test('一覧の行は、GitHubの接続があり、登録が完了していない報告だけ印を出す',()=>{
+  assert.equal(registrationMark(report('ok',[],'registered'),true),null);
+  assert.equal(registrationMark(report('unfetched',[],'pending'),true),'GitHub登録待ち');
+  assert.equal(registrationMark(report('unfetched',[],'creating'),true),'GitHub登録中');
+  assert.equal(registrationMark(report('ok',[],'failed'),true),'GitHub登録失敗');
+  assert.equal(registrationMark(report('ok',[],'unknown'),true),'GitHub作成結果が未確認');
+  assert.equal(registrationMark({github:{state:'pending',repository:null}},true),'GitHub未登録');
+  assert.equal(registrationMark({github:{state:'pending',repository:null}},false),null);
+  assert.equal(registrationMark(report('ok',[],'failed'),false),null);
+});
+
+test('本文の検索に一致した報告のIDで絞り、ほかの絞り込みと重ねられる',()=>{
+  const value={id:'r1',...report('ok',[bug]),status:'working'};
+  assert.equal(matchesFilters(value,'all','all','all',null),true);
+  assert.equal(matchesFilters(value,'all','all','all',new Set(['r1'])),true);
+  assert.equal(matchesFilters(value,'all','all','all',new Set(['r2'])),false);
+  assert.equal(matchesFilters(value,'all','all','all',new Set()),false);
+  assert.equal(matchesFilters(value,'label:1','registered','working',new Set(['r1'])),true);
+  assert.equal(matchesFilters(value,'label:1','registered','complete',new Set(['r1'])),false);
 });
 
 test('workflow status can be combined with tag and registration filters',()=>{
