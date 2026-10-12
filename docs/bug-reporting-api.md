@@ -113,7 +113,7 @@ confirmationsはhistoryのうち確認結果だけを返す。
 | revision | 登録情報の更新番号。再試行の競合検査に使う |
 | tags | state（unfetched、ok、error）、labels（id・name・colorの配列）、fetchedAt（成功した取得日時）、error |
 | checkedAt / candidates | 照合を始めた時刻（Unixミリ秒）と候補のnumber・url。照合していなければnull |
-| holdUntil | 結果未確認の報告で、checkedAtがこの時刻より前なら、該当なしを確定せず再試行も拒否する。待ち時間は[GitHub登録](bug-reporting.md#github登録)に従う。結果未確認でなければnull |
+| holdUntil | 結果未確認の報告で、checkedAtがこの時刻より前なら、該当なしを確定せず再試行も拒否する。保留時間は[GitHub登録](bug-reporting.md#github登録)に従う。結果未確認でなければnull |
 
 ticketStateはgithub.stateと同じ値である。
 報告自身のrevisionとupdatedAtは、登録状況やタグの取得だけでは変更しない。
