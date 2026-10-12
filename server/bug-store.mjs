@@ -5,6 +5,7 @@ import { randomBytes, randomUUID, createHash } from 'node:crypto';
 
 // 作成要求の開始からこの時間が過ぎるまで、Issue一覧に載らないことが「該当なし」の根拠にならない。
 export const creationSettleMs = 60000;
+export const searchLimits = { queryLength: 200, words: 10 };
 export const initialPolicy = { maxBytes: 1024 ** 3, maxFiles: 20 };
 export const tagRoleNames = ['none', 'main', 'sub'];
 export class BugError extends Error {
@@ -179,6 +180,14 @@ export class BugStore {
   listReports(actor) {
     const rows = this.db.prepare('SELECT * FROM reports ORDER BY updated_at DESC,id').all();
     return rows.map(row => this.summary(row,actor));
+  }
+  searchReports(query) {
+    if (typeof query !== 'string') throw new BugError(400, '検索語を文字列で指定してください。');
+    const words = query.split(/\s+/).filter(Boolean); // \s は全角空白を含む
+    if (!words.length) throw new BugError(400, '検索語を入力してください。');
+    if (query.length > searchLimits.queryLength || words.length > searchLimits.words) throw new BugError(400, `検索語は${searchLimits.queryLength}文字以内、${searchLimits.words}語までです。`);
+    const match = words.map(() => 'instr(lower(body),lower(?))>0').join(' AND ');
+    return this.db.prepare(`SELECT id FROM reports WHERE ${match} ORDER BY updated_at DESC,id`).all(...words).map(row => row.id);
   }
   pendingUploads(actor) {
     if(actor.shared)return this.db.prepare("SELECT id,name,size,type,hash,state FROM attachments WHERE report_id IS NULL AND state='ready' ORDER BY created_at,id").all();

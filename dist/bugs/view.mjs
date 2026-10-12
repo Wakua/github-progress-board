@@ -9,6 +9,10 @@ export const registrationNames={pending:'GitHub登録待ち',creating:'GitHub登
 export function registrationName(report) {
   return report.github.state==='pending'&&!report.github.repository?'GitHub未登録':registrationNames[report.github.state]||'GitHub登録状況が不明';
 }
+// 一覧の行には、GitHub登録が完了していない報告だけ印を出す。GitHubの接続がなければ登録は始まらないので、出さない。
+export function registrationMark(report,githubEnabled) {
+  return githubEnabled&&report.github.state!=='registered'?registrationName(report):null;
+}
 // A failed report registers to the configured repository on retry, so show that one before the operation.
 export function registrationTarget(github,configured) {
   if(github.state==='failed'&&configured&&github.repository&&github.repository!==configured)return '登録先：'+configured+'（失敗した登録先：'+github.repository+'）';
@@ -19,7 +23,9 @@ export function tagOptions(reports) {
   for(const report of reports) for(const label of report.github.tags.labels) labels.set(label.id,label);
   return [...labels.values()].sort((a,b)=>a.name.localeCompare(b.name,'ja'));
 }
-export function matchesFilters(report,tag='all',state='all',status='all') {
+// found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。
+export function matchesFilters(report,tag='all',state='all',status='all',found=null) {
+  if(found&&!found.has(report.id))return false;
   if(status!=='all'&&report.status!==status)return false;
   if(state!=='all'&&report.github.state!==state)return false;
   const tags=report.github.tags;

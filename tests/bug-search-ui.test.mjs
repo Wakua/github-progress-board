@@ -1,0 +1,120 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {readFileSync} from 'node:fs';
+import vm from 'node:vm';
+import * as view from '../dist/bugs/view.mjs';
+
+// 実際の画面のコードを、擬似DOMと偽のAPIで動かし、一覧と検索の振る舞いを検証する。
+class Element {
+  constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.value='';this.listeners={};this.classes=new Set();this.classList={toggle:(name,force)=>{if(force)this.classes.add(name);else this.classes.delete(name);},contains:name=>this.classes.has(name)};}
+  append(...children) {this.children.push(...children);}
+  replaceChildren(...children) {this.children=[...children];}
+  get options() {return this.children;}
+  addEventListener(type,listener) {(this.listeners[type]||=[]).push(listener);}
+  fire(type,event={}) {for(const listener of this.listeners[type]||[])listener(event);}
+}
+const report=(id,title,{status='received',state='registered',repository='qa/booking-reports',body=title}={})=>({id,title,body,status,reporterName:'共通の利用者',createdAt:'2030-01-01T00:00:00.000Z',attachmentCount:0,github:{state,repository,tags:{state:'ok',labels:[]}}});
+const sample=()=>[report('r1','予約一覧が更新されない'),report('r2','通知メールが届かない',{status:'working'}),report('r3','支払いの合計がずれる',{state:'pending',repository:null})];
+
+function fixture({reports=sample(),githubEnabled=true,search}={}) {
+  const nodes=new Map(),timers=[],searchQueries=[];
+  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
+  for(const selector of ['#tag-filter','#registration-filter','#status-filter'])node(selector).value='all';
+  node('#report-form').elements={files:{}};
+  const respond=search||(async query=>({status:200,value:{ids:reports.filter(item=>item.body.includes(query)).map(item=>item.id)}}));
+  const fetch=async(url,options={})=>{
+    if(url!=='/api/bugs/reports/search')throw new Error('Unexpected request: '+url);
+    const {query}=JSON.parse(options.body);searchQueries.push(query);
+    const result=await respond(query);
+    return{ok:result.status<400,status:result.status,json:async()=>result.value};
+  };
+  // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、何もしない模擬にする。
+  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>{}}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
+    setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
+  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
+  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
+  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
+  vm.runInContext(app.slice(0,end),context);
+  vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,github:{enabled:'+githubEnabled+',repository:"qa/booking-reports"}};',context);
+  context.reports=undefined;vm.runInContext('reports=__reports',Object.assign(context,{__reports:reports}));
+  const box=()=>node('#reports');
+  return {
+    node,searchQueries,timers,
+    titles:()=>box().children.map(row=>row.children[0].textContent),
+    marks:()=>box().children.map(row=>row.children[1].children.length),
+    count:()=>node('#report-count').textContent,
+    type(value,{composing=false}={}) {node('#search').value=value;node('#search').oninput({isComposing:composing});},
+    pending:()=>timers.filter(timer=>timer.live),
+    async flush() {for(const timer of timers){if(timer.live){timer.live=false;await timer.fn();}}},
+    render:()=>vm.runInContext('renderList()',context),
+    reload:result=>context.reload(result)
+  };
+}
+
+test('検索欄に語を入れると、300ms後に本文へ一致した報告だけを一覧に出す',async()=>{
+  const fx=fixture();fx.render();
+  assert.deepEqual(fx.titles(),['予約一覧が更新されない','通知メールが届かない','支払いの合計がずれる']);
+  fx.type('メール');assert.equal(fx.pending().length,1);assert.equal(fx.pending()[0].ms,300);assert.deepEqual(fx.searchQueries,[]);
+  await fx.flush();
+  assert.deepEqual(fx.searchQueries,['メール']);assert.deepEqual(fx.titles(),['通知メールが届かない']);assert.equal(fx.count(),'1 / 3件');
+});
+test('続けて入力すると、前の検索を取り消し、最後の語だけを検索する',async()=>{
+  const fx=fixture();fx.render();
+  fx.type('通');fx.type('通知');assert.equal(fx.pending().length,1);
+  await fx.flush();assert.deepEqual(fx.searchQueries,['通知']);
+});
+test('日本語の変換中は検索せず、確定してから検索する',async()=>{
+  const fx=fixture();fx.render();
+  fx.type('つうち',{composing:true});assert.equal(fx.pending().length,0);assert.deepEqual(fx.searchQueries,[]);
+  fx.node('#search').value='通知';fx.node('#search').fire('compositionend');
+  assert.equal(fx.pending().length,1);await fx.flush();
+  assert.deepEqual(fx.searchQueries,['通知']);assert.deepEqual(fx.titles(),['通知メールが届かない']);
+});
+test('語を消すと、検索の絞り込みを外し、検索は送らない',async()=>{
+  const fx=fixture();fx.render();
+  fx.type('メール');await fx.flush();assert.equal(fx.titles().length,1);
+  fx.type('  ');await fx.flush();
+  assert.deepEqual(fx.searchQueries,['メール']);assert.equal(fx.titles().length,3);assert.equal(fx.count(),'3 / 3件');
+});
+test('検索に失敗したときは、古い検索結果を残さず、絞り込みを外した一覧に理由を出し、成功すると通知を消す',async()=>{
+  let fail=false;
+  const fx=fixture({search:async query=>fail?{status:400,value:{error:'検索語は200文字以内、10語までです。'}}:{status:200,value:{ids:['r2']}}});fx.render();
+  fx.type('メール');await fx.flush();assert.equal(fx.titles().length,1);
+  fail=true;fx.type('a b c d e f g h i j k');await fx.flush();
+  assert.equal(fx.titles().length,3);assert.equal(fx.node('#notice').textContent,'検索語は200文字以内、10語までです。');
+  assert.equal(fx.node('#notice').hidden,false);assert.equal(fx.node('#notice').classList.contains('error'),true);
+  fail=false;fx.type('メール');await fx.flush();
+  assert.equal(fx.node('#notice').hidden,true);assert.equal(fx.titles().length,1);
+});
+test('検索の他の通知は、成功しても消さない',async()=>{
+  const fx=fixture();fx.render();
+  fx.node('#notice').textContent='報告を受け付けました。';fx.node('#notice').hidden=false;
+  fx.type('メール');await fx.flush();
+  assert.equal(fx.node('#notice').hidden,false);assert.equal(fx.node('#notice').textContent,'報告を受け付けました。');
+});
+test('古い検索の応答は捨てて、最後の検索だけを反映する',async()=>{
+  const waiting=new Map();
+  const fx=fixture({search:query=>new Promise(resolve=>waiting.set(query,resolve))});fx.render();
+  fx.type('予約');const first=fx.flush();
+  fx.type('メール');const second=fx.flush();
+  waiting.get('メール')({status:200,value:{ids:['r2']}});await second;
+  assert.deepEqual(fx.titles(),['通知メールが届かない']);
+  waiting.get('予約')({status:200,value:{ids:['r1']}});await first;
+  assert.deepEqual(fx.titles(),['通知メールが届かない']);
+});
+test('一覧を読み直すと、同じ語で検索をやり直し、検索に失敗しても新しい一覧を描く',async()=>{
+  let fail=false,current=sample();
+  const fx=fixture({search:async query=>fail?{status:503,value:{error:'保存処理を完了できませんでした。'}}:{status:200,value:{ids:current.filter(item=>item.body.includes(query)).map(item=>item.id)}}});fx.render();
+  fx.type('メール');await fx.flush();
+  const reloaded=[...sample(),report('r4','メールの件名が空になる')];current=reloaded;
+  await fx.reload({reports:reloaded});
+  assert.deepEqual(fx.titles(),['通知メールが届かない','メールの件名が空になる']);
+  fail=true;await fx.reload({reports:[...reloaded,report('r5','新しい報告')]});
+  assert.equal(fx.titles().length,5);assert.equal(fx.count(),'5 / 5件');
+});
+test('GitHubの接続があるときだけ、登録が完了していない報告の行に印を出す',()=>{
+  const connected=fixture();connected.render();
+  assert.deepEqual(connected.marks(),[1,1,2]);
+  const local=fixture({githubEnabled:false});local.render();
+  assert.deepEqual(local.marks(),[1,1,1]);
+});

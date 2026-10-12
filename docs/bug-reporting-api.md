@@ -9,6 +9,7 @@
 | GET | me | 共通利用者のID・名前・role・shared、容量設定、GitHub接続情報 |
 | GET | reports | 全報告の一覧 |
 | POST | reports | JSONで報告を作成する |
+| POST | reports/search | JSONで本文を検索し、一致した報告のIDを返す |
 | GET | reports/:reportId | 本文、添付情報、対応状況と確認履歴 |
 | POST | reports/:reportId/status | 対応状況を次の段階へ進める |
 | POST | reports/:reportId/confirmations | 修正版の確認結果を保存する |
@@ -33,6 +34,12 @@
 | uploadIds | 確定した未登録データの内部IDの配列。添付なしは空配列 |
 
 JSONの要求は `Content-Type: application/json` を使い、最大2MiBまで受ける。成功時は201と `{report: ...}` を返す。同じ受付キーで異なる内容を送ると409になる。
+
+## 本文の検索
+
+`POST reports/search` は、JSONの `query` に検索語の文字列を送る。語の区切り、上限、一致の条件は[検索の規則](bug-reporting.md#報告一覧と検索)に従う。成功時は200と、一致した報告のIDを更新が新しい順に並べた `{ids: [...]}` を返す。一致がなければ空の配列を返す。
+
+`query` が文字列でない場合や、規則を満たさない場合は400になる。検索文字列を付けた要求は、ほかのAPIと同じく403で拒否する。GETは404になる。
 
 ## 再現データの要求
 
