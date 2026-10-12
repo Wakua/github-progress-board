@@ -17,7 +17,8 @@ export function rolesToSave(tags, chosen) {
   return roles;
 }
 
-export function mountTagRoles({ api, json, element, notice }) {
+// onSave: 割り当てを保存したときに呼ぶ。一覧の絞り込みの選択肢を、新しい割り当てで描き直す。
+export function mountTagRoles({ api, json, element, notice, onSave = () => {} }) {
   const $ = selector => document.querySelector(selector);
   const dialog = $('#category-dialog'), form = $('#category-form'), list = $('#category-tags'), error = $('#category-error');
   let state = { tags: [], newCount: 0 };
@@ -69,9 +70,10 @@ export function mountTagRoles({ api, json, element, notice }) {
     const save = $('#save-category'); save.disabled = true; error.textContent = '';
     try {
       state = await api('tag-roles', json({ roles })); showCount(); dialog.close();
+      onSave();
       notice('カテゴリの設定を保存しました。');
     } catch (failure) { error.textContent = failure.message + ' 選択は保持しています。'; }
     finally { save.disabled = false; }
   };
-  return { load };
+  return { load, tags: () => state.tags };
 }

@@ -1,4 +1,4 @@
-import {registrationName,registrationMark,registrationTarget,tagOptions,matchesFilters,statusNames,nextStatusNames,nextAction} from './view.mjs';
+import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
@@ -14,7 +14,7 @@ async function api(route,options={}) {
 }
 const json = value => ({method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(value)});
 function notice(message,error=false) { const node=$('#notice'); node.textContent=message; node.classList.toggle('error',error); node.hidden=!message; }
-const tagRoles = mountTagRoles({api,json,element,notice});
+const tagRoles = mountTagRoles({api,json,element,notice,onSave:()=>{renderFilters();renderList();}});
 function clearDraft() { $('#report-form').reset(); uploaded.clear(); draftId=null; pending=[]; $('#selected-files').replaceChildren(); $('#pending-files').replaceChildren(); $('#form-error').textContent=''; }
 function savedDraftUploads() {
   return [...new Map([...pending,...uploaded.values()].map(file=>[file.id,file])).values()];
@@ -55,7 +55,7 @@ async function search() {
   }
 }
 async function reload(result) {
-  reports=result.reports; renderFilters(); await search(); await tagRoles.load();
+  reports=result.reports; await tagRoles.load(); renderFilters(); await search();
 }
 async function refresh() {
   const current=actor,result=await api('reports'); if(actor!==current)return; await reload(result);
@@ -65,7 +65,9 @@ async function refresh() {
 }
 function renderList() {
   const box=$('#reports'); box.replaceChildren();
-  const visible=reports.filter(report=>matchesFilters(report,$('#tag-filter').value,$('#registration-filter').value,$('#status-filter').value,searchIds));
+  const roles=roleMap(tagRoles.tags());
+  const filters={main:$('#main-filter').value,sub:$('#sub-filter').value,state:$('#registration-filter').value,status:$('#status-filter').value,found:searchIds,roles};
+  const visible=reports.filter(report=>matchesFilters(report,filters));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
   if(!reports.length) { box.append(element('p',actor.role==='admin'?'受付した報告はありません。':'報告はまだありません。「バグを報告」から送信できます。','empty')); return; }
@@ -74,7 +76,10 @@ function renderList() {
     row.title=report.title;
     states.append(element('span',statusNames[report.status],'status workflow-'+report.status));
     if(mark)states.append(element('span',mark,'status status-'+report.github.state));
-    row.append(element('span',report.title,'report-title'),states);
+    const text=element('span',undefined,'report-text'),area=areaText(report,roles);
+    text.append(element('span',report.title,'report-title'));
+    if(area)text.append(element('span',area,'report-area'));
+    row.append(text,states);
     row.addEventListener('click',()=>openReport(report.id).catch(error=>notice(error.message,true))); box.append(row);
   }
 }
@@ -197,13 +202,16 @@ function tagNodes(tags) {
   else if(tags.state==='error')box.append(element('span',tags.fetchedAt?'タグ取得失敗 · 前回の取得結果':'タグ取得失敗','error-text'));
   return box;
 }
+// メインを描いてから、選んだメインの報告に付いているサブを描く。選んでいた項目がなくなったときは「すべて」に戻す。
+function fillSelect(select,choices) {
+  const previous=select.value;
+  select.replaceChildren(...choices.map(({value,text})=>{const option=element('option',text);option.value=value;return option;}));
+  select.value=choices.some(choice=>choice.value===previous)?previous:'all';
+}
 function renderFilters() {
-  const select=$('#tag-filter'),previous=select.value;
-  select.replaceChildren(...[['all','すべてのタグ'],['none','タグなし（取得済み）'],['unfetched','タグ未取得'],['error','タグ取得失敗']].map(([value,text])=>{
-    const option=element('option',text);option.value=value;return option;
-  }));
-  for(const label of tagOptions(reports)) {const option=element('option',label.name);option.value='label:'+label.id;select.append(option);}
-  select.value=[...select.options].some(option=>option.value===previous)?previous:'all';
+  const tags=tagRoles.tags();
+  fillSelect($('#main-filter'),mainChoices(reports,tags));
+  fillSelect($('#sub-filter'),subChoices(reports,tags,$('#main-filter').value));
 }
 function renderGitHub(report) {
   const box=element('section',undefined,'github-panel'),github=report.github,tags=github.tags;
@@ -279,7 +287,8 @@ function scheduleStatusRefresh() {
   },5000);
 }
 
-$('#tag-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
+$('#main-filter').onchange=()=>{renderFilters();renderList();};
+$('#sub-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
 // 日本語の変換中は検索せず、確定してから検索する。
 const queueSearch=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
 $('#search').oninput=event=>{if(!event.isComposing)queueSearch();};

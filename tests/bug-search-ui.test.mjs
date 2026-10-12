@@ -13,13 +13,13 @@ class Element {
   addEventListener(type,listener) {(this.listeners[type]||=[]).push(listener);}
   fire(type,event={}) {for(const listener of this.listeners[type]||[])listener(event);}
 }
-const report=(id,title,{status='received',state='registered',repository='qa/booking-reports',body=title}={})=>({id,title,body,status,reporterName:'共通の利用者',createdAt:'2030-01-01T00:00:00.000Z',attachmentCount:0,github:{state,repository,tags:{state:'ok',labels:[]}}});
+const report=(id,title,{status='received',state='registered',repository='qa/booking-reports',body=title,labels=[]}={})=>({id,title,body,status,reporterName:'共通の利用者',createdAt:'2030-01-01T00:00:00.000Z',attachmentCount:0,github:{state,repository,tags:{state:'ok',labels}}});
 const sample=()=>[report('r1','予約一覧が更新されない'),report('r2','通知メールが届かない',{status:'working'}),report('r3','支払いの合計がずれる',{state:'pending',repository:null})];
 
-function fixture({reports=sample(),githubEnabled=true,search}={}) {
-  const nodes=new Map(),timers=[],searchQueries=[];
+function fixture({reports=sample(),githubEnabled=true,search,tags=[]}={}) {
+  const nodes=new Map(),timers=[],searchQueries=[],mounted={};
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
-  for(const selector of ['#tag-filter','#registration-filter','#status-filter'])node(selector).value='all';
+  for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter'])node(selector).value='all';
   node('#report-form').elements={files:{}};
   const respond=search||(async query=>({status:200,value:{ids:reports.filter(item=>item.body.includes(query)).map(item=>item.id)}}));
   const fetch=async(url,options={})=>{
@@ -28,8 +28,8 @@ function fixture({reports=sample(),githubEnabled=true,search}={}) {
     const result=await respond(query);
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
-  // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、何もしない模擬にする。
-  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>{}}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
+  // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、タグの役割を返すだけの模擬にする。
+  const context=vm.createContext({...view,mountTagRoles:options=>{mounted.options=options;return{load:async()=>{},tags:()=>tags};},document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
@@ -40,7 +40,13 @@ function fixture({reports=sample(),githubEnabled=true,search}={}) {
   const box=()=>node('#reports');
   return {
     node,searchQueries,timers,
-    titles:()=>box().children.map(row=>row.children[0].textContent),
+    titles:()=>box().children.map(row=>row.children[0].children[0].textContent),
+    areas:()=>box().children.map(row=>row.children[0].children[1]?.textContent??null),
+    choices:selector=>node(selector).options.map(option=>option.textContent),
+    choose(selector,value) {node(selector).value=value;node(selector).onchange();},
+    filters:()=>vm.runInContext('renderFilters()',context),
+    mounted,
+    setTags:value=>{tags=value;},
     marks:()=>box().children.map(row=>row.children[1].children.length),
     count:()=>node('#report-count').textContent,
     type(value,{composing=false}={}) {node('#search').value=value;node('#search').oninput({isComposing:composing});},
@@ -117,4 +123,55 @@ test('GitHubの接続があるときだけ、登録が完了していない報�
   assert.deepEqual(connected.marks(),[1,1,2]);
   const local=fixture({githubEnabled:false});local.render();
   assert.deepEqual(local.marks(),[1,1,1]);
+});
+
+const categoryTags=[{id:1,name:'bug',role:'none'},{id:2,name:'予約',role:'main'},{id:3,name:'一覧',role:'sub'},{id:4,name:'決済',role:'main'},{id:5,name:'画面',role:'sub'}];
+const label=id=>({id,name:categoryTags.find(tag=>tag.id===id).name,color:'336699'});
+const categorized=()=>[
+  report('r1','予約一覧が更新されない',{labels:[label(2),label(3)]}),
+  report('r2','予約の確認画面が崩れる',{status:'working',labels:[label(2),label(5)]}),
+  report('r3','支払いの合計がずれる',{labels:[label(4)]}),
+  report('r4','CSVが文字化けする',{labels:[label(1)]}),
+  report('r5','予約の確認メールが届かない',{state:'pending',repository:null}),
+  report('r6','画面の表示が小さい',{status:'complete',labels:[label(5)]})
+];
+test('メインとサブの選択肢に、未対応の件数を添え、サブは選んだメインの報告に付いているものだけを出す',()=>{
+  const fx=fixture({reports:categorized(),tags:categoryTags});fx.filters();
+  assert.deepEqual(fx.choices('#main-filter').sort(),['すべて','予約（2）','決済（1）','未分類（2）'].sort());
+  assert.deepEqual(fx.choices('#sub-filter').sort(),['すべて','一覧（1）','画面（1）'].sort());
+  fx.choose('#main-filter','label:2');
+  assert.deepEqual(fx.choices('#sub-filter').sort(),['すべて','一覧（1）','画面（1）'].sort());
+  fx.choose('#main-filter','label:4');
+  assert.deepEqual(fx.choices('#sub-filter'),['すべて']);
+});
+test('メインを選ぶと、その報告だけを出し、行に領域を添える',()=>{
+  const fx=fixture({reports:categorized(),tags:categoryTags});fx.filters();fx.render();
+  assert.deepEqual(fx.areas(),['予約 / 一覧','予約 / 画面','決済',null,null,'画面']);
+  fx.choose('#main-filter','label:2');
+  assert.deepEqual(fx.titles(),['予約一覧が更新されない','予約の確認画面が崩れる']);assert.equal(fx.count(),'2 / 6件');
+  fx.choose('#sub-filter','label:5');
+  assert.deepEqual(fx.titles(),['予約の確認画面が崩れる']);
+});
+test('未分類を選ぶと、割り当てたタグのない報告と、GitHubに未登録の報告を出す',()=>{
+  const fx=fixture({reports:categorized(),tags:categoryTags});fx.filters();
+  fx.choose('#main-filter','uncategorized');
+  assert.deepEqual(fx.titles(),['CSVが文字化けする','予約の確認メールが届かない']);
+  assert.deepEqual(fx.choices('#sub-filter'),['すべて']);
+});
+test('メインを変えて、選んでいたサブがなくなったときは、サブを「すべて」に戻す',()=>{
+  const fx=fixture({reports:categorized(),tags:categoryTags});fx.filters();
+  fx.choose('#main-filter','label:2');fx.choose('#sub-filter','label:3');
+  assert.deepEqual(fx.titles(),['予約一覧が更新されない']);
+  fx.choose('#main-filter','label:4');
+  assert.equal(fx.node('#sub-filter').value,'all');assert.deepEqual(fx.titles(),['支払いの合計がずれる']);
+});
+test('カテゴリの設定を保存すると、選択肢と行の領域を、新しい割り当てで描き直す',()=>{
+  const fx=fixture({reports:categorized(),tags:categoryTags.map(tag=>({...tag,role:'none'}))});fx.filters();fx.render();
+  assert.deepEqual(fx.choices('#main-filter').sort(),['すべて','未分類（5）'].sort());assert.deepEqual(fx.areas().filter(Boolean),[]);
+  fx.setTags(categoryTags);fx.mounted.options.onSave();
+  assert.ok(fx.choices('#main-filter').includes('予約（2）'));assert.equal(fx.areas()[0],'予約 / 一覧');
+});
+test('タグの役割を割り当てていないときは、行に領域を出さない',()=>{
+  const fx=fixture();fx.filters();fx.render();
+  assert.deepEqual(fx.areas(),[null,null,null]);assert.deepEqual(fx.choices('#main-filter'),['すべて','未分類（3）']);
 });

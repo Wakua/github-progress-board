@@ -19,6 +19,7 @@
 ## 写してよい画面
 
 - 架空のサンプルデータ（`samples/`、`dist/github-snapshot.json`、テストのfixture）を表示した画面だけを保存する。
+- バグ報告ツールの画面は、`tests/bug-screens-server.mjs` が作る、架空の予約管理の報告とタグで撮る。変更前のmainの画面は、同じファイルの第3引数にmainのフォルダーを渡して撮る。
 - 公開の可否は[公開対象](development.md#公開対象)、他社サービスの観察記録の保存先は[UI設計の規則](../AGENTS.md#ui設計)に従う。
 
 ## 撮り方

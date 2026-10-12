@@ -16,7 +16,7 @@ class Element {
 function fixture({githubEnabled=true,tags={status:200,value:{total:2,updated:2,failed:0}},reports={status:200,value:{reports:[]}}}={}) {
   const nodes=new Map(),calls=[];
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
-  for(const selector of ['#tag-filter','#registration-filter','#status-filter'])node(selector).value='all';
+  for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter'])node(selector).value='all';
   node('#report-form').elements={files:{}};
   const fetch=async url=>{
     const route=url.replace('/api/bugs/','');calls.push({route,buttonDisabled:node('#refresh').disabled});
@@ -25,7 +25,7 @@ function fixture({githubEnabled=true,tags={status:200,value:{total:2,updated:2,f
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
   // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、何もしない模擬にする。
-  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>{}}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
+  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>{},tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
     setTimeout:()=>0,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
