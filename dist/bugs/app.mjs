@@ -4,7 +4,7 @@ const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
 const time = value => new Date(value).toLocaleString('ja-JP');
-let actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer, searchFailed=false;
+let rolesError='', actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer, searchFailed=false;
 let deepLink=new URL(location.href).searchParams.get('report');
 async function api(route,options={}) {
   const response=await fetch('/api/bugs/'+route,{...options,credentials:'same-origin'});
@@ -54,8 +54,13 @@ async function search() {
     searchIds=null;renderList();searchFailed=true;notice(error.message,true);
   }
 }
+// タグの役割を読み込めないと、割り当てが前回のまま（初回は空）になり、全報告が「未分類」に見える。
+const rolesNotice = message => 'タグの役割を読み込めませんでした。カテゴリの絞り込みと領域は、前回の読み込み（なければ未設定）のままです。'+message;
 async function reload(result) {
-  reports=result.reports; await tagRoles.load(); renderFilters(); await search();
+  reports=result.reports;
+  const failure=await tagRoles.load(); rolesError=failure?failure.message:'';
+  if(failure)notice(rolesNotice(failure.message),true);
+  renderFilters(); await search();
 }
 async function refresh() {
   const current=actor,result=await api('reports'); if(actor!==current)return; await reload(result);
@@ -302,6 +307,7 @@ $('#refresh').onclick=async()=>{
     await refresh();
     if(tagError)notice('最新の受付情報を読み込みました。GitHubのタグは取得できませんでした。'+tagError+'前回の結果を保持しています。',true);
     else if(tags?.failed)notice('最新の受付情報を読み込みました。タグを取得できなかった報告が'+tags.failed+'件あります。前回の結果を保持しています。',true);
+    else if(rolesError)notice('最新の受付情報を読み込みました。'+rolesNotice(rolesError),true);
     else notice('最新の受付情報を読み込みました。');
   } catch(error) {notice(error.message,true);}
   finally {button.disabled=false;}

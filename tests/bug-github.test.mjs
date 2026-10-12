@@ -259,6 +259,18 @@ async function registerAll(fx,count) {
   return reports;
 }
 const newTag={id:8,name:'入力画面',color:'abcdef'};
+test('Issue一覧を50ページで打ち切ったとき、listIssuesは読めた分を返し、findIssuesは確定せずに失敗する',async()=>{
+  const calls=[];
+  const client=new GitHubClient(approvedRepository,{run:async args=>{
+    calls.push(args.at(-1));const page=Number(/&page=(\d+)$/.exec(args.at(-1))[1]);
+    return{status:200,headers:{},data:Array.from({length:100},(_,index)=>({number:page*1000+index,html_url:url(page*1000+index),body:'',created_at:new Date().toISOString()}))};
+  }});
+  const all=await client.listIssues();
+  assert.equal(calls.length,50);assert.equal(all.size,5000);
+  calls.length=0;
+  await assert.rejects(client.findIssues('<!-- なし -->'),error=>error instanceof GitHubFailure&&/全件取得できませんでした/.test(error.message));
+  assert.equal(calls.length,50);
+});
 test('Issue一覧の読み取りは、新しい順に読み、PRを除き、境界で止まる',async()=>{
   const calls=[],base=Date.parse('2026-10-01T12:00:00Z');
   const issue=(number,minutesAgo,extra={})=>({number,html_url:url(number),body:'',created_at:new Date(base-minutesAgo*60000).toISOString(),...extra});
@@ -297,6 +309,17 @@ test('一覧に載らなかった報告が上限を超えるときは、上限�
   assert.deepEqual(states.at(-1).labels,[label]);assert.match(states.at(-1).error,/もう一度/);
   fx.client.notListed.clear();
   assert.deepEqual(await fx.worker.refreshAllLabels(fx.actors.admin),{total:count,updated:count,failed:0});
+});
+test('一覧に載らない報告が上限を超えて続いても、「更新」のたびに前回の続きから取得し、すべての報告に順番が回る',async t=>{
+  const fx=fixture(t);const count=labelFallbackLimit+2;const reports=await registerAll(fx,count);
+  for(let number=101;number<101+count;number++)fx.client.notListed.add(number);fx.client.labels=[newTag];
+  const fetched=new Set();
+  for(let round=0;round<2;round++) {
+    const reads=fx.client.reads.length;await fx.worker.refreshAllLabels(fx.actors.admin);
+    for(const number of fx.client.reads.slice(reads))fetched.add(number);
+  }
+  assert.equal(fetched.size,count);
+  for(const report of reports)assert.deepEqual(fx.store.registration(report.id).tags.labels,[newTag]);
 });
 test('Issueが見つからない報告だけが取得失敗になり、前回のタグを残す',async t=>{
   const fx=fixture(t);const reports=await registerAll(fx,2);

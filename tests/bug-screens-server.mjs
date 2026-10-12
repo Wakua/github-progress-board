@@ -70,7 +70,12 @@ console.log('http://127.0.0.1:' + port + '/bugs/');
 const base = 'http://127.0.0.1:' + port + '/api/bugs';
 const call = async (method, p, body) => (await fetch(base + p, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined })).json();
 const existing = (await call('GET', '/reports')).reports;
-if (existing.length >= early.length + registered.length) {
+const expected = early.length + registered.length;
+if (existing.length > early.length && existing.length < expected) {
+  console.error('保存先が途中までしか作られていません（' + existing.length + '/' + expected + '件）。保存先を消して、作り直してください。');
+  server.close(); process.exit(1);
+}
+if (existing.length >= expected) {
   issues.push(...reloaded); // 作成済みのIssueを模擬のGitHubに戻す。
 } else {
   const order = ['received', 'working', 'fixed', 'checking'];

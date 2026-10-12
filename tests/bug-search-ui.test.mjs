@@ -16,7 +16,7 @@ class Element {
 const report=(id,title,{status='received',state='registered',repository='qa/booking-reports',body=title,labels=[]}={})=>({id,title,body,status,reporterName:'共通の利用者',createdAt:'2030-01-01T00:00:00.000Z',attachmentCount:0,github:{state,repository,tags:{state:'ok',labels}}});
 const sample=()=>[report('r1','予約一覧が更新されない'),report('r2','通知メールが届かない',{status:'working'}),report('r3','支払いの合計がずれる',{state:'pending',repository:null})];
 
-function fixture({reports=sample(),githubEnabled=true,search,tags=[]}={}) {
+function fixture({reports=sample(),githubEnabled=true,search,tags=[],loadFailure=null}={}) {
   const nodes=new Map(),timers=[],searchQueries=[],mounted={};
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
   for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter'])node(selector).value='all';
@@ -29,7 +29,7 @@ function fixture({reports=sample(),githubEnabled=true,search,tags=[]}={}) {
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
   // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、タグの役割を返すだけの模擬にする。
-  const context=vm.createContext({...view,mountTagRoles:options=>{mounted.options=options;return{load:async()=>{},tags:()=>tags};},document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
+  const context=vm.createContext({...view,mountTagRoles:options=>{mounted.options=options;return{load:async()=>loadFailure,tags:()=>tags};},document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
@@ -174,4 +174,13 @@ test('カテゴリの設定を保存すると、選択肢と行の領域を、�
 test('タグの役割を割り当てていないときは、行に領域を出さない',()=>{
   const fx=fixture();fx.filters();fx.render();
   assert.deepEqual(fx.areas(),[null,null,null]);assert.deepEqual(fx.choices('#main-filter'),['すべて','未分類（3）']);
+});
+
+test('タグの役割を読み込めなかったときは、理由を通知し、前回の割り当てのまま一覧を出す',async()=>{
+  const fx=fixture({reports:categorized(),tags:categoryTags,loadFailure:new Error('保存処理を完了できませんでした。')});
+  await fx.reload({reports:categorized()});
+  const notice=fx.node('#notice');
+  assert.equal(notice.classList.contains('error'),true);assert.equal(notice.hidden,false);
+  assert.match(notice.textContent,/タグの役割を読み込めませんでした/);assert.match(notice.textContent,/保存処理を完了できませんでした/);
+  assert.equal(fx.titles().length,6);assert.equal(fx.areas()[0],'予約 / 一覧');
 });

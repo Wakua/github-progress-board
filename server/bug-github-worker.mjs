@@ -16,7 +16,7 @@ export class GitHubWorker {
     const url=new URL(origin);if(url.protocol!=='http:'||url.hostname!=='127.0.0.1'||url.pathname!=='/'||url.search||url.hash||url.username||url.password)throw new Error('報告の入口はこのPCのURLを指定してください。');
     if(store.githubWorker&&!store.githubWorker.stopped)throw new Error('この保存先の登録処理は実行中です。');
     store.githubWorker=this;
-    this.store=store;this.client=client;this.clock=clock;this.origin=url.origin;this.stopped=false;this.tail=Promise.resolve();
+    this.store=store;this.client=client;this.clock=clock;this.origin=url.origin;this.stopped=false;this.tail=Promise.resolve();this.labelCursor=0;
     store.githubRepository=client.repository;
     store.db.prepare("UPDATE registration_queue SET state='unknown',error='前回の作成結果を確認してください。',revision=revision+1 WHERE state='creating' AND repository=?").run(client.repository);
   }
@@ -122,7 +122,7 @@ export class GitHubWorker {
     }
   }
   // 現在の接続先に登録済みの全報告のタグを、Issue一覧からまとめて取り直す。
-  // 一覧に載らなかった報告（作成の直後や削除されたIssue）は、番号で個別に取得する。個別の取得は直列の列を塞ぐため、labelFallbackLimit件までにし、超えた分は取得失敗にして次の「更新」に回す。
+  // 一覧に載らなかった報告（作成の直後や削除されたIssue）は、番号で個別に取得する。個別の取得は直列の列を塞ぐため、labelFallbackLimit件までにし、超えた分は取得失敗にして、前回の続きから始める次の「更新」に回す。
   // 一覧を読めなかったときは個別に取得せず、全報告を取得失敗にする。
   refreshAllLabels(actor) {
     return this.serialize(async()=>{
@@ -148,8 +148,11 @@ export class GitHubWorker {
           catch(error) {this.markLabelError(row.report_id,this.safeError(error));failed++;}
         }
       });
-      for(const [index,row] of missing.entries()) {
-        if(index>=labelFallbackLimit){this.markLabelError(row.report_id,'一覧に載らなかったため、取得していません。もう一度「更新」してください。');failed++;continue;}
+      // 毎回同じ報告から始めると、取れない報告が続いたとき、後ろの報告が取得されない。前回の続きから始める。
+      const start=missing.length?this.labelCursor%missing.length:0;
+      this.labelCursor+=Math.min(missing.length,labelFallbackLimit);
+      for(const [index,row] of [...missing.slice(start),...missing.slice(0,start)].entries()) {
+        if(index>=labelFallbackLimit){this.markLabelError(row.report_id,'一覧に載らなかったため、今回は取得していません。もう一度「更新」してください。');failed++;continue;}
         await this.refreshLabelsInternal(row.report_id);
         if(this.store.registration(row.report_id).tags.state==='ok')updated++;else failed++;
       }

@@ -9,7 +9,7 @@ const withTags=(id,status,ids,registration='registered',state='ok')=>({id,status
 const roles=roleMap(tags);
 const texts=choices=>choices.map(choice=>choice.text);
 test('割り当てたメインとサブだけをカテゴリに数え、使わないタグと未設定のタグは数えない',()=>{
-  assert.deepEqual([...roles],[[2,'main'],[3,'sub'],[4,'main'],[5,'sub']]);
+  assert.deepEqual([...roles],[[2,{role:'main',name:'予約'}],[3,{role:'sub',name:'一覧'}],[4,{role:'main',name:'決済'}],[5,{role:'sub',name:'画面'}]]);
   assert.deepEqual(categoriesOf(withTags('r','received',[1,2,3,6]),roles),{main:[label(2)],sub:[label(3)]});
 });
 test('行の領域は、メインを「・」で並べ、サブを「 / 」の後ろに並べる',()=>{
@@ -40,13 +40,18 @@ test('未分類は、割り当てたタグを持たない報告と、タグを�
   assert.equal(inUncategorized(withTags('r','received',[3])),false);
   assert.equal(inUncategorized(withTags('r','received',[1,3])),false);
 });
+test('領域の名前は、報告に残った古い名前ではなく、tag-rolesの最新の名前を使う',()=>{
+  const renamed=withTags('r','received',[2]);renamed.github.tags.labels=[{...label(2),name:'旧名'}];
+  assert.equal(areaText(renamed,roles),'予約');
+  assert.equal(categoriesOf(renamed,roles).main[0].name,'予約');
+});
 test('タグの取得に失敗しても、前回のタグでカテゴリを判定する',()=>{
   const value=withTags('r','received',[2],'registered','error');
   assert.equal(matchesFilters(value,{main:'label:2',roles}),true);
   assert.equal(areaText(value,roles),'予約');
 });
-test('メインの選択肢は、割り当てたメインと未分類に、未対応（受付済みと対応中）の件数を添える',()=>{
-  const reports=[withTags('a','received',[2,3]),withTags('b','working',[2]),withTags('c','fixed',[2]),withTags('d','complete',[2]),withTags('e','received',[1]),withTags('f','received',[],'pending','unfetched'),withTags('g','checking',[3])];
+test('メインの選択肢は、割り当てたメインと未分類に、未対応（受付済みと対応中）の件数を添え、未対応がなくても件数0で出す',()=>{
+  const reports=[withTags('a','received',[2,3]),withTags('b','working',[2]),withTags('c','fixed',[2]),withTags('d','complete',[2]),withTags('e','received',[1]),withTags('f','received',[],'pending','unfetched'),withTags('g','checking',[3]),withTags('h','complete',[4])];
   const choices=mainChoices(reports,tags);
   assert.equal(choices[0].value,'all');assert.equal(choices[0].text,'すべて');
   assert.deepEqual(texts(choices.slice(1)).sort(),['予約（2）','決済（0）','未分類（2）'].sort());

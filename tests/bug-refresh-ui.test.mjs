@@ -13,7 +13,7 @@ class Element {
   addEventListener() {}
 }
 
-function fixture({githubEnabled=true,tags={status:200,value:{total:2,updated:2,failed:0}},reports={status:200,value:{reports:[]}}}={}) {
+function fixture({loadFailure=null,githubEnabled=true,tags={status:200,value:{total:2,updated:2,failed:0}},reports={status:200,value:{reports:[]}}}={}) {
   const nodes=new Map(),calls=[];
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
   for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter'])node(selector).value='all';
@@ -25,7 +25,7 @@ function fixture({githubEnabled=true,tags={status:200,value:{total:2,updated:2,f
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
   // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、何もしない模擬にする。
-  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>{},tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
+  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>loadFailure,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
     setTimeout:()=>0,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
@@ -67,5 +67,12 @@ test('GitHubの接続が無効なときは、タグを取得せず、報告だ�
 test('報告を読み直せなかったときは、理由を出し、ボタンを戻す',async()=>{
   const fx=fixture({reports:{status:500,value:{error:'保存処理を完了できませんでした。'}}});await fx.click();
   assert.deepEqual(fx.notice(),{text:'保存処理を完了できませんでした。',error:true,hidden:false});
+  assert.equal(fx.button().disabled,false);
+});
+
+test('タグの役割を読み込めなかったときは、「更新」の通知に、その旨と理由を出す',async()=>{
+  const fx=fixture({loadFailure:new Error('保存処理を完了できませんでした。')});await fx.click();
+  const notice=fx.notice();assert.equal(notice.error,true);
+  assert.match(notice.text,/最新の受付情報を読み込みました/);assert.match(notice.text,/タグの役割を読み込めませんでした/);assert.match(notice.text,/保存処理を完了できませんでした/);
   assert.equal(fx.button().disabled,false);
 });

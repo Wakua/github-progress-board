@@ -20,13 +20,14 @@ export function registrationTarget(github,configured) {
 }
 // カテゴリの絞り込み。割り当てた役割（メイン・サブ）は、GitHubのタグのidに付ける。使わないタグと、未設定のタグは、カテゴリに数えない。
 export const uncategorized='uncategorized';
+// タグのid → 役割と名前。名前は選択肢と同じ、最後に取得した名前を使う。
 export function roleMap(tags) {
-  return new Map(tags.filter(tag=>tag.role==='main'||tag.role==='sub').map(tag=>[tag.id,tag.role]));
+  return new Map(tags.filter(tag=>tag.role==='main'||tag.role==='sub').map(tag=>[tag.id,{role:tag.role,name:tag.name}]));
 }
 // 報告に付いているタグを、役割ごとに分ける。タグの取得に失敗して前回の結果を保持している報告も、その結果で分ける。
 export function categoriesOf(report,roles) {
   const found={main:[],sub:[]};
-  for(const label of report.github.tags.labels) {const role=roles.get(label.id);if(role)found[role].push(label);}
+  for(const label of report.github.tags.labels) {const assigned=roles.get(label.id);if(assigned)found[assigned.role].push({...label,name:assigned.name});}
   return found;
 }
 // 行に添える領域。メインを「・」で並べ、サブを「 / 」の後ろに並べる。例：「予約・通知 / 一覧」

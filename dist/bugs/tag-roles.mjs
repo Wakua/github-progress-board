@@ -22,6 +22,8 @@ export function mountTagRoles({ api, json, element, notice, onSave = () => {} })
   const $ = selector => document.querySelector(selector);
   const dialog = $('#category-dialog'), form = $('#category-form'), list = $('#category-tags'), error = $('#category-error');
   let state = { tags: [], newCount: 0 };
+  // 読み込みと保存の世代。保存を始めたときと終えたときに進め、それ以前に始めた読み込みの応答は捨てる。
+  let generation = 0;
   // 設定画面に描いたタグ。開いている間に背景の更新で state が変わっても、見せたタグだけを保存の対象にする。
   let shown = [];
 
@@ -32,7 +34,12 @@ export function mountTagRoles({ api, json, element, notice, onSave = () => {} })
   }
   // 読み込めなかったときは、前回の結果と件数の印を残して、失敗を返す。
   async function load() {
-    try { state = await api('tag-roles'); showCount(); return null; } catch (failure) { return failure; }
+    const mine = ++generation;
+    try {
+      const next = await api('tag-roles');
+      if (mine === generation) { state = next; showCount(); }
+      return null;
+    } catch (failure) { return failure; }
   }
   function renderTags() {
     shown = state.tags; list.replaceChildren();
@@ -68,8 +75,9 @@ export function mountTagRoles({ api, json, element, notice, onSave = () => {} })
     const roles = rolesToSave(shown, chosen);
     if (!roles.length) { dialog.close(); return; }
     const save = $('#save-category'); save.disabled = true; error.textContent = '';
+    generation++;
     try {
-      state = await api('tag-roles', json({ roles })); showCount(); dialog.close();
+      state = await api('tag-roles', json({ roles })); generation++; showCount(); dialog.close();
       onSave();
       notice('カテゴリの設定を保存しました。');
     } catch (failure) { error.textContent = failure.message + ' 選択は保持しています。'; }

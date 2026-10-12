@@ -168,14 +168,14 @@ class Node {
   showModal() {this.open=true;}
   close() {this.open=false;}
 }
-function dialogFixture(tags) {
+function dialogFixture(tags,{api:custom}={}) {
   const nodes=new Map(),posts=[],notices=[];
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Node('div'));return nodes.get(selector);};
   const state=()=>({tags:tags.map(tag=>({...tag})),newCount:tags.filter(tag=>tag.role===null).length});
-  const api=async(route,options)=>{
+  const api=custom||(async(route,options)=>{
     if(options) {const input=JSON.parse(options.body);posts.push(input);for(const item of input.roles)tags.find(tag=>tag.id===item.id).role=item.role;}
     return state();
-  };
+  });
   const element=(tag,text,className)=>{const created=new Node(tag);if(text!==undefined)created.textContent=text;created.className=className;return created;};
   globalThis.document={querySelector:node};
   const ui=mountTagRoles({api,json:value=>({method:'POST',body:JSON.stringify(value)}),element,notice:(message,failed)=>notices.push([message,failed])});
@@ -206,5 +206,23 @@ test('opening the dialog again lists the tag that appeared meanwhile and saving 
     await fx.save();
     assert.deepEqual(fx.posts,[{roles:[{id:13,role:'none'}]}]);assert.equal(fx.node('#new-tags').hidden,true);
     assert.deepEqual(fx.notices,[['カテゴリの設定を保存しました。',undefined]]);
+  } finally {delete globalThis.document;}
+});
+
+test('保存の前に始めた読み込みの応答が、保存のあとに届いても、保存した割り当てを上書きしない',async()=>{
+  const stale={tags:[{...booking,role:null}],newCount:1},saved={tags:[{...booking,role:'main'}],newCount:0};
+  let release,loads=0;const held=new Promise(resolve=>{release=resolve;});
+  const api=async(route,options)=>{
+    if(options)return saved;
+    return ++loads===1?stale:held.then(()=>stale);
+  };
+  const fx=dialogFixture([],{api});
+  try {
+    await fx.node('#category-settings').onclick();
+    const late=fx.ui.load();
+    await fx.save();
+    assert.equal(fx.ui.tags()[0].role,'main');assert.equal(fx.node('#new-tags').hidden,true);
+    release();await late;
+    assert.equal(fx.ui.tags()[0].role,'main');assert.equal(fx.node('#new-tags').hidden,true);
   } finally {delete globalThis.document;}
 });
