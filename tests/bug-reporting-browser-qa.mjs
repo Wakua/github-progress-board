@@ -66,6 +66,30 @@ try {
   assert.equal(github.posts.length,1);assert.ok(github.posts[0].body.startsWith('<!-- github-progress-board-report:'));
   assert.equal((await read(id)).github.repository,repository);await capture(page,'04-github-registered.png');
   checks.push('接続前の報告は明示操作で一度だけ登録し、取得したタグを表示する');
+  await page.getByRole('button',{name:'更新',exact:true}).click();await page.locator('#new-tags').waitFor();
+  assert.equal((await page.locator('#new-tags').textContent()).trim(),'新しいタグ 1');
+  await page.getByRole('button',{name:/^カテゴリの設定/}).click();await page.locator('#category-dialog[open]').waitFor();
+  assert.equal(await page.locator('.role-row').count(),1);
+  await page.locator('.role-choice label:has-text("メイン")').click();await page.getByRole('button',{name:'保存',exact:true}).click();
+  await page.locator('#category-dialog').waitFor({state:'hidden'});await page.locator('#new-tags').waitFor({state:'hidden'});
+  const roles=await(await fetch(base+'/api/bugs/tag-roles')).json();assert.deepEqual(roles.tags.map(item=>[item.id,item.role]),[[7,'main']]);assert.equal(roles.newCount,0);
+  assert.equal(github.posts.length,1);
+  checks.push('取得したタグの役割を設定画面で保存し、新しいタグの印が消える。GitHubへの書き込みは増えない');
+  // 設定画面を開いている間に、GitHubで増えたタグを取得しても、見せていないタグは確定しない。
+  const labelA={id:7,name:'予約画面',color:'336699'},labelB={id:8,name:'キャンセル',color:'993366'},labelC={id:9,name:'通知',color:'339966'};
+  const fetchTags=async labels=>{github.issues[0].labels=labels;assert.equal((await fetch(base+'/api/bugs/reports/'+id+'/github/tags',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'})).status,200);};
+  await fetchTags([labelA,labelB]);
+  await page.getByRole('button',{name:'更新',exact:true}).click();await page.locator('#new-tags').waitFor();
+  await page.getByRole('button',{name:/^カテゴリの設定/}).click();await page.locator('#category-dialog[open]').waitFor();
+  assert.equal(await page.locator('.role-row').count(),2);
+  await fetchTags([labelA,labelB,labelC]);
+  await page.evaluate(()=>document.querySelector('#refresh').click());
+  await page.waitForFunction(()=>document.querySelector('#new-tags').textContent.includes('2'));
+  await page.getByRole('button',{name:'保存',exact:true}).click();await page.locator('#category-dialog').waitFor({state:'hidden'});
+  const unseen=await(await fetch(base+'/api/bugs/tag-roles')).json();
+  assert.deepEqual(unseen.tags.map(item=>[item.id,item.role]).sort((a,b)=>a[0]-b[0]),[[7,'main'],[8,'none'],[9,null]]);assert.equal(unseen.newCount,1);
+  assert.equal((await page.locator('#new-tags').textContent()).trim(),'新しいタグ 1');
+  checks.push('設定画面を開いている間に増えたタグは、見せていないので確定せず、新しいタグのまま残る');
   async function advance(name,status){await page.getByRole('button',{name,exact:true}).click();await page.locator('#detail > .workflow-'+status).waitFor();}
   await advance('対応を始める','working');await page.locator('[name=targetVersion]').fill('QA-2');
   await advance('修正済み・公開待ちにする','fixed');await advance('公開してテスターへ確認を依頼する','checking');
