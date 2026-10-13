@@ -68,9 +68,11 @@ export function subChoices(reports,tags,main) {
       .filter(entry=>entry.reports.length).map(entry=>({value:'label:'+entry.tag.id,text:entry.tag.name+'（'+countUnaddressed(entry.reports)+'）'}))];
 }
 // found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。roles: roleMapの結果。
+// status: 'all'、対応状況の値、または 'incomplete'（確認完了を除く）。
 export function matchesFilters(report,{main='all',sub='all',state='all',status='all',found=null,roles=new Map()}={}) {
   if(found&&!found.has(report.id))return false;
-  if(status!=='all'&&report.status!==status)return false;
+  if(status==='incomplete'){if(report.status==='complete')return false;}
+  else if(status!=='all'&&report.status!==status)return false;
   if(state!=='all'&&report.github.state!==state)return false;
   if(!inMain(report,main,roles))return false;
   return sub==='all'||categoriesOf(report,roles).sub.some(label=>'label:'+label.id===sub);
