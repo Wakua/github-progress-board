@@ -136,12 +136,13 @@ async function openReport(id,move=true) {
 }
 function renderWorkflow(report) {
   const box=element('section',undefined,'workflow-panel'),line=element('div',undefined,'workflow-line');
-  line.append(element('p',nextAction(report,actor.shared?'shared':actor.role),'next-action'));
+  // 操作する人（共通の利用者・管理者）には、案内の文を出さない。ボタンの名前が、次の操作を示す。操作できない利用者にだけ、案内を出す。
+  if(!actor.shared&&actor.role!=='admin')line.append(element('p',nextAction(report,actor.role),'next-action'));
   if(report.targetVersion)line.append(element('p','確認対象：'+report.targetVersion,'meta'));
   box.append(line);
   if(report.developerNote)box.append(element('p',report.developerNote,'developer-note'));
   const isAdmin=actor.role==='admin',canUpdate=isAdmin&&nextStatusNames[report.status],canConfirm=(actor.shared || actor.role==='tester'&&report.isOwn)&&report.status==='checking';
-  if(!canUpdate&&!canConfirm)return box;
+  if(!canUpdate&&!canConfirm){box.hidden=!line.children.length&&!report.developerNote;return box;}
   const form=element('form'),error=element('p','','error-text'),requestId=crypto.randomUUID();
   form.hidden=true;
   function field(labelText,name,value,{multiline=false,required=false,maxLength=200}={}) {
@@ -158,7 +159,6 @@ function renderWorkflow(report) {
     for(const [value,text]of [['','結果を選択'],['resolved','直った'],['unresolved','まだ起きる']]){const option=element('option',text);option.value=value;select.append(option);}
     label.append(select);form.append(label);
     field('確認内容（任意）','note','',{multiline:true,maxLength:4000});
-    form.append(element('p','対象と異なるバージョンの結果は履歴に残し、確認待ちを続けます。','muted'));
   }
   const label=canUpdate?nextStatusNames[report.status]:'確認結果を送る';
   const submit=element('button',label),close=element('button','閉じる','quiet');close.type='button';

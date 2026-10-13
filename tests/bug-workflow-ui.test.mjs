@@ -100,11 +100,11 @@ test('操作できない利用者には、帯に案内だけを出し、ボタ�
   assert.equal(buttons(box).length,0);assert.equal(form(box),undefined);
   assert.ok(box.descendants().some(child=>child.className==='next-action'&&child.textContent.length>0));
 });
-test('帯は、見出しを持たず、案内の行と操作の行にまとまる',()=>{
+test('操作する人には、案内の文を出さず、確認対象とボタンだけを、1行にまとめる',()=>{
   const box=fixture().build(report({status:'working',targetVersion:'QA-1'}));
   assert.equal(box.descendants().some(child=>child.tag==='h3'),false);
   const line=box.children[0];assert.equal(line.className,'workflow-line');
-  assert.deepEqual(line.children.map(child=>child.className),['next-action','meta','workflow-actions']);
+  assert.deepEqual(line.children.map(child=>child.className),['meta','workflow-actions']);
 });
 
 test('入力欄を開くと最初の入力欄へ、閉じるともとのボタンへ、フォーカスを移す',()=>{
@@ -129,4 +129,21 @@ test('帯は、詳細をスクロールしても残るが、入力欄を開い�
   const css=readFileSync(new URL('../dist/bugs/style.css',import.meta.url),'utf8').replace(/\s+/g,'');
   assert.ok(css.includes('.workflow-panel{position:sticky;top:0;'));
   assert.ok(css.includes('.workflow-panel:has(form:not([hidden])){position:static}'));
+});
+
+test('操作する人（共通の利用者・管理者）には、どの状況でも、案内の文を出さない',()=>{
+  for(const options of [{shared:true},{role:'admin'}])
+    for(const status of ['received','working','fixed','checking','complete']) {
+      const box=fixture(options).build(report({status}));
+      assert.equal(box.descendants().some(child=>child.className==='next-action'),false,status);
+    }
+});
+test('操作も表示するものもない報告（確認完了）では、帯を出さない',()=>{
+  const box=fixture({shared:true}).build(report({status:'complete'}));
+  assert.equal(box.hidden,true);assert.equal(buttons(box).length,0);
+  assert.equal(fixture({shared:true}).build(report({status:'complete',targetVersion:'QA-2'})).hidden,false);
+});
+test('確認結果の入力欄に、説明の文を置かない',()=>{
+  const box=fixture({shared:true}).build(report({status:'checking'}));
+  assert.equal(form(box).descendants().some(child=>child.className==='muted'),false);
 });
