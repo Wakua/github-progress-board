@@ -36,9 +36,8 @@ function showActor(value) {
   if(actor && actor.id!==value.id) clearDraft();
   actor=value; $('#workspace').hidden=false; $('#account').hidden=false; $('#refresh').disabled=$('#new-report').disabled=false;
   $('#person').textContent=actor.name; $('#progress-link').hidden=actor.role!=='admin'; $('#new-report').hidden=!actor.shared&&actor.role!=='tester';
-  $('#scope').textContent=actor.shared?'共通の利用者 · すべての報告':actor.role==='admin'?'開発側 · すべての報告':'テスター · すべての報告';
   $('#list-heading').textContent='すべての報告';
-  $('#policy').textContent='1報告あたり '+bytes(actor.policy.maxBytes)+'・'+actor.policy.maxFiles+'ファイルまで。形式は自由です。保存したデータは自動で削除しません。';
+  $('#policy').textContent='1報告 '+bytes(actor.policy.maxBytes)+'・'+actor.policy.maxFiles+'ファイルまで';
 }
 // 検索欄に語があれば、本文の検索をやり直してから一覧を描く。語がなければ、検索の絞り込みを外す。
 // 検索できなかったときは、古い検索結果を残さず、絞り込みを外した一覧に理由を添える。
@@ -75,7 +74,7 @@ function renderList() {
   const visible=reports.filter(report=>matchesFilters(report,filters));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
-  if(!reports.length) { box.append(element('p',actor.role==='admin'?'受付した報告はありません。':'報告はまだありません。「バグを報告」から送信できます。','empty')); return; }
+  if(!reports.length) { box.append(element('p',actor.role==='admin'?'受付した報告はありません。':'報告はまだありません。','empty')); return; }
   for(const report of visible) {
     const row=element('button',undefined,'report-row'+(report.id===selected?' active':'')),states=element('span',undefined,'row-states'),mark=registrationMark(report,actor.github.enabled);
     row.title=report.title;
@@ -97,8 +96,8 @@ async function openReport(id,move=true) {
   const detail=$('#detail'); detail.replaceChildren(); if(move) detail.classList.add('mobile-open');
   const back=element('button','← 報告一覧へ','quiet back'); back.onclick=()=>detail.classList.remove('mobile-open');
   detail.append(back,element('span',statusNames[report.status],'status workflow-'+report.status),element('h2',report.title),
-    element('p','報告者 '+report.reporterName+' · '+time(report.createdAt),'meta'),
-    element('p','発生したバージョン：'+(report.reportedVersion||'未記入'),'meta'),
+    element('p',(report.reporterName==='共通の利用者'?'':report.reporterName+' · ')+time(report.createdAt),'meta'),
+    ...(report.reportedVersion?[element('p','バージョン：'+report.reportedVersion,'meta')]:[]),
     element('div',report.body,'report-body'),element('h3','再現データ · '+report.attachmentCount+'件 / '+bytes(report.attachmentBytes)));
   detail.insertBefore(renderWorkflow(report),detail.querySelector('.report-body'));
   const githubBox=element('div');githubBox.id='github-status';githubBox.append(renderGitHub(report));detail.insertBefore(githubBox,detail.querySelector('.report-body'));
@@ -109,7 +108,6 @@ async function openReport(id,move=true) {
     else item.append(element('span',file.name+'（保存ファイルを確認できません）'));
     item.append(element('span',bytes(file.size)+' · '+time(file.addedAt),'meta')); files.append(item);
   }
-  if(!report.attachments.length) files.append(element('li','再現データはありません。','muted'));
   detail.append(files,element('p','受付ID: '+report.id,'meta'));
   if(actor.shared || actor.role==='tester'&&report.isOwn) {
     const form=element('form'), label=element('label','再現データを追加'), input=element('input');
@@ -188,7 +186,7 @@ function renderHistory(report) {
     if(event.note)item.append(element('p',event.note,'history-note'));
     list.append(item);
   }
-  if(!report.history.length)section.append(element('p','対応状況の更新と確認結果は、ここに記録されます。','muted'));else section.append(list);
+  if(report.history.length)section.append(list);else section.hidden=true;
   return section;
 }
 function validateFiles(count,total,files) {
@@ -228,8 +226,6 @@ function renderGitHub(report) {
     if(actor.role==='admin') {const link=element('a','#'+github.number+' · GitHubで開く');link.href=github.url;link.target='_blank';link.rel='noreferrer';box.append(link);}
     else box.append(element('span','Issue #'+github.number,'meta'));
   }
-  if(github.state==='pending')box.append(element('p',github.repository?'保存した報告を順番に登録します。':'接続前に保存した報告です。管理者が登録先を確認して登録します。','muted'));
-  if(github.state==='creating')box.append(element('p','GitHubへの作成要求を処理しています。','muted'));
   if(github.error)box.append(element('p',github.error,'error-text'));
   if(github.retryAt)box.append(element('p','再試行予定：'+time(github.retryAt),'muted'));
   box.append(element('h4','タグ'),tagNodes(tags));
@@ -237,7 +233,7 @@ function renderGitHub(report) {
   if(tags.error)box.append(element('p',tags.error,'error-text'));
   if(actor.role!=='admin')return box;
   box.append(element('p',registrationTarget(github,actor.github.repository),'meta'));
-  if(!actor.github.enabled) {box.append(element('p','GitHub接続を有効にすると登録管理を利用できます。','muted'));return box;}
+  if(!actor.github.enabled)return box;
   const controls=element('div',undefined,'actions'),actionError=element('p','','error-text');
   function action(text,route,input={},enabled=true) {
     const button=element('button',text,'quiet');button.type='button';button.disabled=!enabled;
@@ -257,20 +253,19 @@ function renderGitHub(report) {
     };
     controls.append(button);return button;
   }
-  if(github.state==='registered')box.append(element('p','タグの編集はGitHubで行います。','muted'));
-  else if(github.state==='failed')action('GitHub登録を再試行','register');
+  if(github.state==='failed')action('GitHub登録を再試行','register');
   else if(github.state==='pending'&&!github.repository)action('GitHubに登録','register');
   else if(github.state==='unknown') {
-    box.append(element('p','作成された可能性があるため、自動では再作成しません。既存のIssueを照合してください。','muted'));
+    box.append(element('p','作成された可能性があります。照合してください。','muted'));
     action('既存のIssueと照合','reconcile');
     if(github.checkedAt)box.append(element('p','照合：'+time(github.checkedAt),'meta'));
     if(github.candidates?.length) {
       box.append(element('p','該当するIssueが複数あります。GitHubで内容を確認してください。','error-text'));
       for(const candidate of github.candidates){const link=element('a','#'+candidate.number);link.href=candidate.url;link.target='_blank';link.rel='noreferrer';box.append(link);}
     } else if(github.candidates && github.checkedAt && github.holdUntil && github.checkedAt<github.holdUntil) {
-      box.append(element('p','作成の直後は該当なしを確定できません。'+(github.holdUntil>Date.now()?time(github.holdUntil)+'以降に、':'')+'もう一度照合してください。','muted'));
+      box.append(element('p','作成の直後です。'+(github.holdUntil>Date.now()?time(github.holdUntil)+'以降に':'')+'再照合してください。','muted'));
     } else if(github.candidates && github.checkedAt && Date.now()-github.checkedAt<=300000) {
-      box.append(element('p','照合した範囲に該当するIssueはありません。GitHubでも確認してから再試行してください。','muted'));
+      box.append(element('p','該当するIssueはありません。GitHubでも確認してください。','muted'));
       const label=element('label',undefined,'confirmation'),checkbox=element('input');checkbox.type='checkbox';
       label.append(checkbox,element('span','GitHubに該当するIssueがないことを確認した'));box.append(label);
       const retry=action('確認して登録を再試行','retry',{confirmNoIssue:true,revision:github.revision},false);
