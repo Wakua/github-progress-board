@@ -30,11 +30,11 @@ const registered = [
   ['キャンセルしても予約枠が戻らない', 'fixed', ['予約']],
   ['検索結果の並び順が毎回変わる', 'received', ['予約', '一覧']],
   ['スマートフォンの表示で「予約する」ボタンが画面外に出る', 'received', ['予約', '画面']],
-  ['通知メールが届かない', 'checking', ['通知']],
+  ['通知メールが届かない', 'complete', ['通知']],
   ['通知メールの件名が空になる', 'received', ['通知', '画面']],
   ['支払い方法を変更すると合計金額が0円になる', 'working', ['決済']],
   ['領収書の金額が税込と税抜で食い違う', 'received', ['決済', 'bug']],
-  ['会員登録の確認画面で電話番号が消える', 'checking', ['画面']],
+  ['会員登録の確認画面で電話番号が消える', 'complete', ['画面']],
   ['管理画面でCSVを出力すると文字化けする', 'received', ['bug']],
   ['「ヘルプ」リンクが404になる', 'received', []],
   // 種別（#73）。4つ目が種別で、省くと不具合。種別を持たない版は、同じ報告を種別なしで作る。
@@ -94,7 +94,7 @@ if (existing.length > early.length && existing.length < expected) {
 if (existing.length >= expected) {
   issues.push(...reloaded); // 作成済みのIssueを模擬のGitHubに戻す。
 } else {
-  const order = ['received', 'working', 'fixed', 'checking'];
+  const order = ['received', 'working', 'fixed', 'checking', 'complete'];
   for (const [title, status, labels, kind] of registered) {
     github.nextLabels = labels;
     const { report } = await call('POST', '/reports', { body: bodyOf(title), reportedVersion: 'S-1', requestId: 'seed-' + randomUUID(), uploadIds: [], ...(kind ? { kind } : {}) });
@@ -102,7 +102,8 @@ if (existing.length >= expected) {
     for (let i = 0; i < 50; i++) { const d = (await call('GET', '/reports/' + report.id)).report; if (d.github.state === 'registered' && d.github.tags.state === 'ok') break; await new Promise(r => setTimeout(r, 200)); }
     let d = (await call('GET', '/reports/' + report.id)).report;
     while (order.indexOf(d.status) < order.indexOf(status)) {
-      await call('POST', '/reports/' + report.id + '/status', { revision: d.revision, requestId: 's-' + randomUUID(), targetVersion: d.status === 'fixed' ? 'S-2' : '', developerNote: '' });
+      if (d.status === 'checking') await call('POST', '/reports/' + report.id + '/confirmations', { revision: d.revision, requestId: 'c-' + randomUUID(), version: 'S-2', result: 'resolved', note: '' });
+      else await call('POST', '/reports/' + report.id + '/status', { revision: d.revision, requestId: 's-' + randomUUID(), targetVersion: d.status === 'fixed' ? 'S-2' : '', developerNote: '' });
       d = (await call('GET', '/reports/' + report.id)).report;
     }
   }
