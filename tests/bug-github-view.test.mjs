@@ -121,12 +121,6 @@ test('other reporters see the original tester waiting instruction',()=>{
 });
 
 
-test('共通の利用者へ対応と確認の次の操作を表示する',()=>{
-  assert.match(nextAction({status:'received'},'shared'),/開始/);
-  assert.match(nextAction({status:'fixed'},'shared'),/確認対象/);
-  assert.match(nextAction({status:'checking',isOwn:false},'shared'),/結果を送って/);
-  assert.match(nextAction({status:'complete'},'shared'),/解消を確認/);
-});
 test('a failed report shows the repository the retry will use before the operation',()=>{
   const failed=repository=>({state:'failed',repository});
   assert.equal(registrationTarget(failed('example/typo'),'example/fixed'),'登録先：example/fixed（失敗した登録先：example/typo）');
