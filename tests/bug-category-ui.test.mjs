@@ -215,7 +215,7 @@ test('選べるタグがなく、保留したカテゴリもない登録待ち�
 test('作成後の最初の取得で付かなかったタグは、GitHub登録の欄に示す',async()=>{
   const item=report('r',{state:'registered',categories:[11,13],labels:[],tagState:'ok',missing:[{id:11,name:'予約'},{id:13,name:null}]}),fx=fixture({reports:[item],details:new Map([['r',item]])});
   await fx.show('r');
-  assert.ok(fx.texts(fx.github()).includes('選んだカテゴリのタグがIssueに付いていません：予約、不明なタグ'));
+  assert.ok(fx.texts(fx.github()).includes('選んだカテゴリが付いていません：予約、不明なタグ'));
   const clean=report('c',{state:'registered',labels:[label(11)],tagState:'ok'}),other=fixture({reports:[clean],details:new Map([['c',clean]])});
   await other.show('c');
   assert.ok(!other.texts(other.github()).some(text=>/付いていません/.test(text)));

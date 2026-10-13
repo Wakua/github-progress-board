@@ -281,7 +281,7 @@ function renderGitHub(report) {
   box.append(element('h4','タグ'),tagNodes(tags));
   if(tags.fetchedAt)box.append(element('p','取得：'+time(tags.fetchedAt)+(tags.state==='error'?'（前回成功時）':''),'meta'));
   if(tags.error)box.append(element('p',tags.error,'error-text'));
-  if(tags.missing?.length)box.append(element('p','選んだカテゴリのタグがIssueに付いていません：'+tags.missing.map(tag=>tag.name??'不明なタグ').join('、'),'error-text'));
+  if(tags.missing?.length)box.append(element('p','選んだカテゴリが付いていません：'+tags.missing.map(tag=>tag.name??'不明なタグ').join('、'),'error-text'));
   if(actor.role!=='admin')return box;
   box.append(element('p',registrationTarget(github,actor.github.repository),'meta'));
   if(!actor.github.enabled) {box.append(element('p','GitHub接続を有効にすると登録管理を利用できます。','muted'));return box;}

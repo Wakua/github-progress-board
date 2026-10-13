@@ -9,7 +9,7 @@
 <dialog id="report-dialog" aria-labelledby="form-title"><div class="heading"><h2 id="form-title">バグを報告</h2><button id="close-form" class="quiet" type="button">報告を閉じる</button></div><form id="report-form">
 <label>報告文<textarea name="body" rows="9" required maxlength="256000" placeholder="起きたこと、再現手順、期待した動作など。受け取ったテキストをそのまま貼り付けられます。"></textarea></label>
 <label>発生したバージョン<input name="reportedVersion" maxlength="200" placeholder="分かる場合に記入"></label>
-<fieldset id="report-categories" class="categories" hidden><legend>カテゴリ（登録するIssueにタグとして付く）</legend><div id="category-choices"></div></fieldset>
+<fieldset id="report-categories" class="categories" hidden><legend>カテゴリ</legend><div id="category-choices"></div></fieldset>
 <label>再現データ<input name="files" type="file" multiple></label><p class="muted" id="policy"></p><div id="selected-files"></div><section id="recovered" hidden><h3>送信済みで報告に未登録のデータ</h3><p class="muted">前回の送信で保存されたデータです。この報告に付けるものを選んでください。</p><div id="pending-files"></div></section>
 <p id="form-error" role="alert"></p><p id="upload-progress" role="status" aria-live="polite"></p><button id="submit-report">報告を送信</button></form></dialog>
 <dialog id="category-dialog" aria-labelledby="category-title"><div class="heading"><h2 id="category-title">カテゴリの設定</h2><button id="close-category" class="quiet" type="button">閉じる</button></div><form id="category-form"><div id="category-tags"></div><p id="category-error" class="error-text" role="alert"></p><button id="save-category">保存</button></form></dialog>
