@@ -96,8 +96,8 @@ async function openReport(id,move=true) {
   const detail=$('#detail'); detail.replaceChildren(); if(move) detail.classList.add('mobile-open');
   const back=element('button','← 報告一覧へ','quiet back'); back.onclick=()=>detail.classList.remove('mobile-open');
   detail.append(back,element('span',statusNames[report.status],'status workflow-'+report.status),element('h2',report.title),
-    element('p',(report.reporterName==='共通の利用者'?'':report.reporterName+' · ')+time(report.createdAt),'meta'),
-    ...(report.reportedVersion?[element('p','バージョン：'+report.reportedVersion,'meta')]:[]),
+    element('p',(report.reporterName===actor.name?'':report.reporterName+' · ')+time(report.createdAt),'meta'),
+    ...(report.reportedVersion?[element('p','発生したバージョン：'+report.reportedVersion,'meta')]:[]),
     element('div',report.body,'report-body'),element('h3','再現データ · '+report.attachmentCount+'件 / '+bytes(report.attachmentBytes)));
   detail.insertBefore(renderWorkflow(report),detail.querySelector('.report-body'));
   const githubBox=element('div');githubBox.id='github-status';githubBox.append(renderGitHub(report));detail.insertBefore(githubBox,detail.querySelector('.report-body'));
@@ -108,6 +108,7 @@ async function openReport(id,move=true) {
     else item.append(element('span',file.name+'（保存ファイルを確認できません）'));
     item.append(element('span',bytes(file.size)+' · '+time(file.addedAt),'meta')); files.append(item);
   }
+  files.hidden=!report.attachments.length;
   detail.append(files,element('p','受付ID: '+report.id,'meta'));
   if(actor.shared || actor.role==='tester'&&report.isOwn) {
     const form=element('form'), label=element('label','再現データを追加'), input=element('input');
