@@ -154,9 +154,9 @@ test('種別を変えて、選んでいたサブがなくなったときは、�
   fx.choose('#kind-filter','question');
   assert.equal(fx.node('#sub-filter').value,'all');assert.deepEqual(fx.titles(),['報告 q1']);
 });
-test('数の説明（選択肢の上に出る文）に、種別を選んだときのことを添える',()=>{
+test('種別の絞り込みの選択肢は、不具合・要望・確認で、説明の文を足さない',()=>{
   const html=readFileSync(new URL('../dist/bugs/index.html',import.meta.url),'utf8');
-  for(const id of ['main-filter','sub-filter'])assert.match(html,new RegExp('id="'+id+'" title="[^"]*種別を選ぶと'));
+  for(const id of ['main-filter','sub-filter'])assert.match(html,new RegExp('id="'+id+'" title="括弧の数は、受付済みと対応中の件数"'));
   assert.match(html,/id="kind-filter"><option value="all">すべて<\/option><option value="bug">不具合<\/option><option value="request">要望<\/option><option value="question">確認<\/option>/);
 });
 
