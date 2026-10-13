@@ -80,7 +80,7 @@ function fixture({reports=sample(),details=new Map(),kindFailure=null,search}={}
   const box=()=>node('#reports');
   return{
     node,requests,context,form,
-    titles:()=>box().children.map(row=>row.children[0].children[0].textContent),
+    titles:()=>box().children.map(row=>row.children[0].children[0].children.find(part=>part.className==='report-title').textContent),
     marks:()=>box().children.map(row=>row.children[1].children.map(item=>item.textContent)),
     count:()=>node('#report-count').textContent,
     choices:selector=>node(selector).options.map(option=>option.textContent),
