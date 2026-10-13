@@ -9,6 +9,8 @@ export const searchLimits = { queryLength: 200, words: 10 };
 export const initialPolicy = { maxBytes: 1024 ** 3, maxFiles: 20 };
 export const tagRoleNames = ['none', 'main', 'sub'];
 export const maxCategories = 50;
+// 報告の種別。不具合（bug）、要望（request）、確認（question：仕様や動作の質問）。ツールの中だけで持ち、GitHubには書かない。
+export const reportKinds = ['bug', 'request', 'question'];
 export class BugError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -40,7 +42,7 @@ export class BugStore {
     try {
       this.db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;');
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (![0,1,2,3,4,5,6].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
+      if (![0,1,2,3,4,5,6,7].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
       if (version === 0) {
         if (!initialize || this.db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table'").get().n) throw new Error('報告データの形式を確認できません。');
         validatePolicy(policy);
@@ -116,6 +118,13 @@ export class BugStore {
           CREATE TABLE report_categories(report_id TEXT NOT NULL REFERENCES reports(id),label_id INTEGER NOT NULL,PRIMARY KEY(report_id,label_id)) STRICT;
           ALTER TABLE registration_queue ADD COLUMN category_miss TEXT;
           PRAGMA user_version=6;
+        `);
+      });
+      if(this.db.prepare('PRAGMA user_version').get().user_version===6) this.transaction(()=>{
+        // 既存の報告は、すべて不具合として扱う。
+        this.db.exec(`
+          ALTER TABLE reports ADD COLUMN kind TEXT NOT NULL DEFAULT 'bug' CHECK(kind IN ('bug','request','question'));
+          PRAGMA user_version=7;
         `);
       });
     } catch (error) { this.db.close(); throw error; }
@@ -196,7 +205,7 @@ export class BugStore {
     const person = this.db.prepare('SELECT name FROM users WHERE id=?').get(row.reporter_id);
     const github=this.registration(row.id);
     return { id: row.id, title: row.body.trim().split(/\r?\n/)[0].slice(0,72), status: row.status, targetVersion: row.target_version, developerNote: row.developer_note, ticketState: github.state, github,
-      categories,
+      categories, kind: row.kind,
       reportedVersion: row.version, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision,
       reporterName: person.name, isOwn: row.reporter_id===actor.id, attachmentCount: totals.count, attachmentBytes: totals.bytes };
   }
@@ -238,9 +247,10 @@ export class BugStore {
         || typeof input.reportedVersion !== 'string' || input.reportedVersion.length > 200 || !validId(input.requestId)
         || !Array.isArray(input.uploadIds) || input.uploadIds.some(id => typeof id !== 'string')
         || new Set(input.uploadIds).size !== input.uploadIds.length) throw new BugError(400, '報告文と添付を確認してください。');
-    const categories = normalizeCategories(input.categories);
-    // カテゴリを指定しない要求は、カテゴリを足す前の版と同じ値にする。更新前の要求の再送が、別の報告にならないようにする。
-    const fingerprint = digest(JSON.stringify([input.body,input.reportedVersion,input.uploadIds,...(categories.length ? [{categories}] : [])]));
+    const categories = normalizeCategories(input.categories), kind = input.kind === undefined ? 'bug' : input.kind;
+    if (!reportKinds.includes(kind)) throw new BugError(400, '種別を確認してください。');
+    // カテゴリと種別を指定しない要求（種別は不具合のとき）は、それらを足す前の版と同じ値にする。更新前の要求の再送が、別の報告にならないようにする。
+    const fingerprint = digest(JSON.stringify([input.body,input.reportedVersion,input.uploadIds,...(categories.length ? [{categories}] : []),...(kind !== 'bug' ? [{kind}] : [])]));
     return this.transaction(() => {
       this.assertActive(actor);
       const previous = this.db.prepare('SELECT * FROM reports WHERE reporter_id=? AND request_id=?').get(actor.id,input.requestId);
@@ -253,7 +263,7 @@ export class BugStore {
       if (files.some(item => !item || (!actor.shared && item.owner_id !== actor.id) || item.report_id || item.state !== 'ready' || !existsSync(this.filePath(item.id)))) throw new BugError(409, '添付の保存完了を確認してください。');
       this.checkBudget(files.length,files.reduce((sum,item) => sum + item.size,0));
       const id = randomUUID(), at = now();
-      this.db.prepare('INSERT INTO reports(id,reporter_id,request_id,request_hash,body,version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run(id,actor.id,input.requestId,fingerprint,input.body,input.reportedVersion,at,at);
+      this.db.prepare('INSERT INTO reports(id,reporter_id,request_id,request_hash,body,version,created_at,updated_at,kind) VALUES(?,?,?,?,?,?,?,?,?)').run(id,actor.id,input.requestId,fingerprint,input.body,input.reportedVersion,at,at,kind);
       for (const file of files) this.db.prepare('UPDATE attachments SET report_id=? WHERE id=?').run(id,file.id);
       this.db.prepare('INSERT INTO registration_queue(report_id,repository) VALUES(?,?)').run(id,this.githubRepository||null);
       for (const labelId of categories) this.db.prepare('INSERT INTO report_categories(report_id,label_id) VALUES(?,?)').run(id,labelId);
@@ -283,6 +293,18 @@ export class BugStore {
       this.db.prepare('DELETE FROM report_categories WHERE report_id=?').run(id);
       for (const labelId of categories) this.db.prepare('INSERT INTO report_categories(report_id,label_id) VALUES(?,?)').run(id,labelId);
       this.db.prepare('UPDATE reports SET updated_at=?,revision=revision+1 WHERE id=?').run(now(),id);
+      return this.getReport(actor,id);
+    });
+  }
+  // 種別を変える。ツールの中だけで持つため、登録の状態によらず、いつでも変えられ、GitHubへは何も書かない。
+  setKind(actor,id,input) {
+    if (!reportKinds.includes(input?.kind) || !Number.isSafeInteger(input.revision) || input.revision < 1) throw new BugError(400,'種別と更新番号を指定してください。');
+    return this.transaction(() => {
+      this.assertActive(actor);
+      const row = this.reportRow(actor,id);
+      if (row.kind === input.kind) return this.getReport(actor,id);
+      if (row.revision !== input.revision) throw new BugError(409,'報告が更新されています。「更新」で最新の状況を確認してください。');
+      this.db.prepare('UPDATE reports SET kind=?,updated_at=?,revision=revision+1 WHERE id=?').run(input.kind,now(),id);
       return this.getReport(actor,id);
     });
   }
