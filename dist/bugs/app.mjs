@@ -135,13 +135,15 @@ async function openReport(id,move=true) {
   if(move && matchMedia('(max-width:760px)').matches) detail.scrollIntoView({block:'start'});
 }
 function renderWorkflow(report) {
-  const box=element('section',undefined,'workflow-panel');
-  box.append(element('h3','対応状況と次の操作'),element('p',nextAction(report,actor.shared?'shared':actor.role),'next-action'));
-  if(report.targetVersion)box.append(element('p','確認対象のバージョン：'+report.targetVersion,'meta'));
+  const box=element('section',undefined,'workflow-panel'),line=element('div',undefined,'workflow-line');
+  line.append(element('p',nextAction(report,actor.shared?'shared':actor.role),'next-action'));
+  if(report.targetVersion)line.append(element('p','確認対象：'+report.targetVersion,'meta'));
+  box.append(line);
   if(report.developerNote)box.append(element('p',report.developerNote,'developer-note'));
   const isAdmin=actor.role==='admin',canUpdate=isAdmin&&nextStatusNames[report.status],canConfirm=(actor.shared || actor.role==='tester'&&report.isOwn)&&report.status==='checking';
   if(!canUpdate&&!canConfirm)return box;
   const form=element('form'),error=element('p','','error-text'),requestId=crypto.randomUUID();
+  form.hidden=true;
   function field(labelText,name,value,{multiline=false,required=false,maxLength=200}={}) {
     const label=element('label',labelText),control=element(multiline?'textarea':'input');control.name=name;control.value=value;control.required=required;control.maxLength=maxLength;
     if(multiline)control.rows=3;
@@ -158,12 +160,19 @@ function renderWorkflow(report) {
     field('確認内容（任意）','note','',{multiline:true,maxLength:4000});
     form.append(element('p','対象と異なるバージョンの結果は履歴に残し、確認待ちを続けます。','muted'));
   }
-  const button=element('button',canUpdate?nextStatusNames[report.status]:'確認結果を送る');form.append(error,button);box.append(form);
-  form.onsubmit=async event=>{
-    event.preventDefault();const current=actor;
-    const input=canUpdate?{targetVersion:form.elements.targetVersion.value,developerNote:form.elements.developerNote.value}:{version:form.elements.version.value,result:form.elements.result.value,note:form.elements.note.value};
-    const payload={...input,revision:report.revision,requestId};
-    for(const control of form.elements)control.disabled=true;error.textContent='';
+  const label=canUpdate?nextStatusNames[report.status]:'確認結果を送る';
+  const submit=element('button',label),close=element('button','閉じる','quiet');close.type='button';
+  form.append(submit,close);
+  // 入力が要らない操作（受付済み・対応中）は、ボタン1回で進める。バージョンの指定や確認結果が要る操作は、入力欄を開く。
+  const needsInput=canConfirm||report.status==='fixed';
+  const main=element('button',canConfirm?'確認結果を入力する':needsInput?label+'…':label),more=needsInput?null:element('button','入力して進める','quiet');
+  const actions=element('div',undefined,'workflow-actions');actions.append(...[main,more].filter(Boolean));line.append(actions);
+  box.append(error,form);
+  const toggle=opened=>{form.hidden=!opened;main.hidden=opened;if(more)more.hidden=opened;};
+  const controls=()=>[...form.elements,main,...(more?[more]:[])];
+  async function send(input) {
+    const current=actor,payload={...input,revision:report.revision,requestId};
+    for(const control of controls())control.disabled=true;error.textContent='';
     try {
       const result=await api('reports/'+report.id+(canUpdate?'/status':'/confirmations'),json(payload));
       if(actor!==current)return;
@@ -171,8 +180,15 @@ function renderWorkflow(report) {
       notice(canUpdate?'対応状況を更新しました。':!result.matchesTarget?'対象と異なるバージョンの結果を記録しました。確認待ちを続けます。':input.result==='resolved'?'対象バージョンでの解消を記録しました。確認完了です。':'まだ起きることを記録しました。開発側の対応を続けます。');
     } catch(failure) {
       error.textContent=failure.message+' 入力は保持しています。通信が途切れた場合は「更新」で保存結果を確認できます。';
-      for(const control of form.elements)control.disabled=false;
+      for(const control of controls())control.disabled=false;
     }
+  }
+  main.onclick=needsInput?()=>toggle(true):()=>send({targetVersion:report.targetVersion,developerNote:report.developerNote});
+  if(more)more.onclick=()=>toggle(true);
+  close.onclick=()=>toggle(false);
+  form.onsubmit=event=>{
+    event.preventDefault();
+    return send(canUpdate?{targetVersion:form.elements.targetVersion.value,developerNote:form.elements.developerNote.value}:{version:form.elements.version.value,result:form.elements.result.value,note:form.elements.note.value});
   };
   return box;
 }
