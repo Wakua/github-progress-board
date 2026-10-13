@@ -168,7 +168,8 @@ function renderWorkflow(report) {
   const main=element('button',canConfirm?'確認結果を入力する':needsInput?label+'…':label),more=needsInput?null:element('button','入力して進める','quiet');
   const actions=element('div',undefined,'workflow-actions');actions.append(...[main,more].filter(Boolean));line.append(actions);
   box.append(error,form);
-  const toggle=opened=>{form.hidden=!opened;main.hidden=opened;if(more)more.hidden=opened;};
+  // 押したボタンを隠すため、開いたときは最初の入力欄へ、閉じたときはもとのボタンへ、フォーカスを移す。
+  const toggle=opened=>{form.hidden=!opened;main.hidden=opened;if(more)more.hidden=opened;(opened?form.elements[0]:main).focus();};
   const controls=()=>[...form.elements,main,...(more?[more]:[])];
   async function send(input) {
     const current=actor,payload={...input,revision:report.revision,requestId};
@@ -179,7 +180,7 @@ function renderWorkflow(report) {
       await refresh();
       notice(canUpdate?'対応状況を更新しました。':!result.matchesTarget?'対象と異なるバージョンの結果を記録しました。確認待ちを続けます。':input.result==='resolved'?'対象バージョンでの解消を記録しました。確認完了です。':'まだ起きることを記録しました。開発側の対応を続けます。');
     } catch(failure) {
-      error.textContent=failure.message+' 入力は保持しています。通信が途切れた場合は「更新」で保存結果を確認できます。';
+      error.textContent=failure.message+(form.hidden?'':' 入力は保持しています。')+' 通信が途切れた場合は「更新」で保存結果を確認できます。';
       for(const control of controls())control.disabled=false;
     }
   }

@@ -7,6 +7,7 @@ import * as view from '../dist/bugs/view.mjs';
 // 実際の画面のコードの「対応状況と次の操作」の帯を、擬似DOMと偽のAPIで動かし、入力欄の開き方と送信を検証する。
 class Element {
   constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.value='';this.className='';this.name='';this.listeners={};this.classList={toggle(){}};}
+  focus() {Element.active=this;}
   append(...children) {this.children.push(...children);}
   replaceChildren(...children) {this.children=[...children];}
   get options() {return this.children;}
@@ -90,7 +91,8 @@ test('ボタン1回の送信に失敗したときは、帯に理由を出し、�
   const fx=fixture({fail:{status:503,error:'保存処理を完了できませんでした。'}}),box=fx.build(report());
   await named(box,'対応を始める').onclick();
   const error=box.children.find(child=>child.className==='error-text');
-  assert.match(error.textContent,/保存処理を完了できませんでした。/);assert.match(error.textContent,/入力は保持しています/);
+  assert.match(error.textContent,/保存処理を完了できませんでした。/);assert.match(error.textContent,/「更新」で保存結果を確認/);
+  assert.doesNotMatch(error.textContent,/入力は保持しています/);
   assert.equal(named(box,'対応を始める').disabled,false);
 });
 test('操作できない利用者には、帯に案内だけを出し、ボタンも入力欄も出さない',()=>{
@@ -103,4 +105,28 @@ test('帯は、見出しを持たず、案内の行と操作の行にまとま�
   assert.equal(box.descendants().some(child=>child.tag==='h3'),false);
   const line=box.children[0];assert.equal(line.className,'workflow-line');
   assert.deepEqual(line.children.map(child=>child.className),['next-action','meta','workflow-actions']);
+});
+
+test('入力欄を開くと最初の入力欄へ、閉じるともとのボタンへ、フォーカスを移す',()=>{
+  const fx=fixture(),box=fx.build(report());
+  named(box,'入力して進める').onclick();
+  assert.equal(Element.active,form(box).elements[0]);assert.equal(Element.active.name,'targetVersion');
+  named(box,'閉じる').onclick();
+  assert.equal(Element.active,named(box,'対応を始める'));
+  const fixed=fx.build(report({status:'fixed'}));
+  named(fixed,'公開してテスターへ確認を依頼する…').onclick();
+  assert.equal(Element.active.name,'targetVersion');
+  named(fixed,'閉じる').onclick();
+  assert.equal(Element.active,named(fixed,'公開してテスターへ確認を依頼する…'));
+});
+test('入力欄を送信して失敗したときは、入力を保持していることを、帯に出す',async()=>{
+  const fx=fixture({fail:{status:503,error:'保存処理を完了できませんでした。'}}),box=fx.build(report());
+  named(box,'入力して進める').onclick();
+  await form(box).onsubmit({preventDefault(){}});
+  assert.match(box.children.find(child=>child.className==='error-text').textContent,/入力は保持しています/);
+});
+test('帯は、詳細をスクロールしても残るが、入力欄を開いている間は固定しない',()=>{
+  const css=readFileSync(new URL('../dist/bugs/style.css',import.meta.url),'utf8').replace(/\s+/g,'');
+  assert.ok(css.includes('.workflow-panel{position:sticky;top:0;'));
+  assert.ok(css.includes('.workflow-panel:has(form:not([hidden])){position:static}'));
 });
