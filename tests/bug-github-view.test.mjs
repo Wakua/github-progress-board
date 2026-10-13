@@ -98,6 +98,16 @@ test('本文の検索に一致した報告のIDで絞り、ほかの絞り込み
   assert.equal(matchesFilters(value,{main:'label:2',state:'registered',status:'complete',found:new Set(['r1']),roles}),false);
 });
 
+test('「確認完了を除く」は、確認完了だけを外し、ほかの絞り込みと重ねられる',()=>{
+  const status=value=>withTags('r',value,[2]);
+  for(const open of ['received','working','fixed','checking'])assert.equal(matchesFilters(status(open),{status:'incomplete',roles}),true);
+  assert.equal(matchesFilters(status('complete'),{status:'incomplete',roles}),false);
+  assert.equal(matchesFilters(status('complete'),{status:'all',roles}),true);
+  assert.equal(matchesFilters(status('complete'),{status:'complete',roles}),true);
+  assert.equal(matchesFilters(status('working'),{main:'label:2',status:'incomplete',roles}),true);
+  assert.equal(matchesFilters(status('working'),{main:'label:4',status:'incomplete',roles}),false);
+  assert.equal(matchesFilters(status('complete'),{status:'incomplete',found:new Set(['r']),roles}),false);
+});
 test('対応状況の絞り込みは、メインと登録状況の絞り込みと重ねられる',()=>{
   const value=withTags('r','checking',[2]);
   assert.equal(matchesFilters(value,{main:'label:2',state:'registered',status:'checking',roles}),true);
