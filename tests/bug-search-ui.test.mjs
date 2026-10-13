@@ -13,7 +13,7 @@ class Element {
   addEventListener(type,listener) {(this.listeners[type]||=[]).push(listener);}
   fire(type,event={}) {for(const listener of this.listeners[type]||[])listener(event);}
 }
-const report=(id,title,{status='received',state='registered',repository='qa/booking-reports',body=title,labels=[]}={})=>({id,title,body,status,reporterName:'共通の利用者',createdAt:'2030-01-01T00:00:00.000Z',attachmentCount:0,github:{state,repository,tags:{state:'ok',labels}}});
+const report=(id,title,{status='received',state='registered',repository='qa/booking-reports',body=title,labels=[],number=null}={})=>({id,title,body,status,reporterName:'共通の利用者',createdAt:'2030-01-01T00:00:00.000Z',attachmentCount:0,github:{state,repository,number,tags:{state:'ok',labels}}});
 const sample=()=>[report('r1','予約一覧が更新されない'),report('r2','通知メールが届かない',{status:'working'}),report('r3','支払いの合計がずれる',{state:'pending',repository:null})];
 
 function fixture({reports=sample(),githubEnabled=true,search,tags=[],loadFailure=null}={}) {
@@ -40,7 +40,8 @@ function fixture({reports=sample(),githubEnabled=true,search,tags=[],loadFailure
   const box=()=>node('#reports');
   return {
     node,searchQueries,timers,
-    titles:()=>box().children.map(row=>row.children[0].children[0].textContent),
+    titles:()=>box().children.map(row=>row.children[0].children[0].children.find(part=>part.className==='report-title').textContent),
+    numbers:()=>box().children.map(row=>row.children[0].children[0].children.find(part=>part.className==='report-number')?.textContent??null),
     areas:()=>box().children.map(row=>row.children[0].children[1]?.textContent??null),
     choices:selector=>node(selector).options.map(option=>option.textContent),
     choose(selector,value) {node(selector).value=value;node(selector).onchange();},
@@ -183,4 +184,15 @@ test('タグの役割を読み込めなかったときは、理由を通知し�
   assert.equal(notice.classList.contains('error'),true);assert.equal(notice.hidden,false);
   assert.match(notice.textContent,/タグの役割を読み込めませんでした/);assert.match(notice.textContent,/保存処理を完了できませんでした/);
   assert.equal(fx.titles().length,6);assert.equal(fx.areas()[0],'予約 / 一覧');
+});
+
+test('Issueと紐付いた報告の行にだけ、題名の左に「#番号」を出す',()=>{
+  const fx=fixture({reports:[report('r1','予約一覧が更新されない',{number:113}),report('r2','通知メールが届かない',{state:'pending',repository:null}),report('r3','支払いの合計がずれる',{number:7})]});fx.render();
+  assert.deepEqual(fx.numbers(),['#113',null,'#7']);
+  assert.deepEqual(fx.titles(),['予約一覧が更新されない','通知メールが届かない','支払いの合計がずれる']);
+});
+test('番号を出しても、検索と絞り込みの結果は変わらない',async()=>{
+  const fx=fixture({reports:[report('r1','予約一覧が更新されない',{number:113}),report('r2','通知メールが届かない',{number:114})]});fx.render();
+  fx.type('通知');await fx.flush();
+  assert.deepEqual(fx.titles(),['通知メールが届かない']);assert.deepEqual(fx.numbers(),['#114']);
 });
