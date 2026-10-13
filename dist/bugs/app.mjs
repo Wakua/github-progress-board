@@ -84,7 +84,10 @@ function renderList() {
     if(kindOf(report)!=='bug')states.append(element('span',kindNames[kindOf(report)],'kind-mark'));
     if(mark)states.append(element('span',mark,'status status-'+report.github.state));
     const text=element('span',undefined,'report-text'),area=areaText(report,roles);
-    text.append(element('span',report.title,'report-title'));
+    const head=element('span',undefined,'report-head');
+    if(report.github.number)head.append(element('span','#'+report.github.number,'report-number'));
+    head.append(element('span',report.title,'report-title'));
+    text.append(head);
     if(area)text.append(element('span',area,'report-area'));
     row.append(text,states);
     row.addEventListener('click',()=>openReport(report.id).catch(error=>notice(error.message,true))); box.append(row);
