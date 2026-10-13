@@ -105,7 +105,7 @@ export class GitHubWorker {
     this.store.db.prepare("UPDATE registration_queue SET state='registered',issue_number=?,issue_url=?,error=NULL,retry_at=0,checked_at=NULL,candidates=NULL,revision=revision+1 WHERE report_id=?").run(issue.number,issue.html_url,id);
   }
   // 保留したカテゴリのタグのうち、GitHubに同じidで存在するものの名前を返す。作成の要求に含める。
-  // GitHubは、存在しない名前を指定されると新しいタグを作る可能性がある。名前の変更や削除で作ってしまわないよう、idが一致するタグだけを送る。
+  // GitHubは、存在しない名前を指定されると、新しいタグを作って付ける（実際のGitHubで確認した）。名前の変更や削除で作ってしまわないよう、idが一致するタグだけを送る。
   // 名前は、取得済みの報告に付いているタグの最後の名前。見つからないタグは送らない（作成後の確認で、付いていないことが分かる）。
   async categoryNames(id) {
     const ids=this.store.categoryIdsOf(id);
@@ -126,11 +126,12 @@ export class GitHubWorker {
   }
   // 作成後の最初の取得だけ、保留したカテゴリのタグがIssueに付いているかを確かめる。付いていないタグは、次の取得まで示す。
   saveLabels(id,labels) {
-    const first=this.row(id).labels_at===null;
+    // 全報告のタグの集計は重いため、保留したカテゴリのある報告の、最初の取得のときだけ行う。
+    const chosen=this.row(id).labels_at===null?this.store.categoryIdsOf(id):[];
     let missing=[];
-    if(first) {
+    if(chosen.length) {
       const names=new Map(this.store.tagRoles().tags.map(tag=>[tag.id,tag.name]));
-      missing=this.store.categoryIdsOf(id).filter(tagId=>!labels.some(label=>label.id===tagId)).map(tagId=>({id:tagId,name:names.get(tagId)??null}));
+      missing=chosen.filter(tagId=>!labels.some(label=>label.id===tagId)).map(tagId=>({id:tagId,name:names.get(tagId)??null}));
     }
     this.store.db.prepare("UPDATE registration_queue SET labels=?,label_state='ok',labels_at=?,labels_error=NULL,category_miss=?,revision=revision+1 WHERE report_id=?").run(JSON.stringify(labels),new Date(this.clock()).toISOString(),missing.length?JSON.stringify(missing):null,id);
   }
