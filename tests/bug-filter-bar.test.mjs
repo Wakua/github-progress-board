@@ -57,6 +57,7 @@ test('条件を外すと、その条件を「すべて」に戻し、隠し、�
   assert.deepEqual(fx.removed,['status']);
   assert.deepEqual(JSON.parse(fx.saved.at(-1)),['main','sub']);
   assert.ok(fx.options().includes('status'));
+  assert.equal(fx.picker.focused,true,'押した × は隠れるため、「＋ 条件」へフォーカスを移す');
 });
 test('覚えた条件を、次に開いたとき、そのまま出す',()=>{
   const fx=fixture(JSON.stringify(['main','kind']));

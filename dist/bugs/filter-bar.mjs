@@ -48,6 +48,7 @@ export function mountFilterBar({ root, storage, onRemove = () => {} }) {
       label.querySelector('select').value = 'all';
       shown = shown.filter(known => known !== id);
       save(); render(); onRemove(id);
+      picker.focus(); // 押した × は隠れるため、フォーカスを「＋ 条件」へ移す
     };
   }
   render();

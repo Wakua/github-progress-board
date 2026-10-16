@@ -13,4 +13,4 @@ select{font:inherit;width:100%;min-width:0;border:1px solid #465674;border-radiu
 
 @media(min-width:761px){.detail{position:sticky;top:16px;max-height:calc(100vh - 32px);max-height:calc(100dvh - 32px);overflow:auto}}
 
-.filters label[data-filter]{position:relative}.filter-remove{position:absolute;top:-4px;right:0;padding:0 6px;border:0;background:none;color:var(--muted);font-size:15px;line-height:1.5}.filter-remove:hover{color:var(--ink);filter:none}.add-filter{display:flex;align-items:flex-end}.add-filter select{color:var(--muted)}
+.filters label[data-filter]{position:relative}.filter-remove{position:absolute;top:-8px;right:-6px;padding:4px 12px;border:0;background:none;color:var(--muted);font-size:16px;line-height:1.5}.filter-remove:hover{color:var(--ink);filter:none}.add-filter{display:flex;align-items:flex-end}.add-filter select{color:var(--muted)}
