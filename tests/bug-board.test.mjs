@@ -41,10 +41,12 @@ class Element {
   }
   querySelectorAll() {return [];}
   addEventListener(type,handler) {if(type==='click')this.handlers.push(handler);}
+  focus() {this.focused=true;}
+  scrollIntoView(options) {this.scrolled=options;}
   click() {for(const handler of this.handlers)handler();return this.onclick?.();}
 }
 function fixture(reports=sample()) {
-  const nodes=new Map(),stored=new Map();
+  const nodes=new Map(),stored=new Map(),scrolls=[];
   const node=selector=>{
     if(!nodes.has(selector)) {
       const found=selector.startsWith('#')&&nodes.has('#detail')?nodes.get('#detail').querySelector(selector):null;
@@ -60,7 +62,7 @@ function fixture(reports=sample()) {
     return {ok:true,status:200,json:async()=>found?{report:found}:{reports}};
   };
   const localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)};
-  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,localStorage,
+  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,localStorage,scrollY:480,scrollTo:(x,y)=>{scrolls.push(y);},
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),setTimeout:()=>1,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
@@ -69,7 +71,7 @@ function fixture(reports=sample()) {
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,name:"共通の利用者",policy:{maxFiles:20,maxBytes:1000},github:{enabled:true,repository:"qa/booking-reports"}};var refresh=async()=>{};',context);
   Object.assign(context,{__reports:reports});vm.runInContext('reports=__reports;',context);
   const board=()=>node('#reports').children[0];
-  return {node,context,stored,board,
+  return {node,context,stored,scrolls,board,
     setView:mode=>{context.__mode=mode;vm.runInContext('setView(__mode)',context);},
     render:()=>vm.runInContext('renderList()',context),
     columns:()=>board().children.map(section=>({title:section.children[0].children[0].textContent,count:section.children[0].children[1].textContent,cards:section.children.slice(1)})),
@@ -91,6 +93,7 @@ test('確認完了の列は、見出しを押すと開き、もう一度押す�
   assert.equal(title().tag,'button');assert.equal(title().ariaExpanded,'false');
   title().click();
   assert.equal(fx.columns()[4].cards.length,2);assert.equal(title().ariaExpanded,'true');
+  assert.equal(title().focused,true,'押した見出しは作り直されるため、新しい見出しへフォーカスを移す');
   title().click();
   assert.equal(fx.columns()[4].cards.length,0);assert.equal(title().ariaExpanded,'false');
   assert.equal(fx.board().children[0].children[0].tag,'h3','畳める列は、確認完了だけ');
@@ -103,12 +106,18 @@ test('絞り込みと検索は、かんばんにも効く。件数は、絞り�
   assert.deepEqual(fx.columns().map(column=>column.count),['1','1','0','0','0']);
   assert.equal(fx.node('#report-count').textContent,'2 / 6件');
 });
-test('札を押すと、その報告の詳細を、かんばんの代わりに開く',async()=>{
+test('札を押すと、その報告の詳細を、かんばんの代わりに、詳細の先頭から開く。戻る操作は、詳細を閉じ、かんばんの元の位置へ戻す',async()=>{
   const fx=fixture();fx.setView('board');
   fx.columns()[1].cards[0].click();
   await new Promise(resolve=>setTimeout(resolve,0));
-  assert.ok(fx.node('#detail').classes.has('mobile-open'));
-  assert.equal(fx.node('#detail').children.some(part=>classes(part).includes('back')),true,'一覧へ戻る操作を持つ');
+  const detail=fx.node('#detail');
+  assert.ok(detail.classes.has('mobile-open'));
+  assert.equal(detail.scrolled?.block,'start','かんばんのスクロール位置が残らないよう、詳細の先頭へ移す');
+  const back=detail.children.find(part=>classes(part).includes('back'));
+  assert.ok(back,'一覧へ戻る操作を持つ');
+  back.onclick();
+  assert.equal(detail.classes.has('mobile-open'),false);
+  assert.deepEqual(fx.scrolls,[480],'開く前のスクロール位置へ戻す');
 });
 test('表示の切り替えは、一覧とかんばんの印を持ち、選んだ表示をこのブラウザに覚える。かんばんへ切り替えるとき、開いた詳細は閉じる',()=>{
   const fx=fixture();
