@@ -336,9 +336,9 @@ function renderKind(report) {
 }
 // 要望の判定。判定（未判定、対応する、保留）と理由を、ツールの中だけで持つ。判定した日付は、保存のあとに出す。変えたときだけ、保存を出す。
 function renderDecision(report) {
-  const form=element('form',undefined,'decision-edit'),select=element('select'),note=element('input'),save=element('button','保存'),current=decisionOf(report),decision=report.decision??{value:'undecided',note:'',at:null};
+  const form=element('form',undefined,'decision-edit'),label=element('label',undefined,'decision-label'),select=element('select'),note=element('input'),save=element('button','保存'),current=decisionOf(report),decision=report.decision??{value:'undecided',note:'',at:null};
   for(const [value,text] of Object.entries(decisionNames)){const option=element('option',text);option.value=value;select.append(option);}
-  select.value=current;note.value=decision.note;note.maxLength=500;note.ariaLabel='理由';
+  select.value=current;note.value=decision.note;note.maxLength=500;note.placeholder='理由';
   const sync=()=>{note.hidden=select.value==='undecided';save.hidden=select.value===current&&note.value===decision.note;};
   select.onchange=note.oninput=sync;sync();
   form.onsubmit=async event=>{
@@ -348,7 +348,8 @@ function renderDecision(report) {
       await refresh();
     } catch(failure) {notice(failure.message,true);select.disabled=note.disabled=save.disabled=false;}
   };
-  form.append(element('span','判定','decision-label'),select,note,save);
+  label.append(element('span','判定'),select);
+  form.append(label,note,save);
   if(decision.at)form.append(element('span',new Date(decision.at).toLocaleDateString('ja-JP'),'meta'));
   return form;
 }

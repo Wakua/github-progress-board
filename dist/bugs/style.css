@@ -39,6 +39,7 @@ button.board-title{cursor:pointer}
 .thread-line{margin:0;line-height:1.6}
 .thread-note{margin:6px 0 2px;border:1px solid var(--line);border-radius:9px;padding:10px 14px;background:#141d2e;white-space:pre-wrap;line-height:1.7}
 .detail form.decision-edit{display:flex;flex-wrap:wrap;align-items:center;gap:8px 10px;margin:12px 0}
+.decision-label{display:inline-flex;align-items:center;gap:8px}
 .decision-edit select{width:auto}
 .decision-edit input{flex:1 1 14em;min-width:0;font:inherit;border:1px solid #465674;border-radius:7px;background:#1b2538;padding:8px 10px;color:var(--ink)}
 .decision-edit button{padding:7px 12px;font-size:14px}

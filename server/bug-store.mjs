@@ -332,8 +332,9 @@ export class BugStore {
       const text = input.decision === 'undecided' ? '' : note.trim();
       if (row.decision === input.decision && row.decision_note === text) return this.getReport(actor,id);
       if (row.revision !== input.revision) throw new BugError(409,'報告が更新されています。「更新」で最新の状況を確認してください。');
+      const at = now();
       this.db.prepare('UPDATE reports SET decision=?,decision_note=?,decided_at=?,updated_at=?,revision=revision+1 WHERE id=?')
-        .run(input.decision,text,input.decision === 'undecided' ? null : now(),now(),id);
+        .run(input.decision,text,input.decision === 'undecided' ? null : at,at,id);
       return this.getReport(actor,id);
     });
   }

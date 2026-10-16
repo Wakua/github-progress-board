@@ -79,10 +79,17 @@ JSONの要求は `Content-Type: application/json` を使い、最大2MiBまで�
 
 判定の意味と、残せる条件は[運用仕様](bug-reporting.md#要望の判定)に従う。
 
-報告の一覧と詳細は、`decision` として `{value, note, at}` を返す。`value` は、`undecided`（未判定）、`accept`（対応する）、`defer`（保留）のどれかである。`at` は判定した日時（ISO 8601）で、未判定は `null` である。更新前の報告は、`undecided` である。
+報告の一覧と詳細は、`decision` として `{value, note, at}` を返す。
+`value` は、`undecided`（未判定）、`accept`（対応する）、`defer`（保留）のどれかである。
+`at` は判定した日時（ISO 8601）で、未判定は `null` である。
+更新前の報告は、`undecided` である。
 
-`POST reports/:reportId/decision` は、JSONで `{decision, note, revision}` を送り、判定を残す。`note` は省略できる文字列で、前後の空白を除いて保存する。`revision` は、報告自身の現在の更新番号である。
-成功時は200と `{report: ...}` を返し、報告の更新番号を一つ進める。送った判定と理由が保存済みと同じなら、何も変えずに現在の報告を返す。未判定を送ると、理由と日時を消す。
+`POST reports/:reportId/decision` は、JSONで `{decision, note, revision}` を送り、判定を残す。
+`note` は省略できる文字列で、前後の空白を除いて保存する。
+`revision` は、報告自身の現在の更新番号である。
+成功時は200と `{report: ...}` を返し、報告の更新番号を一つ進める。
+送った判定と理由が保存済みと同じなら、何も変えずに現在の報告を返す。
+未判定を送ると、理由と日時を消す。
 GitHubへ要求を送らず、履歴の出来事も足さない。
 
 | Status | 条件 |

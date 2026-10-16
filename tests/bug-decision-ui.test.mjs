@@ -78,12 +78,14 @@ function fixture(reports,{failure=null}={}) {
     form:()=>node('#detail').querySelector('.decision-edit'),
     marks:()=>node('#reports').children.map(row=>row.children[1].children.map(item=>item.textContent))};
 }
-const parts=form=>({select:form.children.find(part=>part.tag==='select'),note:form.children.find(part=>part.tag==='input'),save:form.children.find(part=>part.tag==='button')});
+const parts=form=>({select:[...form.walk()].find(part=>part.tag==='select'),note:form.children.find(part=>part.tag==='input'),save:form.children.find(part=>part.tag==='button')});
 const classes=node=>node.className.split(' ');
 
-test('要望の詳細には、判定の欄を出し、不具合と確認には出さない',async()=>{
+test('要望の詳細には、判定の欄を出し、不具合と確認には出さない。判定の選択は、「判定」の名前を持つ',async()=>{
   const fx=fixture([report('r1'),report('b1',{kind:'bug'}),report('q1',{kind:'question'})]);
   await fx.show('r1');assert.ok(fx.form());
+  const named=fx.form().children.find(part=>part.tag==='label');
+  assert.ok(named&&named.children[0].textContent==='判定'&&named.children[1].tag==='select','選択を、「判定」のlabelに入れる');
   const {select,note,save}=parts(fx.form());
   assert.deepEqual(select.options.map(option=>[option.value,option.textContent]),[['undecided','未判定'],['accept','対応する'],['defer','保留']]);
   assert.equal(select.value,'undecided');assert.equal(note.hidden,true,'未判定のあいだは、理由を出さない');assert.equal(save.hidden,true,'変えていないあいだは、保存を出さない');
@@ -93,7 +95,7 @@ test('判定を選ぶと、理由と保存を出し、保存すると、判定�
   const fx=fixture([report('r1')]);await fx.show('r1');
   const {select,note,save}=parts(fx.form());
   select.value='defer';select.onchange();
-  assert.equal(note.hidden,false);assert.equal(save.hidden,false);assert.equal(note.ariaLabel,'理由');
+  assert.equal(note.hidden,false);assert.equal(save.hidden,false);assert.equal(note.placeholder,'理由','理由の欄にも、名前を付ける');
   note.value='次の版で見直す。';note.oninput();
   await fx.form().onsubmit({preventDefault(){}});
   assert.deepEqual(fx.requests.at(-1),{route:'reports/r1/decision',body:{decision:'defer',note:'次の版で見直す。',revision:3}});
