@@ -55,7 +55,7 @@ async function search() {
   }
 }
 // タグの役割を読み込めないと、割り当てが前回のまま（初回は空）になり、全報告が「未分類」に見える。
-const rolesNotice = message => 'タグの役割を読み込めませんでした。カテゴリの絞り込みと領域は、前回の読み込み（なければ未設定）のままです。'+message;
+const rolesNotice = message => 'タグの役割を読み込めませんでした。'+message;
 async function reload(result) {
   reports=result.reports;
   const failure=await tagRoles.load(); rolesError=failure?failure.message:'';
