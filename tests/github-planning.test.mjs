@@ -294,24 +294,29 @@ test('作業を、完了・進行中・止まっている・未着手に分け�
   assert.deepEqual(groups.blocked, [{ number: 7, waitingOn: ['#5'] }]);
   assert.deepEqual(groups.todo.map(i => i.number), [5, 6], 'StatusがProjectごとに違う作業と、Project未登録の作業は未着手');
 });
+test('担当者のいない作業中は、要対応でも進行中に数える', () => {
+  const { plan, today, tasks, clone } = stateFixture();
+  const noOwner = clone(9, { projects: tasks[0].projects.map(p => ({ ...p, owner: null })) });
+  assert.deepEqual(githubProgressStates(plan, [noOwner], repo, today).groups.active.map(i => i.number), [9]);
+});
 test('進み具合の帯は、完了数と全体の件数、状態ごとの件数と番号を出し、番号は完了を除く', () => {
   const { plan, today, tasks } = stateFixture();
-  const html = githubStateProgressMarkup(plan, tasks, '確認用', repo, today, { numbers: true });
+  const html = githubStateProgressMarkup(plan, tasks, repo, today, { numbers: true });
   assert.ok(html.includes('1 / 6 完了'));
-  assert.ok(html.includes('aria-label="確認用：完了 1、進行中・確認待ち 2、止まっている 1、未着手 2"'));
+  assert.ok(html.includes('class="state-bar" aria-hidden="true"'), '凡例が同じ内容を文字で示すため、帯は読み上げない');
   assert.ok(html.includes('#7（#5待ち）') && html.includes('#3 #8') && html.includes('#5 #6'));
   assert.ok(!html.includes('#4'), '完了の番号は出さない');
   const widths = [...html.matchAll(/<i class="(\w+)" style="width:([\d.]+)%"/g)];
   assert.deepEqual(widths.map(m => m[1]), ['done', 'active', 'blocked', 'todo']);
   assert.ok(Math.abs(widths.reduce((sum, m) => sum + Number(m[2]), 0) - 100) < 1e-9);
-  assert.ok(!githubStateProgressMarkup(plan, tasks, '確認用', repo, today).includes('#7'), '番号は numbers のときだけ');
+  assert.ok(!githubStateProgressMarkup(plan, tasks, repo, today).includes('#7'), '番号は numbers のときだけ');
 });
 test('進み具合の帯の番号は15件までにし、残りは件数で示す。作業がなければ作業未登録と示す', () => {
   const { plan, today, clone } = stateFixture();
   const many = Array.from({ length: 20 }, (_, i) => clone(100 + i, { projects: [] }));
-  const html = githubStateProgressMarkup(plan, many, '確認用', repo, today, { numbers: true });
+  const html = githubStateProgressMarkup(plan, many, repo, today, { numbers: true });
   assert.ok(html.includes('未着手 20') && html.includes('#114') && !html.includes('#115') && html.includes('ほか5件'));
-  assert.ok(githubStateProgressMarkup(plan, [], '確認用', repo, today).includes('作業未登録'));
+  assert.ok(githubStateProgressMarkup(plan, [], repo, today).includes('作業未登録'));
 });
 test('モジュールと目標の行に帯を出し、リリースと期間の行は見積の終了率のままにする', () => {
   const { value, today } = stateFixture(), html = renderGithubPeriods(value, today);
