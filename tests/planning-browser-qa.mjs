@@ -44,7 +44,7 @@ try {
     const module = page.locator('.github-module');
     assert.equal(await module.getAttribute('open'), null);
     const summary = module.locator(':scope > summary');
-    assert.match(await summary.innerText(), /QAモジュール/); assert.match(await summary.innerText(), /\d+ \/ \d+ 完了/);
+    assert.match(await summary.innerText(), /QAモジュール/); assert.match(await summary.innerText(), /pt 完了 · \d+ \/ \d+件/);
     assert.doesNotMatch(await summary.innerText(), /見積未設定|%/);
     assert.ok(await summary.locator('.state-bar > i').count() > 0);
     await page.screenshot({ path: path.join(artifacts, `${width}-collapsed.png`), fullPage: true });

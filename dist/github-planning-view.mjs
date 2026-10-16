@@ -19,19 +19,25 @@ export function githubProgressMarkup(tasks, title, projectId = null) {
   }
   return '<span class="github-progress"><span class="github-progress-value"><strong>' + p.percent + '%</strong><small>終了 ' + points(p.closedPoints) + ' / ' + points(p.totalPoints) + '</small>' + excluded + '</span><span class="github-progress-track" role="progressbar" aria-label="' + esc(title) + 'のGitHub終了率' + (p.missingEstimates ? '（見積設定済みの作業）' : '') + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p.percent + '"><span style="width:' + p.percent + '%"></span></span>' + remaining + '</span>';
 }
-// モジュールと目標の行の進み具合：完了・進行中・止まっている・未着手の4色の帯と、状態ごとの件数。numbers が真なら、完了以外の作業の番号も添える。
+// モジュールと目標の行の進み具合：完了・進行中・止まっている・未着手の4色の帯。帯の長さは状態ごとのEstimateの合計で、見積のない作業は帯に入れず、「見積なし」に件数を出す。
+// numbers が真なら、完了以外の作業と見積のない作業の番号も添える。
 const STATE_NUMBER_LIMIT = 15;
 export function githubStateProgressMarkup(plan, tasks, repositoryUrl, today, { numbers = false } = {}) {
-  const { total, groups } = githubProgressStates(plan, tasks, repositoryUrl, today);
+  const { total, groups, points: pts, totalPoints, missing } = githubProgressStates(plan, tasks, repositoryUrl, today);
   if (!total) return '<span class="state-progress"><span class="state-count">作業未登録</span></span>';
   const shown = PROGRESS_STATES.filter(([id]) => groups[id].length);
-  const refs = list => {
-    const text = list.slice(0, STATE_NUMBER_LIMIT).map(item => '#' + item.number + (item.waitingOn.length ? '（' + item.waitingOn.map(esc).join('・') + '待ち）' : '')).join(' ');
-    return text + (list.length > STATE_NUMBER_LIMIT ? ' ほか' + (list.length - STATE_NUMBER_LIMIT) + '件' : '');
+  const refs = (list, text) => {
+    const body = list.slice(0, STATE_NUMBER_LIMIT).map(text).join(' ');
+    return ' <span class="state-numbers">' + body + (list.length > STATE_NUMBER_LIMIT ? ' ほか' + (list.length - STATE_NUMBER_LIMIT) + '件' : '') + '</span>';
   };
-  return '<span class="state-progress"><span class="state-count">' + groups.done.length + ' / ' + total + ' 完了</span>'
-    + '<span class="state-bar" aria-hidden="true">' + shown.map(([id]) => '<i class="' + id + '" style="width:' + groups[id].length / total * 100 + '%"></i>').join('') + '</span>'
-    + '<span class="state-legend">' + shown.map(([id, name]) => '<span class="state-legend-row ' + id + '"><b>' + name + ' ' + groups[id].length + '</b>' + (numbers && id !== 'done' ? ' <span class="state-numbers">' + refs(groups[id]) + '</span>' : '') + '</span>').join('') + '</span></span>';
+  const done = totalPoints > 0 ? Number(pts.done.toPrecision(12)) + ' / ' + points(totalPoints) + ' 完了 · ' + groups.done.length + ' / ' + total + '件' : groups.done.length + ' / ' + total + '件 完了';
+  const projectUrl = missing.find(item => item.projectUrl)?.projectUrl;
+  return '<span class="state-progress"><span class="state-count">' + done + '</span>'
+    + '<span class="state-bar" aria-hidden="true">' + shown.filter(([id]) => pts[id] > 0).map(([id]) => '<i class="' + id + '" style="width:' + pts[id] / totalPoints * 100 + '%"></i>').join('') + '</span>'
+    + '<span class="state-legend">' + shown.map(([id, name]) => '<span class="state-legend-row ' + id + '"><b>' + name + ' ' + groups[id].length + '件</b>' + (pts[id] > 0 ? ' ' + points(pts[id]) : '')
+      + (numbers && id !== 'done' ? refs(groups[id], item => '#' + item.number + (item.waitingOn.length ? '（' + item.waitingOn.map(esc).join('・') + '待ち）' : '')) : '') + '</span>').join('')
+    + (missing.length ? '<span class="state-legend-row missing"><b>見積なし ' + missing.length + '件</b>' + (numbers ? refs(missing, item => '#' + item.number) + (projectUrl ? ' ' + link(projectUrl, '見積を付ける') : '') : '') + '</span>' : '')
+    + '</span></span>';
 }
 export const iterationEnd = i => new Date(Date.parse(i.startDate + 'T00:00:00Z') + (i.duration - 1) * 86400000).toISOString().slice(0, 10);
 const projectMeta = p => `${esc(p.owner ?? '担当未設定')} · ${esc(p.status ?? 'Status未設定')} · ${p.estimatePoints === null ? 'Estimate未設定' : p.estimatePoints + 'pt'} · ${p.iteration ? esc(p.iteration.title) : '期間未設定'}`;

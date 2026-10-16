@@ -64,19 +64,23 @@ export function githubWorkCategory(plan, task, repositoryUrl, today = todayInTok
   return { group: 'ready', reasons: [] };
 }
 
-// 目標・モジュールの進み具合の帯：自分の作業の分類を、4つの状態にまとめる。見積の有無に関わらず、すべての作業を数える。
+// 目標・モジュールの進み具合の帯：自分の作業の分類を、4つの状態にまとめる。すべての作業を件数に数える。
 // 前提が未完了なら、作業中・確認待ちでも「止まっている」。ClosedとDoneは「完了」。
+// 帯の長さは、状態ごとのEstimateの合計。Estimateが未設定かゼロの作業と、複数Projectに登録して出典が決まらない作業は、点数に入れず、missingに集める。
 export const PROGRESS_STATES = [['done', '完了'], ['active', '進行中・確認待ち'], ['blocked', '止まっている'], ['todo', '未着手']];
 export function githubProgressStates(plan, tasks, repositoryUrl, today = todayInTokyo()) {
-  const groups = Object.fromEntries(PROGRESS_STATES.map(([id]) => [id, []]));
+  const groups = Object.fromEntries(PROGRESS_STATES.map(([id]) => [id, []])), missing = [];
   for (const task of [...tasks].sort((a, b) => a.number - b.number)) {
     const { group } = githubWorkCategory(plan, task, repositoryUrl, today);
     const open = (task.blockedBy || []).filter(b => b.state === 'open');
     const state = group === 'done' ? 'done' : open.length ? 'blocked'
       : group === 'review' || group === 'active' || (group === 'action' && task.projects.length && task.projects.every(p => p.status === 'In Progress')) ? 'active' : 'todo';
-    groups[state].push({ number: task.number, waitingOn: state === 'blocked' ? open.map(b => blockerRef(b, repositoryUrl)) : [] });
+    const points = task.projects.length === 1 && task.projects[0].estimatePoints > 0 ? task.projects[0].estimatePoints : null;
+    groups[state].push({ number: task.number, waitingOn: state === 'blocked' ? open.map(b => blockerRef(b, repositoryUrl)) : [], points });
+    if (points === null) missing.push({ number: task.number, projectUrl: task.projects[0]?.url ?? null });
   }
-  return { total: tasks.length, groups };
+  const points = Object.fromEntries(PROGRESS_STATES.map(([id]) => [id, groups[id].reduce((sum, item) => sum + (item.points ?? 0), 0)]));
+  return { total: tasks.length, groups, points, totalPoints: Object.values(points).reduce((sum, value) => sum + value, 0), missing };
 }
 
 // filter は { all: true } か { owner: 担当者名 | null（担当未設定） }。
