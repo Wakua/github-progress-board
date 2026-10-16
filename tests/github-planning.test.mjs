@@ -316,7 +316,8 @@ test('進み具合の帯は、状態ごとのEstimateの合計の長さで描き
   assert.ok(html.includes('見積なし 2件') && html.includes('href="https://github.com/users/Wakua/projects/3"') && html.includes('見積を付ける'));
   assert.ok(!html.includes('#4'), '完了の番号は出さない');
   const plain = githubStateProgressMarkup(plan, tasks, repo, today);
-  assert.ok(!plain.includes('#7') && !plain.includes('見積を付ける') && plain.includes('見積なし 2件'), '番号とリンクは numbers のときだけ。見積なしの件数は常に出す');
+  assert.ok(!plain.includes('#7') && !plain.includes('#3 #8'), '状態ごとの番号は numbers のときだけ');
+  assert.ok(plain.includes('見積なし 2件') && plain.includes('#5 #6') && plain.includes('見積を付ける'), '見積なしの件数・番号・リンクは、目標の行にも出す');
   const estimated = githubStateProgressMarkup(plan, [tasks[1]], repo, today, { numbers: true });
   assert.ok(estimated.includes('1 / 1pt 完了 · 1 / 1件') && !estimated.includes('見積なし'));
 });
