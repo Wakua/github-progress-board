@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import {randomUUID} from 'node:crypto';
 
 // Run the actual form event handlers with an isolated DOM and failure-injecting API.
@@ -40,7 +41,8 @@ function formFixture({pending=[],failFile,failReportOnce=false,maxFiles=20}={}) 
     } else throw new Error('Unexpected request: '+route);
     return{ok:status<400,status,json:async()=>value};
   };
-  const context=vm.createContext({document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID},setTimeout,clearTimeout,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>{},tags:()=>[]})});
+  const panel=createFilterPanelStub();
+  const context=vm.createContext({document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID},setTimeout,clearTimeout,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>{},tags:()=>[]})});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   // importは仮想環境で実行できないので取り除く。importした関数のうち、読み込み時に呼ぶものはcontextに用意する。
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');

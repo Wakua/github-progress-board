@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 報告の種別（#73）の画面。実際の画面のコードを、擬似DOMと偽のAPIで動かす。
@@ -49,7 +50,6 @@ function fixture({reports=sample(),details=new Map(),kindFailure=null,search}={}
     }
     return nodes.get(selector);
   };
-  for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter','#kind-filter'])node(selector).value='all';
   const form=node('#report-form'),files=new Element('input'),body=new Element('textarea'),version=new Element('input'),kind={value:'bug'};
   files.files=[];body.value='架空の再現報告';
   form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version,kind});
@@ -68,7 +68,8 @@ function fixture({reports=sample(),details=new Map(),kindFailure=null,search}={}
   };
   const fetch=async(url,options={})=>{const result=respond(url.replace('/api/bugs/',''),options);return{ok:result.status<400,status:result.status,json:async()=>result.value};};
   const timers=[];
-  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
+  const panel=createFilterPanelStub();
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
@@ -83,8 +84,9 @@ function fixture({reports=sample(),details=new Map(),kindFailure=null,search}={}
     titles:()=>box().children.map(row=>row.children[0].children[0].children.find(part=>part.className==='report-title').textContent),
     marks:()=>box().children.map(row=>row.children[1].children.map(item=>item.textContent)),
     count:()=>node('#report-count').textContent,
-    choices:selector=>node(selector).options.map(option=>option.textContent),
-    choose(selector,value) {node(selector).value=value;node(selector).onchange();},
+    panel,
+    choices:selector=>panel.texts(selector),
+    choose:(selector,value)=>panel.choose(selector,value),
     render:()=>{vm.runInContext('renderFilters();renderList();',context);},
     open:()=>node('#new-report').onclick(),
     submit:()=>form.onsubmit({preventDefault(){},currentTarget:form}),
@@ -105,7 +107,7 @@ test('一覧の行は、要望と確認にだけ種別の印を出す。不具�
   assert.equal(view.kindOf(report('x')),'bug');assert.equal(view.kindOf(report('x',{kind:'question'})),'question');
   assert.deepEqual(view.kindNames,{bug:'不具合',request:'要望',question:'確認'});
 });
-test('種別を選ぶと、その種別の報告だけを出す。「すべて」と、値がないときは、絞り込まない',()=>{
+test('種別を選ぶと、その種別の報告だけを出す。複数選ぶと、どれかに当てはまる報告を出し、何も選ばないと、絞り込まない',()=>{
   const fx=fixture();fx.render();
   fx.choose('#kind-filter','request');
   assert.deepEqual(fx.titles(),['報告 r1','報告 r2']);assert.equal(fx.count(),'2 / 5件');
@@ -113,10 +115,10 @@ test('種別を選ぶと、その種別の報告だけを出す。「すべて�
   assert.deepEqual(fx.titles(),['報告 q1']);
   fx.choose('#kind-filter','bug');
   assert.deepEqual(fx.titles(),['報告 b1','報告 b2']);
-  fx.choose('#kind-filter','all');
+  fx.choose('#kind-filter',['request','question']);
+  assert.deepEqual(fx.titles(),['報告 r1','報告 r2','報告 q1']);assert.equal(fx.count(),'3 / 5件');
+  fx.choose('#kind-filter',[]);
   assert.equal(fx.titles().length,5);
-  fx.node('#kind-filter').value='';fx.render();
-  assert.equal(fx.titles().length,5,'種別の欄を持たない画面でも、全件を出す');
 });
 test('種別の絞り込みは、メイン・サブ・対応状況・本文の検索と重ねて使える',async()=>{
   const fx=fixture({search:query=>sample().filter(item=>query==='予約'?['b1','r1','r2'].includes(item.id):true).map(item=>item.id)});fx.render();
@@ -136,28 +138,23 @@ test('種別の絞り込みは、メイン・サブ・対応状況・本文の�
 test('メインとサブの件数は、種別を選んだときだけ、その種別で数える',()=>{
   const fx=fixture();fx.render();
   const sorted=values=>[...values].sort();
-  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['すべて','予約（3）','通知（1）','未分類（0）']),'種別を選ばないときは、すべての種別を数える');
-  assert.deepEqual(fx.choices('#sub-filter'),['すべて','一覧（2）']);
+  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['予約（3）','通知（1）','未分類（0）']),'種別を選ばないときは、すべての種別を数える');
+  assert.deepEqual(fx.choices('#sub-filter'),['一覧（2）']);
   fx.choose('#kind-filter','bug');
-  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['すべて','予約（2）','通知（0）','未分類（0）']));
-  assert.deepEqual(fx.choices('#sub-filter'),['すべて','一覧（1）']);
+  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['予約（2）','通知（0）','未分類（0）']));
+  assert.deepEqual(fx.choices('#sub-filter'),['一覧（1）']);
   fx.choose('#kind-filter','request');
-  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['すべて','予約（1）','通知（0）','未分類（0）']),'完了した要望は、未対応に数えない');
+  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['予約（1）','通知（0）','未分類（0）']),'完了した要望は、未対応に数えない');
   fx.choose('#kind-filter','question');
-  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['すべて','予約（0）','通知（1）','未分類（0）']));
-  assert.deepEqual(fx.choices('#sub-filter'),['すべて'],'その種別の報告にないサブは出さない');
+  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['予約（0）','通知（1）','未分類（0）']));
+  assert.deepEqual(fx.choices('#sub-filter'),[],'その種別の報告にないサブは出さない');
 });
 test('種別を変えて、選んでいたサブがなくなったときは、サブを「すべて」に戻す',()=>{
   const fx=fixture();fx.render();
   fx.choose('#sub-filter','label:12');
   assert.equal(fx.titles().length,2);
   fx.choose('#kind-filter','question');
-  assert.equal(fx.node('#sub-filter').value,'all');assert.deepEqual(fx.titles(),['報告 q1']);
-});
-test('種別の絞り込みの選択肢は、不具合・要望・確認で、説明の文を足さない',()=>{
-  const html=readFileSync(new URL('../dist/bugs/index.html',import.meta.url),'utf8');
-  for(const id of ['main-filter','sub-filter'])assert.match(html,new RegExp('id="'+id+'" title="括弧の数は、受付済みと対応中の件数"'));
-  assert.match(html,/id="kind-filter"><option value="all">すべて<\/option><option value="bug">不具合<\/option><option value="request">要望<\/option><option value="question">確認<\/option>/);
+  assert.deepEqual(fx.panel.selected('#sub-filter'),[]);assert.deepEqual(fx.titles(),['報告 q1']);
 });
 
 test('報告フォームは、種別を送る。選ばなければ不具合で、送信に成功すると不具合に戻る',async()=>{
