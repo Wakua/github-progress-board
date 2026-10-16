@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 報告の詳細の経過（#80）。出来事を1本の流れにし、本文と再現データの下、再現データの追加の上に置く。
@@ -53,10 +54,10 @@ function fixture(report) {
     }
     return nodes.get(selector);
   };
-  for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter','#kind-filter'])node(selector).value='all';
   node('#report-form').elements={files:{files:[]}};
   const fetch=async url=>({ok:true,status:200,json:async()=>url.endsWith('/reports/'+report.id)?{report}:{reports:[report]}});
-  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
+  const panel=createFilterPanelStub();
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),setTimeout:()=>1,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
