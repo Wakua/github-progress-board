@@ -24,6 +24,11 @@ const tags = {
 const roles = [['予約', 'main'], ['通知', 'main'], ['決済', 'main'], ['一覧', 'sub'], ['画面', 'sub'], ['bug', 'none'], ['enhancement', 'none']];
 // 古い順。GitHub接続の前に保存した報告は、GitHub未登録のまま残る。
 const early = [['予約の確認メールの日付が1日ずれる', 'received']];
+// 経過に残す、開発側の連絡と確認の内容（#80）。キーは、その連絡を送る前の対応状況。confirm は、テスターの確認結果の内容。
+const notes = {
+  '通知メールが届かない': { received: '再現しました。送信キューを調べています。', working: '再送の条件を直しました。', fixed: 'S-2で確認をお願いします。', confirm: 'S-2で、メールが届きました。' },
+  '支払い方法を変更すると合計金額が0円になる': { received: '調べています。' }
+};
 const registered = [
   ['予約一覧が更新されない', 'working', ['予約', '一覧']],
   ['日付を選ぶと一覧が空になる', 'received', ['予約', '一覧']],
@@ -102,8 +107,8 @@ if (existing.length >= expected) {
     for (let i = 0; i < 50; i++) { const d = (await call('GET', '/reports/' + report.id)).report; if (d.github.state === 'registered' && d.github.tags.state === 'ok') break; await new Promise(r => setTimeout(r, 200)); }
     let d = (await call('GET', '/reports/' + report.id)).report;
     while (order.indexOf(d.status) < order.indexOf(status)) {
-      if (d.status === 'checking') await call('POST', '/reports/' + report.id + '/confirmations', { revision: d.revision, requestId: 'c-' + randomUUID(), version: 'S-2', result: 'resolved', note: '' });
-      else await call('POST', '/reports/' + report.id + '/status', { revision: d.revision, requestId: 's-' + randomUUID(), targetVersion: d.status === 'fixed' ? 'S-2' : '', developerNote: '' });
+      if (d.status === 'checking') await call('POST', '/reports/' + report.id + '/confirmations', { revision: d.revision, requestId: 'c-' + randomUUID(), version: 'S-2', result: 'resolved', note: notes[title]?.confirm ?? '' });
+      else await call('POST', '/reports/' + report.id + '/status', { revision: d.revision, requestId: 's-' + randomUUID(), targetVersion: d.status === 'fixed' ? 'S-2' : '', developerNote: notes[title]?.[d.status] ?? '' });
       d = (await call('GET', '/reports/' + report.id)).report;
     }
   }

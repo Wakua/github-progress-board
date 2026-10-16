@@ -1,4 +1,4 @@
-import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction} from './view.mjs';
+import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction,threadEvents} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
 import {mountFilterBar,storageKey as filterStorageKey} from './filter-bar.mjs';
 import {categoriesEditable,selectableCategories,kindNames,kindOf} from './view.mjs';
@@ -114,7 +114,7 @@ async function openReport(id,move=true) {
     item.append(element('span',bytes(file.size)+' · '+time(file.addedAt),'meta')); files.append(item);
   }
   files.hidden=!report.attachments.length;
-  detail.append(files,element('p','受付ID: '+report.id,'meta'));
+  detail.append(files,element('p','受付ID: '+report.id,'meta'),renderHistory(report));
   if(actor.shared || actor.role==='tester'&&report.isOwn) {
     const form=element('form'), label=element('label','再現データを追加'), input=element('input');
     input.type='file'; input.multiple=true; input.required=true; label.append(input);
@@ -135,7 +135,6 @@ async function openReport(id,move=true) {
       }
     };
   }
-  detail.append(renderHistory(report));
   if(move && matchMedia('(max-width:760px)').matches) detail.scrollIntoView({block:'start'});
 }
 function renderWorkflow(report) {
@@ -197,16 +196,14 @@ function renderWorkflow(report) {
   };
   return box;
 }
+// 本文の下に続く、これまでの経過。出来事は1行で、開発側の連絡と確認の内容は、枠に入れる。
 function renderHistory(report) {
-  const section=element('section',undefined,'history-panel');section.append(element('h3','これまでの経過'));
-  const list=element('ol',undefined,'history-list');
-  for(const event of report.history) {
-    const item=element('li');
-    const title=event.kind==='status'?statusNames[event.toStatus]:event.version+' · '+(event.result==='resolved'?'直った':'まだ起きる');
-    item.append(element('strong',title),element('p',time(event.at)+' · '+event.actorName,'meta'));
-    if(event.kind==='confirmation')item.append(element('p',event.matchesTarget?'確認対象のバージョンでの結果':'当時の確認対象 '+event.targetVersion+' と異なるバージョン','meta'));
-    else if(event.toStatus==='checking')item.append(element('p','確認対象：'+event.targetVersion,'meta'));
-    if(event.note)item.append(element('p',event.note,'history-note'));
+  const section=element('section',undefined,'thread'),list=element('ol',undefined,'thread-list');
+  for(const event of threadEvents(report.history,time)) {
+    const item=element('li',undefined,'thread-event is-'+event.kind),line=element('p',undefined,'thread-line');
+    line.append(element('strong',event.lead),element('span',' · '+event.meta,'meta'));
+    item.append(line);
+    if(event.note)item.append(element('div',event.note,'thread-note'));
     list.append(item);
   }
   if(report.history.length)section.append(list);else section.hidden=true;
