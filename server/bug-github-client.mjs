@@ -50,7 +50,7 @@ export class GitHubClient {
   }
   async request(method,route,body) {
     const allowed=method==='POST' ? route==='issues' :
-      method==='GET' && (/^issues\/\d+$/.test(route)||/^issues\?state=all&sort=created&direction=desc&per_page=100&page=\d+$/.test(route));
+      method==='GET' && (/^issues\/\d+$/.test(route)||/^labels\/[^/?#\s]{1,300}$/.test(route)||/^issues\?state=all&sort=created&direction=desc&per_page=100&page=\d+$/.test(route));
     if(!allowed)throw new Error('許可されたGitHub操作ではありません。');
     const args=['api','--hostname','github.com','--method',method,'--include','-H','Accept: application/vnd.github+json','-H','X-GitHub-Api-Version: 2022-11-28','repos/'+this.repository+'/'+route];
     if(body)args.push('--input','-');
@@ -64,7 +64,13 @@ export class GitHubClient {
     }
     return response.data;
   }
-  async createIssue(title,body) {return validateIssue(await this.request('POST','issues',{title,body}),this.repository);}
+  // labelsは、Issueに付けるタグの名前。指定しない要求は、タグを含めない。
+  async createIssue(title,body,labels=[]) {return validateIssue(await this.request('POST','issues',labels.length?{title,body,labels}:{title,body}),this.repository);}
+  // 名前を指定して、タグを1件だけ読む。作成の要求にタグの名前を含める前に、そのタグがいまも同じidで存在するかを確かめるために使う。
+  async getLabel(name) {
+    if(typeof name!=='string'||!name||name.length>100||/^\.+$/.test(name))throw new GitHubFailure('GitHubにそのタグはありません。',{status:404});
+    return validateLabels([await this.request('GET','labels/'+encodeURIComponent(name))])[0];
+  }
   async getIssue(number) {
     if(!Number.isSafeInteger(number)||number<1)throw new Error('Issue番号が不正です。');
     return validateIssue(await this.request('GET','issues/'+number),this.repository);

@@ -22,12 +22,16 @@ export const uncategorized='uncategorized';
 export function roleMap(tags) {
   return new Map(tags.filter(tag=>tag.role==='main'||tag.role==='sub').map(tag=>[tag.id,{role:tag.role,name:tag.name}]));
 }
-// 報告に付いているタグを、役割ごとに分ける。タグの取得に失敗して前回の結果を保持している報告も、その結果で分ける。
+// 報告のカテゴリを、役割ごとに分ける。登録前の報告は、保留したカテゴリ（タグのid）を使い、登録後は、GitHubのタグを使う。
+// タグの取得に失敗して前回の結果を保持している報告も、その結果で分ける。
 export function categoriesOf(report,roles) {
   const found={main:[],sub:[]};
-  for(const label of report.github.tags.labels) {const assigned=roles.get(label.id);if(assigned)found[assigned.role].push({...label,name:assigned.name});}
+  const labels=report.github.state==='registered'?report.github.tags.labels:(report.categories??[]).map(id=>({id}));
+  for(const label of labels) {const assigned=roles.get(label.id);if(assigned)found[assigned.role].push({...label,name:assigned.name});}
   return found;
 }
+// 登録前のカテゴリを変えられるのは、Issueを作る要求を送る前の、登録待ちと登録失敗だけ。
+export const categoriesEditable=report=>report.github.state==='pending'||report.github.state==='failed';
 // 行に添える領域。メインを「・」で並べ、サブを「 / 」の後ろに並べる。例：「予約・通知 / 一覧」
 export function areaText(report,roles) {
   const {main,sub}=categoriesOf(report,roles);
@@ -41,6 +45,11 @@ function inMain(report,main,roles) {
   return main===uncategorized?!found.main.length&&!found.sub.length:found.main.some(label=>'label:'+label.id===main);
 }
 const byName=(a,b)=>a.name.localeCompare(b.name,'ja');
+// 報告に選べるカテゴリ。メインかサブを割り当てたタグを、役割ごとに名前順で返す。
+export function selectableCategories(tags) {
+  const pick=role=>tags.filter(tag=>tag.role===role).sort(byName).map(tag=>({id:tag.id,name:tag.name}));
+  return {main:pick('main'),sub:pick('sub')};
+}
 const countUnaddressed=reports=>reports.filter(isUnaddressed).length;
 // メインの選択肢。割り当てたメインのタグと「未分類」に、未対応の件数を添える。報告のないメインも、件数0で出す。
 export function mainChoices(reports,tags) {

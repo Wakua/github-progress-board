@@ -69,8 +69,10 @@ test('サブの選択肢は、選んだメインの報告に付いているサ�
   assert.deepEqual(subChoices([],[],'all'),[{value:'all',text:'すべて'}]);
 });
 test('登録状況の絞り込みは、メインの絞り込みと重ねられる',()=>{
-  assert.equal(matchesFilters(withTags('r','received',[2],'failed'),{main:'label:2',state:'failed',roles}),true);
-  assert.equal(matchesFilters(withTags('r','received',[2],'failed'),{main:'label:2',state:'registered',roles}),false);
+  // 登録前の報告のカテゴリは、保留したカテゴリ（タグのid）である。
+  const failed={...withTags('r','received',[],'failed'),categories:[2]};
+  assert.equal(matchesFilters(failed,{main:'label:2',state:'failed',roles}),true);
+  assert.equal(matchesFilters(failed,{main:'label:2',state:'registered',roles}),false);
 });
 test('reports saved before connection are distinguishable from the automatic registration queue',()=>{
   assert.equal(registrationName({github:{state:'pending',repository:null}}),'GitHub未登録');

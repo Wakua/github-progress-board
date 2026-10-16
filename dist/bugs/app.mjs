@@ -1,5 +1,6 @@
 import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
+import {categoriesEditable,selectableCategories} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
@@ -102,6 +103,7 @@ async function openReport(id,move=true) {
     element('div',report.body,'report-body'),element('h3','再現データ · '+report.attachmentCount+'件 / '+bytes(report.attachmentBytes)));
   detail.insertBefore(renderWorkflow(report),detail.querySelector('.report-body'));
   const githubBox=element('div');githubBox.id='github-status';githubBox.append(renderGitHub(report));detail.insertBefore(githubBox,detail.querySelector('.report-body'));
+  const categoryBox=element('div');categoryBox.id='category-status';fillCategories(categoryBox,report);detail.insertBefore(categoryBox,detail.querySelector('.report-body'));
   const files=element('ul',undefined,'file-list');
   for(const file of report.attachments) {
     const item=element('li');
@@ -238,6 +240,50 @@ function renderFilters() {
   fillSelect($('#main-filter'),mainChoices(reports,tags));
   fillSelect($('#sub-filter'),subChoices(reports,tags,$('#main-filter').value));
 }
+// 報告にカテゴリを選ぶ欄。メインとサブを、役割ごとに並べる。選べるタグがなければ、nullを返す。
+function categoryBoxes(selected) {
+  const groups=selectableCategories(tagRoles.tags()),box=element('div',undefined,'category-choice');let count=0;
+  for(const [role,title] of [['main','メイン'],['sub','サブ']]) {
+    if(!groups[role].length)continue;
+    const row=element('div',undefined,'category-row');row.append(element('span',title,'category-role'));
+    for(const tag of groups[role]) {
+      const label=element('label',undefined,'category-option'),input=element('input');input.type='checkbox';input.value=String(tag.id);input.checked=selected.has(tag.id);
+      label.append(input,element('span',tag.name));row.append(label);count++;
+    }
+    box.append(row);
+  }
+  return count?box:null;
+}
+const checkedCategories=holder=>[...holder.querySelectorAll('input:checked')].map(input=>Number(input.value));
+// 報告フォームを開くたびに、選べるカテゴリを描き直す。選んでいたものは残す。選べるタグがなければ、欄ごと隠す。
+function renderFormCategories() {
+  const holder=$('#category-choices'),boxes=categoryBoxes(new Set(checkedCategories(holder)));
+  holder.replaceChildren(...(boxes?[boxes]:[]));
+  $('#report-categories').hidden=!boxes;
+}
+// 詳細のカテゴリの欄に出している、登録の状態。状態が変わったときだけ描き直し、選んでいる途中の欄を消さない。
+let categoryShown=null;
+// 登録前の報告のカテゴリ。登録待ちと登録失敗は選び直せる。作成中と結果未確認は、選んだカテゴリだけを示す。登録後はGitHubのタグが元なので、欄を出さない。
+function fillCategories(holder,report) {
+  categoryShown=report.github.state;holder.replaceChildren();
+  if(report.github.state==='registered')return;
+  if(!categoriesEditable(report)) {
+    const area=areaText(report,roleMap(tagRoles.tags()));
+    if(area)holder.append(element('p','選んだカテゴリ：'+area,'meta'));
+    return;
+  }
+  const boxes=categoryBoxes(new Set(report.categories));
+  if(!boxes)return;
+  const section=element('section',undefined,'category-panel'),error=element('p','','error-text'),save=element('button','カテゴリを保存','quiet');save.type='button';
+  save.onclick=async()=>{
+    save.disabled=true;error.textContent='';
+    try {
+      await api('reports/'+report.id+'/categories',json({categories:checkedCategories(boxes),revision:report.revision}));
+      await refresh();notice('カテゴリを保存しました。');
+    } catch(failure) {error.textContent=failure.message;save.disabled=false;}
+  };
+  section.append(element('h3','カテゴリ'),boxes,error,save);holder.append(section);
+}
 function renderGitHub(report) {
   const box=element('section',undefined,'github-panel'),github=report.github,tags=github.tags;
   box.append(element('h3','GitHub登録'),element('span',registrationName(report),'status status-'+github.state));
@@ -252,6 +298,7 @@ function renderGitHub(report) {
   box.append(element('h4','タグ'),tagNodes(tags));
   if(tags.fetchedAt)box.append(element('p','取得：'+time(tags.fetchedAt)+(tags.state==='error'?'（前回成功時）':''),'meta'));
   if(tags.error)box.append(element('p',tags.error,'error-text'));
+  if(tags.missing?.length)box.append(element('p','選んだカテゴリが付いていません：'+tags.missing.map(tag=>tag.name??'不明なタグ').join('、'),'error-text'));
   if(actor.role!=='admin')return box;
   box.append(element('p',registrationTarget(github,actor.github.repository),'meta'));
   if(!actor.github.enabled) {box.append(element('p','GitHub接続を有効にすると登録管理を利用できます。','muted'));return box;}
@@ -307,6 +354,8 @@ function scheduleStatusRefresh() {
       await reload(result);
       const report=reports.find(item=>item.id===selected),box=$('#github-status');
       if(report&&box)box.replaceChildren(renderGitHub(report));
+      const categoryBox=$('#category-status');
+      if(report&&categoryBox&&categoryShown!==report.github.state)fillCategories(categoryBox,report);
     } catch(error) {notice(error.message,true);}
     scheduleStatusRefresh();
   },5000);
@@ -335,7 +384,7 @@ $('#refresh').onclick=async()=>{
 $('#new-report').onclick=async()=>{
   try {
     pending=(await api('uploads')).attachments;
-    renderDraftFiles();
+    renderDraftFiles();renderFormCategories();
     draftId ||= crypto.randomUUID(); $('#report-dialog').showModal();
   } catch(error) { notice(error.message,true); }
 };
@@ -358,7 +407,7 @@ $('#report-form').onsubmit=async event=>{
     }
     const uploadIds=[...new Set([...confirmed.map(file=>file.id),...completed])];
     $('#upload-progress').textContent='報告を保存しています…';
-    const {report}=await api('reports',json({body:form.elements.body.value,reportedVersion:form.elements.reportedVersion.value,requestId:draftId,uploadIds}));
+    const {report}=await api('reports',json({body:form.elements.body.value,reportedVersion:form.elements.reportedVersion.value,requestId:draftId,uploadIds,categories:checkedCategories($('#category-choices'))}));
     form.reset(); uploaded.clear(); pending=[]; draftId=null; $('#report-dialog').close();
     $('#search').value='';
     await refresh(); await openReport(report.id); notice('報告を受け付けました。受付ID: '+report.id);
