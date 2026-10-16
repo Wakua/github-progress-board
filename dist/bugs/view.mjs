@@ -85,3 +85,12 @@ export function contrastColor(color) {
   const channels=[0,2,4].map(index=>parseInt(color.slice(index,index+2),16)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
   return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722>.179?'#202941':'#ffffff';
 }
+// 詳細の経過を、1本の流れの出来事に直す。出来事は1行（見出し・補足・日時と担当）で示し、開発側の連絡と確認の内容がある出来事だけ、枠に入れる文（note）を添える。
+export function threadEvents(history,formatTime) {
+  return history.map(event=>{
+    const status=event.kind==='status';
+    const lead=status?statusNames[event.toStatus]:'確認結果：'+(event.result==='resolved'?'直った':'まだ起きる');
+    const extras=status?(event.toStatus==='checking'?['確認対象 '+event.targetVersion]:[]):[event.version,...(event.matchesTarget?[]:['確認対象 '+event.targetVersion+' と異なる'])];
+    return {kind:event.kind,lead,meta:[...extras,formatTime(event.at),event.actorName].join(' · '),note:event.note||''};
+  });
+}
