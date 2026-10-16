@@ -1,13 +1,16 @@
 import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction,threadEvents} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
 import {mountFilterPanel} from './filter-panel.mjs';
-import {categoriesEditable,selectableCategories,kindNames,kindOf} from './view.mjs';
+import {categoriesEditable,selectableCategories,kindNames,kindOf,boardColumns} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
 const time = value => new Date(value).toLocaleString('ja-JP');
 let rolesError='', actor, reports=[], selected, draftId, uploaded=new Map(), pending=[], statusTimer, searchIds=null, searchSeq=0, searchTimer, searchFailed=false;
 let deepLink=new URL(location.href).searchParams.get('report');
+// 一覧とかんばんの表示は、このブラウザに覚える。覚えられないときと、内容が読めないときは、一覧にする。
+const viewKey='bug-report-view';
+let viewMode=(()=>{try{return localStorage.getItem(viewKey)==='board'?'board':'list';}catch{return 'list';}})(),completeOpen=false,boardScroll=0;
 async function api(route,options={}) {
   const response=await fetch('/api/bugs/'+route,{...options,credentials:'same-origin'});
   const value=await response.json();
@@ -77,6 +80,7 @@ function renderList() {
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
   if(!reports.length) { box.append(element('p',actor.role==='admin'?'受付した報告はありません。':'報告はまだありません。','empty')); return; }
+  if(viewMode==='board'){box.append(renderBoard(visible,roles));return;}
   for(const report of visible) {
     const row=element('button',undefined,'report-row'+(report.id===selected?' active':'')),states=element('span',undefined,'row-states'),mark=registrationMark(report,actor.github.enabled);
     row.title=report.title;
@@ -93,11 +97,44 @@ function renderList() {
     row.addEventListener('click',()=>openReport(report.id).catch(error=>notice(error.message,true))); box.append(row);
   }
 }
+// かんばん。列は対応状況の流れの順。確認完了の列は、畳んで件数だけを出し、押すと開く。札は一覧の行と同じ内容（番号、題名、領域）だけにし、動かさない。
+function renderBoard(visible,roles) {
+  const board=element('div',undefined,'board');
+  for(const column of boardColumns(visible)) {
+    const foldable=column.status==='complete',collapsed=foldable&&!completeOpen,section=element('section',undefined,'board-column'+(collapsed?' collapsed':'')),title=element(foldable?'button':'h3',undefined,'board-title'+(foldable?' fold':''));
+    title.append(element('span',column.name),element('span',String(column.reports.length),'board-count'));
+    if(foldable){title.type='button';title.ariaExpanded=String(!collapsed);title.onclick=()=>{completeOpen=!completeOpen;renderList();$('#reports').querySelector('.fold').focus();};}
+    section.append(title);
+    if(!collapsed)for(const report of column.reports)section.append(boardCard(report,roles));
+    board.append(section);
+  }
+  return board;
+}
+function boardCard(report,roles) {
+  const card=element('button',undefined,'board-card'+(report.id===selected?' active':'')),head=element('span',undefined,'report-head'),area=areaText(report,roles);
+  card.title=report.title;
+  if(report.github.number)head.append(element('span','#'+report.github.number,'report-number'));
+  head.append(element('span',report.title,'report-title'));
+  card.append(head);
+  if(area)card.append(element('span',area,'report-area'));
+  // 詳細を開くと、かんばんが隠れて画面の高さが変わるため、開く前の位置を覚え、戻るときに戻す。
+  card.addEventListener('click',()=>{boardScroll=globalThis.scrollY??0;openReport(report.id).catch(error=>notice(error.message,true));});
+  return card;
+}
+// 表示を切り替える。かんばんでは、詳細を一覧の右に並べず、報告を選ぶと、かんばんの代わりに開く。
+function setView(mode,render=true) {
+  viewMode=mode;
+  try{localStorage.setItem(viewKey,mode);}catch{}
+  $('.layout').classList.toggle('board-mode',mode==='board');
+  $('#view-list').ariaPressed=String(mode==='list');$('#view-board').ariaPressed=String(mode==='board');
+  if(mode==='board')$('#detail').classList.remove('mobile-open');
+  if(render)renderList();
+}
 async function openReport(id,move=true) {
   const current=actor,{report}=await api('reports/'+id); if(actor!==current)return; selected=id; renderList();
   const url=new URL(location.href);url.searchParams.set('report',id);history.replaceState(null,'',url);
   const detail=$('#detail'); detail.replaceChildren(); if(move) detail.classList.add('mobile-open');
-  const back=element('button','← 報告一覧へ','quiet back'); back.onclick=()=>detail.classList.remove('mobile-open');
+  const back=element('button','← 報告一覧へ','quiet back'); back.onclick=()=>{detail.classList.remove('mobile-open');if(viewMode==='board')globalThis.scrollTo?.(0,boardScroll);};
   detail.append(back,element('span',statusNames[report.status],'status workflow-'+report.status),element('h2',report.title),
     element('p',(report.reporterName===actor.name?'':report.reporterName+' · ')+time(report.createdAt),'meta'),
     ...(report.reportedVersion?[element('p','発生したバージョン：'+report.reportedVersion,'meta')]:[]),
@@ -135,7 +172,7 @@ async function openReport(id,move=true) {
       }
     };
   }
-  if(move && matchMedia('(max-width:760px)').matches) detail.scrollIntoView({block:'start'});
+  if(move && (viewMode==='board' || matchMedia('(max-width:760px)').matches)) detail.scrollIntoView({block:'start'});
 }
 function renderWorkflow(report) {
   const box=element('section',undefined,'workflow-panel'),line=element('div',undefined,'workflow-line');
@@ -371,6 +408,8 @@ function scheduleStatusRefresh() {
 
 // 条件の値を選ぶと、その場で一覧を絞り込む。メインと種別は、サブの選択肢と件数にも関わるため、選択肢も描き直す。
 const filterPanel=mountFilterPanel({root:$('#filter-groups'),onChange:id=>{if(id==='main'||id==='kind')renderFilters();renderList();}});
+$('#view-list').onclick=()=>setView('list');$('#view-board').onclick=()=>setView('board');
+setView(viewMode,false);
 // 日本語の変換中は検索せず、確定してから検索する。
 const queueSearch=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
 $('#search').oninput=event=>{if(!event.isComposing)queueSearch();};
