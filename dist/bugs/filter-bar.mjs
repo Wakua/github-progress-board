@@ -4,6 +4,7 @@ export const filterTypes = [
   { id: 'sub', name: 'サブ' },
   { id: 'status', name: '対応状況' },
   { id: 'kind', name: '種別' },
+  { id: 'decision', name: '判定' },
   { id: 'registration', name: 'GitHub登録' }
 ];
 export const defaultShown = ['main', 'sub', 'status'];

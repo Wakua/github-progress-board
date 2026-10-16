@@ -40,6 +40,9 @@ export function areaText(report,roles) {
 // 報告の種別。ツールの中だけで持ち、更新前の報告（kindを持たない）は不具合として扱う。
 export const kindNames={bug:'不具合',request:'要望',question:'確認'};
 export const kindOf=report=>report.kind??'bug';
+// 要望の判定。要望だけが持つ。値を持たない要望は、未判定として扱う。要望以外は、null。
+export const decisionNames={undecided:'未判定',accept:'対応する',defer:'保留'};
+export const decisionOf=report=>kindOf(report)==='request'?(report.decision?.value??'undecided'):null;
 // 未対応は、受付済みと対応中。
 export const isUnaddressed=report=>report.status==='received'||report.status==='working';
 function inMain(report,main,roles) {
@@ -72,9 +75,10 @@ export function subChoices(reports,tags,main,kind='all') {
 }
 // found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。roles: roleMapの結果。
 // status: 'all'、対応状況の値、または 'incomplete'（確認完了を除く）。
-export function matchesFilters(report,{main='all',sub='all',state='all',status='all',kind='all',found=null,roles=new Map()}={}) {
+export function matchesFilters(report,{main='all',sub='all',state='all',status='all',kind='all',decision='all',found=null,roles=new Map()}={}) {
   if(found&&!found.has(report.id))return false;
   if(kind!=='all'&&kindOf(report)!==kind)return false;
+  if(decision!=='all'&&decisionOf(report)!==decision)return false;
   if(status==='incomplete'){if(report.status==='complete')return false;}
   else if(status!=='all'&&report.status!==status)return false;
   if(state!=='all'&&report.github.state!==state)return false;

@@ -45,6 +45,7 @@ const registered = [
   // 種別（#73）。4つ目が種別で、省くと不具合。種別を持たない版は、同じ報告を種別なしで作る。
   ['予約一覧に、日付での並び替えがほしい', 'received', ['予約', '一覧'], 'request'],
   ['通知メールに、予約の変更前の日時も載せてほしい', 'working', ['通知'], 'request'],
+  ['領収書に、会社名を入れられるようにしてほしい', 'received', ['決済'], 'request'],
   ['キャンセル後の返金は、仕様では何日かかるのか', 'received', ['決済'], 'question'],
   ['満席の日に、予約ボタンが押せないのは仕様なのか', 'received', ['予約', '画面'], 'question'],
 ];
@@ -120,5 +121,8 @@ if (existing.length >= expected) {
   const { report: dropped } = await call('POST', '/reports', { body: bodyOf(droppedTitle), reportedVersion: 'S-1', requestId: 'seed-' + randomUUID(), uploadIds: [], categories: [tags.通知.id] });
   for (let i = 0; i < 50; i++) { const d = (await call('GET', '/reports/' + dropped.id)).report; if (d.github.state === 'registered' && d.github.tags.state === 'ok') break; await new Promise(r => setTimeout(r, 200)); }
   github.dropLabels = false;
+  // 要望の判定（#82）。判定に対応していない版（変更前のmain）では、断られるだけで、何も残らない。
+  const decisions = new Map([['予約一覧に、日付での並び替えがほしい', ['accept', '次の版で入れる。']], ['通知メールに、予約の変更前の日時も載せてほしい', ['defer', '送信の作り直しのあとで見直す。']]]);
+  for (const item of (await call('GET', '/reports')).reports) { const d = decisions.get(item.title); if (d) await call('POST', '/reports/' + item.id + '/decision', { decision: d[0], note: d[1], revision: item.revision }); }
   console.log('seeded', (await call('GET', '/reports')).reports.length);
 }

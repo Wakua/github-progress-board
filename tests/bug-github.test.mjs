@@ -385,22 +385,22 @@ test('report excerpts keep the full text locally and a stable first-line marker 
 test('schema v1 migration preserves reports, attachments, and the pending queue',t=>{
   const fx=fixture(t,{enabled:false});const report=fx.report();
   const attached=fx.store.reserveAttachment(fx.actors.a,report.id,{name:'save',size:3,type:''});writeFileSync(fx.store.filePath(attached.id),'abc');fx.store.finishAttachment(attached.id,'hash');
-  fx.store.db.exec("ALTER TABLE reports DROP COLUMN kind; DROP TABLE report_categories; DROP TABLE tag_roles; DROP TABLE report_events; ALTER TABLE reports DROP COLUMN status; ALTER TABLE reports DROP COLUMN target_version; ALTER TABLE reports DROP COLUMN developer_note; DROP TABLE registration_queue; CREATE TABLE registration_queue(report_id TEXT PRIMARY KEY REFERENCES reports(id),state TEXT NOT NULL DEFAULT 'pending') STRICT; DROP TABLE github_runtime; PRAGMA user_version=1;");
+  fx.store.db.exec("ALTER TABLE reports DROP COLUMN decision; ALTER TABLE reports DROP COLUMN decision_note; ALTER TABLE reports DROP COLUMN decided_at; ALTER TABLE reports DROP COLUMN kind; DROP TABLE report_categories; DROP TABLE tag_roles; DROP TABLE report_events; ALTER TABLE reports DROP COLUMN status; ALTER TABLE reports DROP COLUMN target_version; ALTER TABLE reports DROP COLUMN developer_note; DROP TABLE registration_queue; CREATE TABLE registration_queue(report_id TEXT PRIMARY KEY REFERENCES reports(id),state TEXT NOT NULL DEFAULT 'pending') STRICT; DROP TABLE github_runtime; PRAGMA user_version=1;");
   fx.store.db.prepare('INSERT INTO registration_queue(report_id) VALUES(?)').run(report.id);
   // Reopen another connection only for migration; the fixture closes the original handle afterwards.
   const reopened=new BugStore(fx.dir);
-  try{assert.equal(reopened.getReport(fx.actors.a,report.id).body,'バグ報告');assert.equal(reopened.registration(report.id).state,'pending');assert.equal(readFileSync(reopened.filePath(attached.id),'utf8'),'abc');assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,7);}finally{reopened.close();}
+  try{assert.equal(reopened.getReport(fx.actors.a,report.id).body,'バグ報告');assert.equal(reopened.registration(report.id).state,'pending');assert.equal(readFileSync(reopened.filePath(attached.id),'utf8'),'abc');assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,8);}finally{reopened.close();}
 });
 test('schema v3 migration treats an unconfirmed report as attempted at the update',t=>{
   const fx=fixture(t,{enabled:false});const unknown=fx.report(),failed=fx.report();
   fx.store.db.prepare("UPDATE registration_queue SET state='unknown' WHERE report_id=?").run(unknown.id);
   fx.store.db.prepare("UPDATE registration_queue SET state='failed' WHERE report_id=?").run(failed.id);
-  fx.store.db.exec('ALTER TABLE reports DROP COLUMN kind; DROP TABLE report_categories; DROP TABLE tag_roles; ALTER TABLE registration_queue DROP COLUMN category_miss; ALTER TABLE registration_queue DROP COLUMN attempted_at; PRAGMA user_version=3;');
+  fx.store.db.exec('ALTER TABLE reports DROP COLUMN decision; ALTER TABLE reports DROP COLUMN decision_note; ALTER TABLE reports DROP COLUMN decided_at; ALTER TABLE reports DROP COLUMN kind; DROP TABLE report_categories; DROP TABLE tag_roles; ALTER TABLE registration_queue DROP COLUMN category_miss; ALTER TABLE registration_queue DROP COLUMN attempted_at; PRAGMA user_version=3;');
   const before=Date.now();const reopened=new BugStore(fx.dir);
   try{
     assert.ok(reopened.registration(unknown.id).holdUntil>=before+60000);
     assert.equal(reopened.registration(failed.id).holdUntil,null);
-    assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,7);
+    assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,8);
   }finally{reopened.close();}
 });
 test('HTTP GitHub operations use the common local user and report reads use saved metadata',async t=>{

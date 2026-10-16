@@ -28,7 +28,7 @@ test('既定では、メイン・サブ・対応状況だけを出し、「＋ �
   const fx=fixture();
   assert.deepEqual(defaultShown,['main','sub','status']);
   assert.deepEqual(fx.visible(),['main','sub','status']);
-  assert.deepEqual(fx.options(),['','kind','registration']);
+  assert.deepEqual(fx.options(),['','kind','decision','registration']);
   assert.equal(fx.add.hidden,false);
   assert.equal(fx.picker.children[0].textContent,'＋ 条件');
 });
@@ -38,12 +38,12 @@ test('「＋ 条件」で選んだ条件を、出し、その入力欄へフォ�
   assert.deepEqual(fx.visible(),['main','sub','status','kind']);
   assert.equal(fx.byId('kind').select.focused,true);
   assert.deepEqual(JSON.parse(fx.saved.at(-1)),['main','sub','status','kind']);
-  assert.deepEqual(fx.options(),['','registration']);
+  assert.deepEqual(fx.options(),['','decision','registration']);
   assert.equal(fx.picker.value,'');
 });
 test('すべての条件を出したときは、「＋ 条件」を隠す',()=>{
   const fx=fixture();
-  for(const id of ['kind','registration']){fx.picker.value=id;fx.picker.onchange();}
+  for(const id of ['kind','decision','registration']){fx.picker.value=id;fx.picker.onchange();}
   assert.equal(fx.add.hidden,true);
   assert.deepEqual(fx.visible(),filterTypes.map(type=>type.id));
 });
@@ -62,7 +62,7 @@ test('条件を外すと、その条件を「すべて」に戻し、隠し、�
 test('覚えた条件を、次に開いたとき、そのまま出す',()=>{
   const fx=fixture(JSON.stringify(['main','kind']));
   assert.deepEqual(fx.visible(),['main','kind']);
-  assert.deepEqual(fx.options(),['','sub','status','registration']);
+  assert.deepEqual(fx.options(),['','sub','status','decision','registration']);
 });
 test('覚えた内容が読めないとき、知らない条件を含むときは、既定にする',()=>{
   for(const stored of [null,'','{','"main"','["main","nope"]','{"a":1}'])assert.deepEqual(parseShown(stored),defaultShown,String(stored));

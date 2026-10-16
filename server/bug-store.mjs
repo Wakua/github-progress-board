@@ -11,6 +11,9 @@ export const tagRoleNames = ['none', 'main', 'sub'];
 export const maxCategories = 50;
 // 報告の種別。不具合（bug）、要望（request）、確認（question：仕様や動作の質問）。ツールの中だけで持ち、GitHubには書かない。
 export const reportKinds = ['bug', 'request', 'question'];
+// 要望の判定。未判定（既定）、対応する、保留。理由は短い文で残す。ツールの中だけで持ち、GitHubには書かない。
+export const requestDecisions = ['undecided', 'accept', 'defer'];
+export const maxDecisionNote = 500;
 export class BugError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -42,7 +45,7 @@ export class BugStore {
     try {
       this.db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;');
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (![0,1,2,3,4,5,6,7].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
+      if (![0,1,2,3,4,5,6,7,8].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
       if (version === 0) {
         if (!initialize || this.db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table'").get().n) throw new Error('報告データの形式を確認できません。');
         validatePolicy(policy);
@@ -127,6 +130,15 @@ export class BugStore {
           PRAGMA user_version=7;
         `);
       });
+      if(this.db.prepare('PRAGMA user_version').get().user_version===7) this.transaction(()=>{
+        // 既存の報告は、すべて未判定として扱う。
+        this.db.exec(`
+          ALTER TABLE reports ADD COLUMN decision TEXT NOT NULL DEFAULT 'undecided' CHECK(decision IN ('undecided','accept','defer'));
+          ALTER TABLE reports ADD COLUMN decision_note TEXT NOT NULL DEFAULT '';
+          ALTER TABLE reports ADD COLUMN decided_at TEXT;
+          PRAGMA user_version=8;
+        `);
+      });
     } catch (error) { this.db.close(); throw error; }
   }
   close() { this.db.close(); }
@@ -205,7 +217,7 @@ export class BugStore {
     const person = this.db.prepare('SELECT name FROM users WHERE id=?').get(row.reporter_id);
     const github=this.registration(row.id);
     return { id: row.id, title: row.body.trim().split(/\r?\n/)[0].slice(0,72), status: row.status, targetVersion: row.target_version, developerNote: row.developer_note, ticketState: github.state, github,
-      categories, kind: row.kind,
+      categories, kind: row.kind, decision: { value: row.decision, note: row.decision_note, at: row.decided_at },
       reportedVersion: row.version, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision,
       reporterName: person.name, isOwn: row.reporter_id===actor.id, attachmentCount: totals.count, attachmentBytes: totals.bytes };
   }
@@ -305,6 +317,23 @@ export class BugStore {
       if (row.kind === input.kind) return this.getReport(actor,id);
       if (row.revision !== input.revision) throw new BugError(409,'報告が更新されています。「更新」で最新の状況を確認してください。');
       this.db.prepare('UPDATE reports SET kind=?,updated_at=?,revision=revision+1 WHERE id=?').run(input.kind,now(),id);
+      return this.getReport(actor,id);
+    });
+  }
+  // 要望の判定を残す。要望だけに置き、ツールの中だけで持つ。未判定へ戻すと、理由と日付を消す。変えていないときは、更新番号も日付も変えない。
+  setDecision(actor,id,input) {
+    const note = input?.note === undefined ? '' : input.note;
+    if (!requestDecisions.includes(input?.decision) || typeof note !== 'string' || !Number.isSafeInteger(input.revision) || input.revision < 1) throw new BugError(400,'判定と更新番号を指定してください。');
+    if (note.length > maxDecisionNote) throw new BugError(400,'理由は'+maxDecisionNote+'文字以内にしてください。');
+    return this.transaction(() => {
+      this.assertActive(actor);
+      const row = this.reportRow(actor,id);
+      if (row.kind !== 'request') throw new BugError(400,'判定は、要望だけに残せます。');
+      const text = input.decision === 'undecided' ? '' : note.trim();
+      if (row.decision === input.decision && row.decision_note === text) return this.getReport(actor,id);
+      if (row.revision !== input.revision) throw new BugError(409,'報告が更新されています。「更新」で最新の状況を確認してください。');
+      this.db.prepare('UPDATE reports SET decision=?,decision_note=?,decided_at=?,updated_at=?,revision=revision+1 WHERE id=?')
+        .run(input.decision,text,input.decision === 'undecided' ? null : now(),now(),id);
       return this.getReport(actor,id);
     });
   }
