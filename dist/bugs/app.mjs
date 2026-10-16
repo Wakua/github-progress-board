@@ -1,6 +1,6 @@
 import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
-import {categoriesEditable,selectableCategories} from './view.mjs';
+import {categoriesEditable,selectableCategories,kindNames,kindOf} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
@@ -71,7 +71,7 @@ async function refresh() {
 function renderList() {
   const box=$('#reports'); box.replaceChildren();
   const roles=roleMap(tagRoles.tags());
-  const filters={main:$('#main-filter').value,sub:$('#sub-filter').value,state:$('#registration-filter').value,status:$('#status-filter').value,found:searchIds,roles};
+  const filters={main:$('#main-filter').value,sub:$('#sub-filter').value,state:$('#registration-filter').value,status:$('#status-filter').value,kind:kindFilter(),found:searchIds,roles};
   const visible=reports.filter(report=>matchesFilters(report,filters));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
@@ -80,6 +80,7 @@ function renderList() {
     const row=element('button',undefined,'report-row'+(report.id===selected?' active':'')),states=element('span',undefined,'row-states'),mark=registrationMark(report,actor.github.enabled);
     row.title=report.title;
     states.append(element('span',statusNames[report.status],'status workflow-'+report.status));
+    if(kindOf(report)!=='bug')states.append(element('span',kindNames[kindOf(report)],'kind-mark'));
     if(mark)states.append(element('span',mark,'status status-'+report.github.state));
     const text=element('span',undefined,'report-text'),area=areaText(report,roles);
     const head=element('span',undefined,'report-head');
@@ -100,6 +101,7 @@ async function openReport(id,move=true) {
     element('p',(report.reporterName===actor.name?'':report.reporterName+' · ')+time(report.createdAt),'meta'),
     ...(report.reportedVersion?[element('p','発生したバージョン：'+report.reportedVersion,'meta')]:[]),
     element('div',report.body,'report-body'),element('h3','再現データ · '+report.attachmentCount+'件 / '+bytes(report.attachmentBytes)));
+  detail.insertBefore(renderKind(report),detail.querySelector('.report-body'));
   detail.insertBefore(renderWorkflow(report),detail.querySelector('.report-body'));
   const githubBox=element('div');githubBox.id='github-status';githubBox.append(renderGitHub(report));detail.insertBefore(githubBox,detail.querySelector('.report-body'));
   const categoryBox=element('div');categoryBox.id='category-status';fillCategories(categoryBox,report);detail.insertBefore(categoryBox,detail.querySelector('.report-body'));
@@ -236,8 +238,8 @@ function fillSelect(select,choices) {
 }
 function renderFilters() {
   const tags=tagRoles.tags();
-  fillSelect($('#main-filter'),mainChoices(reports,tags));
-  fillSelect($('#sub-filter'),subChoices(reports,tags,$('#main-filter').value));
+  fillSelect($('#main-filter'),mainChoices(reports,tags,kindFilter()));
+  fillSelect($('#sub-filter'),subChoices(reports,tags,$('#main-filter').value,kindFilter()));
 }
 // 報告にカテゴリを選ぶ欄。メインとサブを、役割ごとに並べる。選べるタグがなければ、nullを返す。
 function categoryBoxes(selected) {
@@ -282,6 +284,23 @@ function fillCategories(holder,report) {
     } catch(failure) {error.textContent=failure.message;save.disabled=false;}
   };
   section.append(element('h3','カテゴリ'),boxes,error,save);holder.append(section);
+}
+// 種別の絞り込み。値がないときは、絞り込まない。
+const kindFilter=()=>$('#kind-filter').value||'all';
+// 詳細の種別。ツールの中だけで持つため、登録後も、いつでも変えられる。
+function renderKind(report) {
+  const label=element('label',undefined,'kind-edit'),select=element('select');
+  for(const [value,text] of Object.entries(kindNames)){const option=element('option',text);option.value=value;select.append(option);}
+  select.value=kindOf(report);
+  select.onchange=async()=>{
+    select.disabled=true;
+    try {
+      await api('reports/'+report.id+'/kind',json({kind:select.value,revision:report.revision}));
+      await refresh();
+    } catch(failure) {notice(failure.message,true);select.value=kindOf(report);select.disabled=false;}
+  };
+  label.append(element('span','種別'),select);
+  return label;
 }
 function renderGitHub(report) {
   const box=element('section',undefined,'github-panel'),github=report.github,tags=github.tags;
@@ -359,6 +378,8 @@ function scheduleStatusRefresh() {
 
 $('#main-filter').onchange=()=>{renderFilters();renderList();};
 $('#sub-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
+// 種別を選ぶと、メインとサブの選択肢の件数も、その種別で数え直す。
+$('#kind-filter').onchange=()=>{renderFilters();renderList();};
 // 日本語の変換中は検索せず、確定してから検索する。
 const queueSearch=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
 $('#search').oninput=event=>{if(!event.isComposing)queueSearch();};
@@ -403,7 +424,7 @@ $('#report-form').onsubmit=async event=>{
     }
     const uploadIds=[...new Set([...confirmed.map(file=>file.id),...completed])];
     $('#upload-progress').textContent='報告を保存しています…';
-    const {report}=await api('reports',json({body:form.elements.body.value,reportedVersion:form.elements.reportedVersion.value,requestId:draftId,uploadIds,categories:checkedCategories($('#category-choices'))}));
+    const {report}=await api('reports',json({body:form.elements.body.value,reportedVersion:form.elements.reportedVersion.value,requestId:draftId,uploadIds,categories:checkedCategories($('#category-choices')),kind:form.elements.kind.value}));
     form.reset(); uploaded.clear(); pending=[]; draftId=null; $('#report-dialog').close();
     $('#search').value='';
     await refresh(); await openReport(report.id); notice('報告を受け付けました。受付ID: '+report.id);

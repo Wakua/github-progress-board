@@ -14,6 +14,7 @@
 | POST | reports/:reportId/status | 対応状況を次の段階へ進める |
 | POST | reports/:reportId/confirmations | 修正版の確認結果を保存する |
 | POST | reports/:reportId/categories | 登録前のカテゴリを置き換える |
+| POST | reports/:reportId/kind | 報告の種別を変える |
 | GET | tag-roles | タグの一覧と、タグごとの役割 |
 | POST | tag-roles | タグの役割を保存する |
 | GET | uploads | 全確定済み・未登録データの情報 |
@@ -34,6 +35,7 @@
 | requestId | 再送しても変えない受付キー。英数字・ハイフン・アンダースコア、1〜80文字 |
 | uploadIds | 確定した未登録データの内部IDの配列。添付なしは空配列 |
 | categories | 登録前のカテゴリ。任意、未指定は空。形式は[登録前のカテゴリ](#登録前のカテゴリ)に従う |
+| kind | 報告の種別。任意、未指定は不具合。形式は[報告の種別](#報告の種別)に従う |
 
 JSONの要求は `Content-Type: application/json` を使い、最大2MiBまで受ける。成功時は201と `{report: ...}` を返す。同じ受付キーで異なる内容を送ると409になる。
 
@@ -52,6 +54,24 @@ JSONの要求は `Content-Type: application/json` を使い、最大2MiBまで�
 | --- | --- |
 | 400 | categoriesが配列でない、更新番号がない、選べないタグを含む、50件を超える、同じidを重ねている |
 | 409 | 登録待ちと登録失敗の報告ではない。または、更新番号が古い |
+| 404 | 報告が見つからない |
+
+## 報告の種別
+
+種別の意味と、変えられる条件は[運用仕様](bug-reporting.md#報告の種別)に従う。
+
+報告のJSONの `kind` は、`bug`（不具合）、`request`（要望）、`question`（確認）のどれかである。ほかの値、`null`、文字列でない値は400になる。
+受付キーの照合には、種別を含める。種別を指定しない要求と、`bug` を指定した要求は、同じ内容として扱う。
+報告の一覧と詳細は、`kind` を返す。更新前の報告は `bug` である。
+
+`POST reports/:reportId/kind` は、JSONで `{kind, revision}` を送り、種別を変える。`revision` は、報告自身の現在の更新番号である。
+成功時は200と `{report: ...}` を返し、報告の更新番号を一つ進める。送った種別が保存済みと同じなら、何も変えずに現在の報告を返す。
+登録の状態によらず変えられ、GitHubへ要求を送らない。
+
+| Status | 条件 |
+| --- | --- |
+| 400 | kindが規定の値でない、更新番号がない |
+| 409 | 更新番号が古い |
 | 404 | 報告が見つからない |
 
 ## 本文の検索
@@ -106,7 +126,7 @@ targetVersionとversionの長さは、報告のreportedVersionと同じ上限で
 異なる要求の更新番号が古い場合も409を返す。
 保存失敗時は[対応状況と履歴の保存条件](bug-reporting.md#修正後の確認)に従う。
 
-報告の一覧・詳細はstatus、targetVersion、developerNote、isOwn、categoriesを持つ。
+報告の一覧・詳細はstatus、targetVersion、developerNote、isOwn、categories、kindを持つ。
 isOwnは報告者IDと共通利用者のIDが同じ場合にtrueとなる。
 以前の報告はfalseでも追加と確認を行える。
 詳細のhistoryは更新順の配列で、id、kind（statusまたはconfirmation）、fromStatus、toStatus、targetVersion、version、result、matchesTarget、note、at、actorNameを持つ。

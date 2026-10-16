@@ -70,13 +70,13 @@ function withRoles(t,options) {
 }
 const rejects400=(action,message)=>assert.throws(action,error=>error instanceof BugError&&error.status===400,message);
 
-test('schema v5 data migrates to v6; existing reports have no categories',t=>{
+test('schema v5 data migrates to the current version; existing reports have no categories',t=>{
   const fx=fixture(t);const report=fx.create();
-  fx.store.db.exec('DROP TABLE report_categories; ALTER TABLE registration_queue DROP COLUMN category_miss; PRAGMA user_version=5;');
+  fx.store.db.exec('ALTER TABLE reports DROP COLUMN kind; DROP TABLE report_categories; ALTER TABLE registration_queue DROP COLUMN category_miss; PRAGMA user_version=5;');
   fx.release();
   const reopened=new BugStore(fx.dir);
   try {
-    assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,6);
+    assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,7);
     const actor=reopened.sharedActor(),migrated=reopened.getReport(actor,report.id);
     assert.equal(migrated.body,report.body);assert.deepEqual(migrated.categories,[]);assert.deepEqual(migrated.github.tags.missing,[]);
     assert.deepEqual(reopened.listReports(actor).map(item=>item.categories),[[]]);

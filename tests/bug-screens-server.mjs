@@ -1,5 +1,5 @@
 // バグ報告ツールの画面を撮るための、架空のデータと模擬のGitHubを持つサーバー。
-// 実際の報告、個人の声、実在のrepositoryは使わない。架空の予約管理アプリの報告14件と、タグ7つだけを使う。
+// 実際の報告、個人の声、実在のrepositoryは使わない。架空の予約管理アプリの報告18件と、タグ7つだけを使う。
 // 使い方: node tests/bug-screens-server.mjs <保存先> <ポート> [<コードのフォルダー>]
 //   保存先が空なら、報告とタグの役割を作る。既にあれば、そのまま使う。
 //   コードのフォルダーを渡すと、そのフォルダーのserver.mjsで起動する。変更前のmainと変更後のブランチで、同じデータを撮るために使う。
@@ -37,6 +37,11 @@ const registered = [
   ['会員登録の確認画面で電話番号が消える', 'complete', ['画面']],
   ['管理画面でCSVを出力すると文字化けする', 'received', ['bug']],
   ['「ヘルプ」リンクが404になる', 'received', []],
+  // 種別（#73）。4つ目が種別で、省くと不具合。種別を持たない版は、同じ報告を種別なしで作る。
+  ['予約一覧に、日付での並び替えがほしい', 'received', ['予約', '一覧'], 'request'],
+  ['通知メールに、予約の変更前の日時も載せてほしい', 'working', ['通知'], 'request'],
+  ['キャンセル後の返金は、仕様では何日かかるのか', 'received', ['決済'], 'question'],
+  ['満席の日に、予約ボタンが押せないのは仕様なのか', 'received', ['予約', '画面'], 'question'],
 ];
 const bodyOf = title => title + '\n架空の予約管理アプリでの再現手順を記入する。';
 // 登録前のカテゴリ（#68）の例。GitHub未登録の報告に、保留したカテゴリを付ける。
@@ -90,9 +95,9 @@ if (existing.length >= expected) {
   issues.push(...reloaded); // 作成済みのIssueを模擬のGitHubに戻す。
 } else {
   const order = ['received', 'working', 'fixed', 'checking', 'complete'];
-  for (const [title, status, labels] of registered) {
+  for (const [title, status, labels, kind] of registered) {
     github.nextLabels = labels;
-    const { report } = await call('POST', '/reports', { body: bodyOf(title), reportedVersion: 'S-1', requestId: 'seed-' + randomUUID(), uploadIds: [] });
+    const { report } = await call('POST', '/reports', { body: bodyOf(title), reportedVersion: 'S-1', requestId: 'seed-' + randomUUID(), uploadIds: [], ...(kind ? { kind } : {}) });
     // 登録とタグの取得を待ってから、対応状況を進める。
     for (let i = 0; i < 50; i++) { const d = (await call('GET', '/reports/' + report.id)).report; if (d.github.state === 'registered' && d.github.tags.state === 'ok') break; await new Promise(r => setTimeout(r, 200)); }
     let d = (await call('GET', '/reports/' + report.id)).report;

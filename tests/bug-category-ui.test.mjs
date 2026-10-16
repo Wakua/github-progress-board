@@ -49,7 +49,7 @@ function fixture({assigned=tags,reports=[],details=new Map(),saveFailure=null,fa
   for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter'])node(selector).value='all';
   const form=node('#report-form'),files=new Element('input'),body=new Element('textarea'),version=new Element('input');
   files.files=[];body.value='架空の再現報告';
-  form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version});
+  form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version,kind:{value:'bug'}});
   form.reset=()=>{files.files=[];body.value=version.value='';for(const input of node('#category-choices').querySelectorAll('input'))input.checked=false;};
   let currentTags=assigned;
   const respond=(route,options)=>{

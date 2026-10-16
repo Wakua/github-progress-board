@@ -37,6 +37,9 @@ export function areaText(report,roles) {
   const {main,sub}=categoriesOf(report,roles);
   return [main,sub].filter(group=>group.length).map(group=>group.map(label=>label.name).join('・')).join(' / ');
 }
+// 報告の種別。ツールの中だけで持ち、更新前の報告（kindを持たない）は不具合として扱う。
+export const kindNames={bug:'不具合',request:'要望',question:'確認'};
+export const kindOf=report=>report.kind??'bug';
 // 未対応は、受付済みと対応中。
 export const isUnaddressed=report=>report.status==='received'||report.status==='working';
 function inMain(report,main,roles) {
@@ -51,24 +54,27 @@ export function selectableCategories(tags) {
   return {main:pick('main'),sub:pick('sub')};
 }
 const countUnaddressed=reports=>reports.filter(isUnaddressed).length;
+// 種別の絞り込みを選んだときだけ、選択肢の件数も、その種別で数える。
+const inKind=(reports,kind)=>kind==='all'?reports:reports.filter(report=>kindOf(report)===kind);
 // メインの選択肢。割り当てたメインのタグと「未分類」に、未対応の件数を添える。報告のないメインも、件数0で出す。
-export function mainChoices(reports,tags) {
-  const roles=roleMap(tags);
+export function mainChoices(reports,tags,kind='all') {
+  const roles=roleMap(tags),scope=inKind(reports,kind);
   return [{value:'all',text:'すべて'},
-    ...tags.filter(tag=>tag.role==='main').sort(byName).map(tag=>({value:'label:'+tag.id,text:tag.name+'（'+countUnaddressed(reports.filter(report=>inMain(report,'label:'+tag.id,roles)))+'）'})),
-    {value:uncategorized,text:'未分類（'+countUnaddressed(reports.filter(report=>inMain(report,uncategorized,roles)))+'）'}];
+    ...tags.filter(tag=>tag.role==='main').sort(byName).map(tag=>({value:'label:'+tag.id,text:tag.name+'（'+countUnaddressed(scope.filter(report=>inMain(report,'label:'+tag.id,roles)))+'）'})),
+    {value:uncategorized,text:'未分類（'+countUnaddressed(scope.filter(report=>inMain(report,uncategorized,roles)))+'）'}];
 }
 // サブの選択肢。選んだメインの報告に付いているサブだけを出し、未対応の件数を添える。
-export function subChoices(reports,tags,main) {
-  const roles=roleMap(tags),scope=reports.filter(report=>inMain(report,main,roles));
+export function subChoices(reports,tags,main,kind='all') {
+  const roles=roleMap(tags),scope=inKind(reports,kind).filter(report=>inMain(report,main,roles));
   return [{value:'all',text:'すべて'},
     ...tags.filter(tag=>tag.role==='sub').sort(byName).map(tag=>({tag,reports:scope.filter(report=>categoriesOf(report,roles).sub.some(label=>label.id===tag.id))}))
       .filter(entry=>entry.reports.length).map(entry=>({value:'label:'+entry.tag.id,text:entry.tag.name+'（'+countUnaddressed(entry.reports)+'）'}))];
 }
 // found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。roles: roleMapの結果。
 // status: 'all'、対応状況の値、または 'incomplete'（確認完了を除く）。
-export function matchesFilters(report,{main='all',sub='all',state='all',status='all',found=null,roles=new Map()}={}) {
+export function matchesFilters(report,{main='all',sub='all',state='all',status='all',kind='all',found=null,roles=new Map()}={}) {
   if(found&&!found.has(report.id))return false;
+  if(kind!=='all'&&kindOf(report)!==kind)return false;
   if(status==='incomplete'){if(report.status==='complete')return false;}
   else if(status!=='all'&&report.status!==status)return false;
   if(state!=='all'&&report.github.state!==state)return false;

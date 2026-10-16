@@ -22,7 +22,7 @@ function formFixture({pending=[],failFile,failReportOnce=false,maxFiles=20}={}) 
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
   const form=node('#report-form'),files=new Element('input'),body=new Element('textarea'),version=new Element('input');
   files.files=[];body.value='架空の再現報告';version.value='QA';
-  form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version});
+  form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version,kind:{value:'bug'}});
   form.reset=()=>{files.files=[];body.value=version.value='';};
   const saved=pending.map(file=>({...file})),requests=[],uploads=[];
   let failedUpload=false,failedReport=false;
