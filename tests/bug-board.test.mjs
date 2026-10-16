@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 報告のかんばん（#77）。実際の画面のコードを、擬似DOMと偽のAPIで動かす。
@@ -55,14 +56,14 @@ function fixture(reports=sample()) {
     }
     return nodes.get(selector);
   };
-  for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter','#kind-filter'])node(selector).value='all';
   node('#report-form').elements={files:{files:[]}};
   const fetch=async url=>{
     const route=url.replace('/api/bugs/',''),found=reports.find(item=>route==='reports/'+item.id);
     return {ok:true,status:200,json:async()=>found?{report:found}:{reports}};
   };
   const localStorage={getItem:key=>stored.get(key)??null,setItem:(key,value)=>stored.set(key,value)};
-  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,localStorage,scrollY:480,scrollTo:(x,y)=>{scrolls.push(y);},
+  const panel=createFilterPanelStub();
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,localStorage,scrollY:480,scrollTo:(x,y)=>{scrolls.push(y);},
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),setTimeout:()=>1,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
@@ -71,7 +72,7 @@ function fixture(reports=sample()) {
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,name:"共通の利用者",policy:{maxFiles:20,maxBytes:1000},github:{enabled:true,repository:"qa/booking-reports"}};var refresh=async()=>{};',context);
   Object.assign(context,{__reports:reports});vm.runInContext('reports=__reports;',context);
   const board=()=>node('#reports').children[0];
-  return {node,context,stored,scrolls,board,
+  return {node,context,stored,scrolls,board,panel,
     setView:mode=>{context.__mode=mode;vm.runInContext('setView(__mode)',context);},
     render:()=>vm.runInContext('renderList()',context),
     columns:()=>board().children.map(section=>({title:section.children[0].children[0].textContent,count:section.children[0].children[1].textContent,cards:section.children.slice(1)})),
@@ -100,9 +101,9 @@ test('確認完了の列は、見出しを押すと開き、もう一度押す�
 });
 test('絞り込みと検索は、かんばんにも効く。件数は、絞り込んだ報告で数える',()=>{
   const fx=fixture();fx.setView('board');
-  fx.node('#status-filter').value='working';fx.render();
+  fx.panel.choose('#status-filter','working');fx.render();
   assert.deepEqual(fx.columns().map(column=>column.count),['0','1','0','0','0']);
-  fx.node('#status-filter').value='all';fx.node('#main-filter').value='label:11';fx.render();
+  fx.panel.choose('#status-filter','all');fx.panel.choose('#main-filter','label:11');fx.render();
   assert.deepEqual(fx.columns().map(column=>column.count),['1','1','0','0','0']);
   assert.equal(fx.node('#report-count').textContent,'2 / 6件');
 });

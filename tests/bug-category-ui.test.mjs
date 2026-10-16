@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 登録前のカテゴリ（#68）の画面。実際の画面のコードを、擬似DOMと偽のAPIで動かす。
@@ -46,7 +47,6 @@ function fixture({assigned=tags,reports=[],details=new Map(),saveFailure=null,fa
     }
     return nodes.get(selector);
   };
-  for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter'])node(selector).value='all';
   const form=node('#report-form'),files=new Element('input'),body=new Element('textarea'),version=new Element('input');
   files.files=[];body.value='架空の再現報告';
   form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version,kind:{value:'bug'}});
@@ -64,7 +64,8 @@ function fixture({assigned=tags,reports=[],details=new Map(),saveFailure=null,fa
     throw new Error('Unexpected request: '+route);
   };
   const fetch=async(url,options={})=>{const result=respond(url.replace('/api/bugs/',''),options);return{ok:result.status<400,status:result.status,json:async()=>result.value};};
-  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>currentTags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
+  const panel=createFilterPanelStub();
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>currentTags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');

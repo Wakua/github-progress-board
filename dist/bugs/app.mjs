@@ -1,6 +1,6 @@
 import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction,threadEvents} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
-import {mountFilterBar,storageKey as filterStorageKey} from './filter-bar.mjs';
+import {mountFilterPanel} from './filter-panel.mjs';
 import {categoriesEditable,selectableCategories,kindNames,kindOf,boardColumns,decisionNames,decisionOf} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
@@ -75,7 +75,7 @@ async function refresh() {
 function renderList() {
   const box=$('#reports'); box.replaceChildren();
   const roles=roleMap(tagRoles.tags());
-  const filters={main:$('#main-filter').value,sub:$('#sub-filter').value,state:$('#registration-filter').value,status:$('#status-filter').value,kind:kindFilter(),decision:decisionFilter(),found:searchIds,roles};
+  const filters={main:filterPanel.values('main'),sub:filterPanel.values('sub'),state:filterPanel.values('registration'),status:filterPanel.values('status'),kind:filterPanel.values('kind'),decision:filterPanel.values('decision'),found:searchIds,roles};
   const visible=reports.filter(report=>matchesFilters(report,filters));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
@@ -267,16 +267,13 @@ function tagNodes(tags) {
   else if(tags.state==='error')box.append(element('span',tags.fetchedAt?'タグ取得失敗 · 前回の取得結果':'タグ取得失敗','error-text'));
   return box;
 }
-// メインを描いてから、選んだメインの報告に付いているサブを描く。選んでいた項目がなくなったときは「すべて」に戻す。
-function fillSelect(select,choices) {
-  const previous=select.value;
-  select.replaceChildren(...choices.map(({value,text})=>{const option=element('option',text);option.value=value;return option;}));
-  select.value=choices.some(choice=>choice.value===previous)?previous:'all';
-}
+// 選択肢の「すべて」は、チェックボックスにはない（何も選ばないことが、すべて）。
+const checkChoices=choices=>choices.filter(choice=>choice.value!=='all');
+// メインを描いてから、選んだメインの報告に付いているサブを描く。選んでいたものがなくなったときは、その選びを外す。
 function renderFilters() {
-  const tags=tagRoles.tags();
-  fillSelect($('#main-filter'),mainChoices(reports,tags,kindFilter()));
-  fillSelect($('#sub-filter'),subChoices(reports,tags,$('#main-filter').value,kindFilter()));
+  const tags=tagRoles.tags(),kind=filterPanel.values('kind');
+  filterPanel.setChoices('main',checkChoices(mainChoices(reports,tags,kind)));
+  filterPanel.setChoices('sub',checkChoices(subChoices(reports,tags,filterPanel.values('main'),kind)));
 }
 // 報告にカテゴリを選ぶ欄。メインとサブを、役割ごとに並べる。選べるタグがなければ、nullを返す。
 function categoryBoxes(selected) {
@@ -322,9 +319,6 @@ function fillCategories(holder,report) {
   };
   section.append(element('h3','カテゴリ'),boxes,error,save);holder.append(section);
 }
-// 種別の絞り込み。値がないときは、絞り込まない。
-const kindFilter=()=>$('#kind-filter').value||'all';
-const decisionFilter=()=>$('#decision-filter').value||'all';
 // 詳細の種別。ツールの中だけで持つため、登録後も、いつでも変えられる。
 function renderKind(report) {
   const label=element('label',undefined,'kind-edit'),select=element('select');
@@ -432,14 +426,10 @@ function scheduleStatusRefresh() {
   },5000);
 }
 
-// 出す条件は、このブラウザに覚える。条件を外したときは、「すべて」に戻してから、描き直す。
-mountFilterBar({root:$('.filters'),storage:{get:()=>{try{return localStorage.getItem(filterStorageKey);}catch{return null;}},set:text=>{try{localStorage.setItem(filterStorageKey,text);}catch{}}},onRemove:()=>{renderFilters();renderList();}});
-$('#main-filter').onchange=()=>{renderFilters();renderList();};
+// 条件の値を選ぶと、その場で一覧を絞り込む。メインと種別は、サブの選択肢と件数にも関わるため、選択肢も描き直す。
+const filterPanel=mountFilterPanel({root:$('#filter-groups'),onChange:id=>{if(id==='main'||id==='kind')renderFilters();renderList();}});
 $('#view-list').onclick=()=>setView('list');$('#view-board').onclick=()=>setView('board');
 setView(viewMode,false);
-$('#sub-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=$('#decision-filter').onchange=()=>renderList();
-// 種別を選ぶと、メインとサブの選択肢の件数も、その種別で数え直す。
-$('#kind-filter').onchange=()=>{renderFilters();renderList();};
 // 日本語の変換中は検索せず、確定してから検索する。
 const queueSearch=()=>{clearTimeout(searchTimer);searchTimer=setTimeout(search,300);};
 $('#search').oninput=event=>{if(!event.isComposing)queueSearch();};

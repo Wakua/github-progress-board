@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
 import * as view from '../dist/bugs/view.mjs';
+import {createFilterPanelStub} from './filter-panel-stub.mjs';
 
 // 要望の判定（#82）の画面。実際の画面のコードを、擬似DOMと偽のAPIで動かす。
 const at='2030-01-01T09:00:00.000Z';
@@ -20,11 +21,13 @@ test('判定は、要望だけが持つ。値を持たない要望は、未判�
   assert.equal(view.decisionOf(report('c',{kind:'bug',decision:decided('accept')})),null);
   const reports=[report('a',{decision:decided('accept')}),report('b',{decision:decided('defer')}),report('c'),report('d',{kind:'bug'}),report('e',{kind:'question'})];
   const ids=decision=>reports.filter(item=>view.matchesFilters(item,{decision})).map(item=>item.id);
+  assert.deepEqual(ids([]),['a','b','c','d','e'],'何も選んでいないときは、絞り込まない');
   assert.deepEqual(ids('all'),['a','b','c','d','e']);
-  assert.deepEqual(ids('accept'),['a']);assert.deepEqual(ids('defer'),['b']);
-  assert.deepEqual(ids('undecided'),['c'],'要望でない報告は、未判定に数えない');
-  assert.equal(view.matchesFilters(reports[1],{decision:'defer',kind:'request',status:'received'}),true,'ほかの条件と重ねて使える');
-  assert.equal(view.matchesFilters(reports[1],{decision:'defer',status:'complete'}),false);
+  assert.deepEqual(ids(['accept']),['a']);assert.deepEqual(ids('defer'),['b']);
+  assert.deepEqual(ids(['accept','defer']),['a','b'],'複数の値は、どれかに当てはまる報告を出す');
+  assert.deepEqual(ids(['undecided']),['c'],'要望でない報告は、未判定に数えない');
+  assert.equal(view.matchesFilters(reports[1],{decision:['defer'],kind:['request'],status:['received']}),true,'ほかの条件と重ねて使える');
+  assert.equal(view.matchesFilters(reports[1],{decision:['defer'],status:['complete']}),false);
 });
 
 class Element {
@@ -52,7 +55,7 @@ function fixture(reports,{failure=null}={}) {
     }
     return nodes.get(selector);
   };
-  for(const selector of ['#main-filter','#sub-filter','#registration-filter','#status-filter','#kind-filter','#decision-filter'])node(selector).value='all';
+  const panel=createFilterPanelStub();
   node('#report-form').elements={files:{files:[]}};
   const fetch=async(url,options={})=>{
     const route=url.replace('/api/bugs/','');
@@ -61,7 +64,7 @@ function fixture(reports,{failure=null}={}) {
     const found=reports.find(item=>route==='reports/'+item.id);
     return {ok:true,status:200,json:async()=>found?{report:found}:{reports}};
   };
-  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),setTimeout:()=>1,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
@@ -69,7 +72,7 @@ function fixture(reports,{failure=null}={}) {
   vm.runInContext(app.slice(0,end),context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,name:"共通の利用者",policy:{maxFiles:20,maxBytes:1000},github:{enabled:true,repository:"qa/booking-reports"}};var refreshed=0;refresh=async()=>{refreshed++};var lastNotice="";notice=(message)=>{lastNotice=message};',context);
   Object.assign(context,{__reports:reports});vm.runInContext('reports=__reports;',context);
-  return {node,requests,context,
+  return {node,requests,context,choose:panel.choose,
     show:async id=>{await vm.runInContext('openReport',context)(id,false);},
     render:()=>vm.runInContext('renderList()',context),
     form:()=>node('#detail').querySelector('.decision-edit'),
@@ -120,11 +123,12 @@ test('一覧の行は、対応するか保留の要望にだけ、判定の印�
   fx.render();
   assert.deepEqual(fx.marks(),[['受付済み','要望','対応する'],['受付済み','要望','保留'],['受付済み','要望'],['受付済み']]);
 });
-test('判定の絞り込みを選ぶと、その判定の要望だけを出す。値がないときは、絞り込まない',()=>{
+test('判定の絞り込みを選ぶと、その判定の要望だけを出す。複数選べて、何も選んでいないときは、絞り込まない',()=>{
   const fx=fixture([report('a',{decision:decided('accept')}),report('b',{decision:decided('defer')}),report('c'),report('d',{kind:'bug'})]);
   const titles=()=>fx.node('#reports').children.map(row=>row.children[0].children[0].children.find(part=>classes(part).includes('report-title')).textContent);
-  fx.node('#decision-filter').value='defer';fx.render();assert.deepEqual(titles(),['報告 b']);
-  fx.node('#decision-filter').value='undecided';fx.render();assert.deepEqual(titles(),['報告 c']);
-  fx.node('#decision-filter').value='';fx.render();assert.deepEqual(titles(),['報告 a','報告 b','報告 c','報告 d']);
+  fx.choose('#decision-filter','defer');assert.deepEqual(titles(),['報告 b']);
+  fx.choose('#decision-filter',['accept','defer']);assert.deepEqual(titles(),['報告 a','報告 b']);
+  fx.choose('#decision-filter','undecided');assert.deepEqual(titles(),['報告 c']);
+  fx.choose('#decision-filter','');assert.deepEqual(titles(),['報告 a','報告 b','報告 c','報告 d']);
   assert.equal(fx.node('#report-count').textContent,'4 / 4件');
 });
