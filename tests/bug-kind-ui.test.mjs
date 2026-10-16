@@ -68,7 +68,7 @@ function fixture({reports=sample(),details=new Map(),kindFailure=null,search}={}
   };
   const fetch=async(url,options={})=>{const result=respond(url.replace('/api/bugs/',''),options);return{ok:result.status<400,status:result.status,json:async()=>result.value};};
   const timers=[];
-  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
+  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
