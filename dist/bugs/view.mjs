@@ -85,3 +85,7 @@ export function contrastColor(color) {
   const channels=[0,2,4].map(index=>parseInt(color.slice(index,index+2),16)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
   return channels[0]*.2126+channels[1]*.7152+channels[2]*.0722>.179?'#202941':'#ffffff';
 }
+// かんばんの列。対応状況の流れの順に並べ、報告がない列も残す。
+export function boardColumns(reports) {
+  return Object.entries(statusNames).map(([status,name])=>({status,name,reports:reports.filter(report=>report.status===status)}));
+}
