@@ -26,3 +26,18 @@ details[open]>summary>.github-scope-name:before{transform:rotate(90deg)}
 @media(max-width:440px){.github-module-body{padding:0 12px 12px}.github-progress{grid-template-columns:1fr 80px;gap:8px}.github-progress-track{grid-column:1/-1;grid-row:2}.github-progress-value>strong{font-size:25px}}
 
 .local-github-line{display:flex;flex-wrap:wrap;align-items:center;gap:4px 10px}.local-github-line .text-button{font-size:13px;min-height:24px}
+
+.github-module>summary.state-summary,.github-period>summary.state-summary,.github-module-body .github-period>summary.state-summary{grid-template-columns:minmax(0,1fr) auto;gap:10px 16px}
+:root{--state-done:#2ea043;--state-active:#5aa2f0;--state-blocked:#e0951a;--state-todo:#626a77}
+.state-progress{display:contents}
+.state-count{justify-self:end;color:var(--muted);font-size:14px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.state-bar{grid-column:1/-1;display:flex;height:12px;border-radius:4px;overflow:hidden;background:var(--line)}
+.state-bar>i{display:block;height:100%}
+.state-bar>.done,.state-legend-row.done:before{background:var(--state-done)}
+.state-bar>.active,.state-legend-row.active:before{background:var(--state-active)}
+.state-bar>.blocked,.state-legend-row.blocked:before{background:var(--state-blocked)}
+.state-bar>.todo,.state-legend-row.todo:before{background:var(--state-todo)}
+.state-legend{grid-column:1/-1;display:grid;gap:4px;color:var(--muted);font-size:13px;font-weight:400}
+.state-legend-row:before{content:'';display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
+.state-legend-row>b{color:var(--ink);font-weight:650}
+.state-numbers{overflow-wrap:anywhere}

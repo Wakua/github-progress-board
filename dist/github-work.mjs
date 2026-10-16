@@ -64,6 +64,21 @@ export function githubWorkCategory(plan, task, repositoryUrl, today = todayInTok
   return { group: 'ready', reasons: [] };
 }
 
+// 目標・モジュールの進み具合の帯：自分の作業の分類を、4つの状態にまとめる。見積の有無に関わらず、すべての作業を数える。
+// 前提が未完了なら、作業中・確認待ちでも「止まっている」。ClosedとDoneは「完了」。
+export const PROGRESS_STATES = [['done', '完了'], ['active', '進行中・確認待ち'], ['blocked', '止まっている'], ['todo', '未着手']];
+export function githubProgressStates(plan, tasks, repositoryUrl, today = todayInTokyo()) {
+  const groups = Object.fromEntries(PROGRESS_STATES.map(([id]) => [id, []]));
+  for (const task of [...tasks].sort((a, b) => a.number - b.number)) {
+    const { group } = githubWorkCategory(plan, task, repositoryUrl, today);
+    const open = (task.blockedBy || []).filter(b => b.state === 'open');
+    const state = group === 'done' ? 'done' : open.length ? 'blocked'
+      : group === 'review' || group === 'active' || (group === 'action' && task.projects.length && task.projects.every(p => p.status === 'In Progress')) ? 'active' : 'todo';
+    groups[state].push({ number: task.number, waitingOn: state === 'blocked' ? open.map(b => blockerRef(b, repositoryUrl)) : [] });
+  }
+  return { total: tasks.length, groups };
+}
+
 // filter は { all: true } か { owner: 担当者名 | null（担当未設定） }。
 // urgentFirst：緊急の未完了の作業を、ほかのまとまりへ重ねず先頭の「緊急」に集める。各項目の group は、本来のまとまり。
 export function githubMyWork(snapshot, filter = { all: true }, today = todayInTokyo(), { urgentFirst = false } = {}) {
