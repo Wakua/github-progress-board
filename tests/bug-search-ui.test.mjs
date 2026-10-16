@@ -29,7 +29,7 @@ function fixture({reports=sample(),githubEnabled=true,search,tags=[],loadFailure
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
   // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、タグの役割を返すだけの模擬にする。
-  const context=vm.createContext({...view,mountTagRoles:options=>{mounted.options=options;return{load:async()=>loadFailure,tags:()=>tags};},document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
+  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:options=>{mounted.options=options;return{load:async()=>loadFailure,tags:()=>tags};},document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');

@@ -17,7 +17,7 @@ function fixture({githubEnabled=true,role='admin',shared=true}={}) {
   const nodes=new Map();
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
   Object.defineProperty(node('#report-form'),'elements',{value:{files:{}}});
-  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch:async()=>({ok:true,status:200,json:async()=>({})}),URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},setTimeout:()=>0,clearTimeout(){}});
+  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch:async()=>({ok:true,status:200,json:async()=>({})}),URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},setTimeout:()=>0,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
   assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');

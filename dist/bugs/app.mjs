@@ -1,5 +1,6 @@
 import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
+import {mountFilterBar,storageKey as filterStorageKey} from './filter-bar.mjs';
 import {categoriesEditable,selectableCategories,kindNames,kindOf} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
@@ -376,6 +377,8 @@ function scheduleStatusRefresh() {
   },5000);
 }
 
+// 出す条件は、このブラウザに覚える。条件を外したときは、「すべて」に戻してから、描き直す。
+mountFilterBar({root:$('.filters'),storage:{get:()=>{try{return localStorage.getItem(filterStorageKey);}catch{return null;}},set:text=>{try{localStorage.setItem(filterStorageKey,text);}catch{}}},onRemove:()=>{renderFilters();renderList();}});
 $('#main-filter').onchange=()=>{renderFilters();renderList();};
 $('#sub-filter').onchange=$('#registration-filter').onchange=$('#status-filter').onchange=()=>renderList();
 // 種別を選ぶと、メインとサブの選択肢の件数も、その種別で数え直す。

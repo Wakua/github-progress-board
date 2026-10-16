@@ -25,7 +25,7 @@ function fixture({loadFailure=null,githubEnabled=true,tags={status:200,value:{to
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
   // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、何もしない模擬にする。
-  const context=vm.createContext({...view,mountTagRoles:()=>({load:async()=>loadFailure,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
+  const context=vm.createContext({...view,mountFilterBar:()=>({}),mountTagRoles:()=>({load:async()=>loadFailure,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
     setTimeout:()=>0,clearTimeout(){}});
   const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
   const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
