@@ -1,5 +1,6 @@
 import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
+import {categoriesEditable,selectableCategories} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
@@ -101,6 +102,7 @@ async function openReport(id,move=true) {
     element('div',report.body,'report-body'),element('h3','再現データ · '+report.attachmentCount+'件 / '+bytes(report.attachmentBytes)));
   detail.insertBefore(renderWorkflow(report),detail.querySelector('.report-body'));
   const githubBox=element('div');githubBox.id='github-status';githubBox.append(renderGitHub(report));detail.insertBefore(githubBox,detail.querySelector('.report-body'));
+  const categoryBox=element('div');categoryBox.id='category-status';fillCategories(categoryBox,report);detail.insertBefore(categoryBox,detail.querySelector('.report-body'));
   const files=element('ul',undefined,'file-list');
   for(const file of report.attachments) {
     const item=element('li');
@@ -134,13 +136,16 @@ async function openReport(id,move=true) {
   if(move && matchMedia('(max-width:760px)').matches) detail.scrollIntoView({block:'start'});
 }
 function renderWorkflow(report) {
-  const box=element('section',undefined,'workflow-panel');
-  box.append(element('h3','対応状況と次の操作'),element('p',nextAction(report,actor.shared?'shared':actor.role),'next-action'));
-  if(report.targetVersion)box.append(element('p','確認対象のバージョン：'+report.targetVersion,'meta'));
+  const box=element('section',undefined,'workflow-panel'),line=element('div',undefined,'workflow-line');
+  // 操作する人（共通の利用者・管理者）には、案内の文を出さない。ボタンの名前が、次の操作を示す。操作できない利用者にだけ、案内を出す。
+  if(!actor.shared&&actor.role!=='admin')line.append(element('p',nextAction(report,actor.role),'next-action'));
+  if(report.targetVersion)line.append(element('p','確認対象：'+report.targetVersion,'meta'));
+  box.append(line);
   if(report.developerNote)box.append(element('p',report.developerNote,'developer-note'));
   const isAdmin=actor.role==='admin',canUpdate=isAdmin&&nextStatusNames[report.status],canConfirm=(actor.shared || actor.role==='tester'&&report.isOwn)&&report.status==='checking';
-  if(!canUpdate&&!canConfirm)return box;
+  if(!canUpdate&&!canConfirm){box.hidden=!line.children.length&&!report.developerNote;return box;}
   const form=element('form'),error=element('p','','error-text'),requestId=crypto.randomUUID();
+  form.hidden=true;
   function field(labelText,name,value,{multiline=false,required=false,maxLength=200}={}) {
     const label=element('label',labelText),control=element(multiline?'textarea':'input');control.name=name;control.value=value;control.required=required;control.maxLength=maxLength;
     if(multiline)control.rows=3;
@@ -155,23 +160,37 @@ function renderWorkflow(report) {
     for(const [value,text]of [['','結果を選択'],['resolved','直った'],['unresolved','まだ起きる']]){const option=element('option',text);option.value=value;select.append(option);}
     label.append(select);form.append(label);
     field('確認内容（任意）','note','',{multiline:true,maxLength:4000});
-    form.append(element('p','対象と異なるバージョンの結果は履歴に残し、確認待ちを続けます。','muted'));
   }
-  const button=element('button',canUpdate?nextStatusNames[report.status]:'確認結果を送る');form.append(error,button);box.append(form);
-  form.onsubmit=async event=>{
-    event.preventDefault();const current=actor;
-    const input=canUpdate?{targetVersion:form.elements.targetVersion.value,developerNote:form.elements.developerNote.value}:{version:form.elements.version.value,result:form.elements.result.value,note:form.elements.note.value};
-    const payload={...input,revision:report.revision,requestId};
-    for(const control of form.elements)control.disabled=true;error.textContent='';
+  const label=canUpdate?nextStatusNames[report.status]:'確認結果を送る';
+  const submit=element('button',label),close=element('button','閉じる','quiet');close.type='button';
+  form.append(submit,close);
+  // 入力が要らない操作（受付済み・対応中）は、ボタン1回で進める。バージョンの指定や確認結果が要る操作は、入力欄を開く。
+  const needsInput=canConfirm||report.status==='fixed';
+  const main=element('button',canConfirm?'確認結果を入力する':needsInput?label+'…':label),more=needsInput?null:element('button','入力して進める','quiet');
+  const actions=element('div',undefined,'workflow-actions');actions.append(...[main,more].filter(Boolean));line.append(actions);
+  box.append(error,form);
+  // 押したボタンを隠すため、開いたときは最初の入力欄へ、閉じたときはもとのボタンへ、フォーカスを移す。
+  const toggle=opened=>{form.hidden=!opened;main.hidden=opened;if(more)more.hidden=opened;(opened?form.elements[0]:main).focus();};
+  const controls=()=>[...form.elements,main,...(more?[more]:[])];
+  async function send(input) {
+    const current=actor,payload={...input,revision:report.revision,requestId};
+    for(const control of controls())control.disabled=true;error.textContent='';
     try {
       const result=await api('reports/'+report.id+(canUpdate?'/status':'/confirmations'),json(payload));
       if(actor!==current)return;
       await refresh();
       notice(canUpdate?'対応状況を更新しました。':!result.matchesTarget?'対象と異なるバージョンの結果を記録しました。確認待ちを続けます。':input.result==='resolved'?'対象バージョンでの解消を記録しました。確認完了です。':'まだ起きることを記録しました。開発側の対応を続けます。');
     } catch(failure) {
-      error.textContent=failure.message+' 入力は保持しています。通信が途切れた場合は「更新」で保存結果を確認できます。';
-      for(const control of form.elements)control.disabled=false;
+      error.textContent=failure.message+(form.hidden?'':' 入力は保持しています。')+' 通信が途切れた場合は「更新」で保存結果を確認できます。';
+      for(const control of controls())control.disabled=false;
     }
+  }
+  main.onclick=needsInput?()=>toggle(true):()=>send({targetVersion:report.targetVersion,developerNote:report.developerNote});
+  if(more)more.onclick=()=>toggle(true);
+  close.onclick=()=>toggle(false);
+  form.onsubmit=event=>{
+    event.preventDefault();
+    return send(canUpdate?{targetVersion:form.elements.targetVersion.value,developerNote:form.elements.developerNote.value}:{version:form.elements.version.value,result:form.elements.result.value,note:form.elements.note.value});
   };
   return box;
 }
@@ -220,6 +239,50 @@ function renderFilters() {
   fillSelect($('#main-filter'),mainChoices(reports,tags));
   fillSelect($('#sub-filter'),subChoices(reports,tags,$('#main-filter').value));
 }
+// 報告にカテゴリを選ぶ欄。メインとサブを、役割ごとに並べる。選べるタグがなければ、nullを返す。
+function categoryBoxes(selected) {
+  const groups=selectableCategories(tagRoles.tags()),box=element('div',undefined,'category-choice');let count=0;
+  for(const [role,title] of [['main','メイン'],['sub','サブ']]) {
+    if(!groups[role].length)continue;
+    const row=element('div',undefined,'category-row');row.append(element('span',title,'category-role'));
+    for(const tag of groups[role]) {
+      const label=element('label',undefined,'category-option'),input=element('input');input.type='checkbox';input.value=String(tag.id);input.checked=selected.has(tag.id);
+      label.append(input,element('span',tag.name));row.append(label);count++;
+    }
+    box.append(row);
+  }
+  return count?box:null;
+}
+const checkedCategories=holder=>[...holder.querySelectorAll('input:checked')].map(input=>Number(input.value));
+// 報告フォームを開くたびに、選べるカテゴリを描き直す。選んでいたものは残す。選べるタグがなければ、欄ごと隠す。
+function renderFormCategories() {
+  const holder=$('#category-choices'),boxes=categoryBoxes(new Set(checkedCategories(holder)));
+  holder.replaceChildren(...(boxes?[boxes]:[]));
+  $('#report-categories').hidden=!boxes;
+}
+// 詳細のカテゴリの欄に出している、登録の状態。状態が変わったときだけ描き直し、選んでいる途中の欄を消さない。
+let categoryShown=null;
+// 登録前の報告のカテゴリ。登録待ちと登録失敗は選び直せる。作成中と結果未確認は、選んだカテゴリだけを示す。登録後はGitHubのタグが元なので、欄を出さない。
+function fillCategories(holder,report) {
+  categoryShown=report.github.state;holder.replaceChildren();
+  if(report.github.state==='registered')return;
+  if(!categoriesEditable(report)) {
+    const area=areaText(report,roleMap(tagRoles.tags()));
+    if(area)holder.append(element('p','選んだカテゴリ：'+area,'meta'));
+    return;
+  }
+  const boxes=categoryBoxes(new Set(report.categories));
+  if(!boxes)return;
+  const section=element('section',undefined,'category-panel'),error=element('p','','error-text'),save=element('button','カテゴリを保存','quiet');save.type='button';
+  save.onclick=async()=>{
+    save.disabled=true;error.textContent='';
+    try {
+      await api('reports/'+report.id+'/categories',json({categories:checkedCategories(boxes),revision:report.revision}));
+      await refresh();notice('カテゴリを保存しました。');
+    } catch(failure) {error.textContent=failure.message;save.disabled=false;}
+  };
+  section.append(element('h3','カテゴリ'),boxes,error,save);holder.append(section);
+}
 function renderGitHub(report) {
   const box=element('section',undefined,'github-panel'),github=report.github,tags=github.tags;
   box.append(element('h3','GitHub登録'),element('span',registrationName(report),'status status-'+github.state));
@@ -232,6 +295,7 @@ function renderGitHub(report) {
   box.append(element('h4','タグ'),tagNodes(tags));
   if(tags.fetchedAt)box.append(element('p','取得：'+time(tags.fetchedAt)+(tags.state==='error'?'（前回成功時）':''),'meta'));
   if(tags.error)box.append(element('p',tags.error,'error-text'));
+  if(tags.missing?.length)box.append(element('p','選んだカテゴリが付いていません：'+tags.missing.map(tag=>tag.name??'不明なタグ').join('、'),'error-text'));
   if(actor.role!=='admin')return box;
   box.append(element('p',registrationTarget(github,actor.github.repository),'meta'));
   if(!actor.github.enabled)return box;
@@ -286,6 +350,8 @@ function scheduleStatusRefresh() {
       await reload(result);
       const report=reports.find(item=>item.id===selected),box=$('#github-status');
       if(report&&box)box.replaceChildren(renderGitHub(report));
+      const categoryBox=$('#category-status');
+      if(report&&categoryBox&&categoryShown!==report.github.state)fillCategories(categoryBox,report);
     } catch(error) {notice(error.message,true);}
     scheduleStatusRefresh();
   },5000);
@@ -314,7 +380,7 @@ $('#refresh').onclick=async()=>{
 $('#new-report').onclick=async()=>{
   try {
     pending=(await api('uploads')).attachments;
-    renderDraftFiles();
+    renderDraftFiles();renderFormCategories();
     draftId ||= crypto.randomUUID(); $('#report-dialog').showModal();
   } catch(error) { notice(error.message,true); }
 };
@@ -337,7 +403,7 @@ $('#report-form').onsubmit=async event=>{
     }
     const uploadIds=[...new Set([...confirmed.map(file=>file.id),...completed])];
     $('#upload-progress').textContent='報告を保存しています…';
-    const {report}=await api('reports',json({body:form.elements.body.value,reportedVersion:form.elements.reportedVersion.value,requestId:draftId,uploadIds}));
+    const {report}=await api('reports',json({body:form.elements.body.value,reportedVersion:form.elements.reportedVersion.value,requestId:draftId,uploadIds,categories:checkedCategories($('#category-choices'))}));
     form.reset(); uploaded.clear(); pending=[]; draftId=null; $('#report-dialog').close();
     $('#search').value='';
     await refresh(); await openReport(report.id); notice('報告を受け付けました。受付ID: '+report.id);

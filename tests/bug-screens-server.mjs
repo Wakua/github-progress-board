@@ -1,5 +1,5 @@
 // バグ報告ツールの画面を撮るための、架空のデータと模擬のGitHubを持つサーバー。
-// 実際の報告、個人の声、実在のrepositoryは使わない。架空の予約管理アプリの報告13件と、タグ7つだけを使う。
+// 実際の報告、個人の声、実在のrepositoryは使わない。架空の予約管理アプリの報告14件と、タグ7つだけを使う。
 // 使い方: node tests/bug-screens-server.mjs <保存先> <ポート> [<コードのフォルダー>]
 //   保存先が空なら、報告とタグの役割を作る。既にあれば、そのまま使う。
 //   コードのフォルダーを渡すと、そのフォルダーのserver.mjsで起動する。変更前のmainと変更後のブランチで、同じデータを撮るために使う。
@@ -39,6 +39,10 @@ const registered = [
   ['「ヘルプ」リンクが404になる', 'received', []],
 ];
 const bodyOf = title => title + '\n架空の予約管理アプリでの再現手順を記入する。';
+// 登録前のカテゴリ（#68）の例。GitHub未登録の報告に、保留したカテゴリを付ける。
+const pendingCategories = ['予約', '通知'];
+// 作成者にpush権限がなく、要求に含めたタグが黙って落ちた報告。カテゴリを指定できない版では、同じ報告をカテゴリなしで作る。
+const droppedTitle = '確認メールの送信日時が表示とずれる';
 
 if (!fs.existsSync(path.join(dataDir, 'reports.sqlite'))) {
   const store = new BugStore(dataDir, { initialize: true });
@@ -51,10 +55,16 @@ const repository = 'qa-fixture/booking-reports';
 const issues = [];
 const github = {
   repository,
-  async createIssue(title, body) {
+  // 要求のタグの名前（labelNames）があればそれを付ける。dropLabelsのときは、タグが落ちた状態を模す。
+  async createIssue(title, body, labelNames = []) {
     const number = 101 + issues.length;
-    const issue = { number, title, body, html_url: 'https://github.com/' + repository + '/issues/' + number, labels: (github.nextLabels || []).map(name => tags[name]) };
+    const names = github.dropLabels ? [] : labelNames.length ? labelNames : github.nextLabels || [];
+    const issue = { number, title, body, html_url: 'https://github.com/' + repository + '/issues/' + number, labels: names.map(name => tags[name]) };
     issues.push(issue); return issue;
+  },
+  async getLabel(name) {
+    if (!tags[name]) throw new GitHubFailure('GitHubにそのタグはありません。', { status: 404 });
+    return tags[name];
   },
   async getIssue(number) { return issues.find(issue => issue.number === number); },
   async findIssues(marker) { return issues.filter(issue => issue.body.startsWith(marker + '\n')); },
@@ -62,6 +72,7 @@ const github = {
 };
 // 再起動しても、登録済みのIssueが一覧に載るようにする。
 registered.forEach(([, , labels], index) => issues.push({ number: 101 + index, html_url: 'https://github.com/' + repository + '/issues/' + (101 + index), body: '', labels: labels.map(name => tags[name]) }));
+issues.push({ number: 101 + registered.length, html_url: 'https://github.com/' + repository + '/issues/' + (101 + registered.length), body: '', labels: [] });
 const reloaded = issues.splice(0);
 const server = createProgressServer({ repositories: [], dataDir, githubRepository: repository, githubClient: github });
 await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
@@ -70,7 +81,7 @@ console.log('http://127.0.0.1:' + port + '/bugs/');
 const base = 'http://127.0.0.1:' + port + '/api/bugs';
 const call = async (method, p, body) => (await fetch(base + p, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined })).json();
 const existing = (await call('GET', '/reports')).reports;
-const expected = early.length + registered.length;
+const expected = early.length + registered.length + 1;
 if (existing.length > early.length && existing.length < expected) {
   console.error('保存先が途中までしか作られていません（' + existing.length + '/' + expected + '件）。保存先を消して、作り直してください。');
   server.close(); process.exit(1);
@@ -92,5 +103,12 @@ if (existing.length >= expected) {
     }
   }
   await call('POST', '/tag-roles', { roles: roles.map(([name, role]) => ({ id: tags[name].id, role })) });
+  // 登録前のカテゴリ。タグの役割を割り当てたあとでないと、選べない。
+  const unregistered = (await call('GET', '/reports')).reports.find(item => item.title === early[0][0]);
+  await call('POST', '/reports/' + unregistered.id + '/categories', { categories: pendingCategories.map(name => tags[name].id), revision: unregistered.revision });
+  github.dropLabels = true;
+  const { report: dropped } = await call('POST', '/reports', { body: bodyOf(droppedTitle), reportedVersion: 'S-1', requestId: 'seed-' + randomUUID(), uploadIds: [], categories: [tags.通知.id] });
+  for (let i = 0; i < 50; i++) { const d = (await call('GET', '/reports/' + dropped.id)).report; if (d.github.state === 'registered' && d.github.tags.state === 'ok') break; await new Promise(r => setTimeout(r, 200)); }
+  github.dropLabels = false;
   console.log('seeded', (await call('GET', '/reports')).reports.length);
 }

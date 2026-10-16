@@ -51,7 +51,7 @@ test('assigning a role, including "none", settles the tag and survives a restart
   assert.equal(fx.store.setTagRoles(fx.actor,{roles:[{id:11,role:'sub'}]}).tags.find(tag=>tag.id===11).role,'sub');
   const reopened=fx.reopen();
   assert.deepEqual(reopened.tagRoles().tags.map(tag=>[tag.id,tag.role]).sort((a,b)=>a[0]-b[0]),[[11,'sub'],[12,'sub'],[14,'none']]);
-  assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,5);
+  assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,6);
 });
 
 test('a tag added on GitHub is new while earlier assignments stay',t=>{
@@ -94,11 +94,11 @@ test('invalid requests are rejected and save no part of the request',t=>{
   assert.deepEqual(tagRoleNames,['none','main','sub']);
 });
 
-test('schema v4 data migrates to v5 with its reports and tags intact',t=>{
+test('schema v4 data migrates to the current version with its reports and tags intact',t=>{
   const fx=fixture(t);const id=fx.report([booking]);
-  fx.store.db.exec('DROP TABLE tag_roles; PRAGMA user_version=4;');
+  fx.store.db.exec('DROP TABLE report_categories; ALTER TABLE registration_queue DROP COLUMN category_miss; DROP TABLE tag_roles; PRAGMA user_version=4;');
   const reopened=fx.reopen();
-  assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,5);
+  assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,6);
   assert.equal(reopened.getReport(fx.actor,id).body,'架空の報告 1');
   assert.equal(reopened.tagRoles().newCount,1);
   assert.equal(reopened.setTagRoles(fx.actor,{roles:[{id:11,role:'main'}]}).newCount,0);

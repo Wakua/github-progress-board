@@ -91,13 +91,16 @@ try {
   assert.equal((await page.locator('#new-tags').textContent()).trim(),'新しいタグ 1');
   checks.push('設定画面を開いている間に増えたタグは、見せていないので確定せず、新しいタグのまま残る');
   async function advance(name,status){await page.getByRole('button',{name,exact:true}).click();await page.locator('#detail > .workflow-'+status).waitFor();}
-  await advance('対応を始める','working');await page.locator('[name=targetVersion]').fill('QA-2');
-  await advance('修正済み・公開待ちにする','fixed');await advance('公開してテスターへ確認を依頼する','checking');
-  await capture(page,'05-confirmation.png');
-  async function confirm(version,result,status){await page.locator('[name=version]').fill(version);await page.locator('[name=result]').selectOption(result);await page.getByRole('button',{name:'確認結果を送る',exact:true}).click();await page.locator('#notice').filter({hasText:version==='QA-0'?'対象と異なる':'まだ起きる'}).waitFor();assert.equal((await read(id)).status,status);}
+  // 入力が要らない操作はボタン1回で進み、バージョンの指定や確認結果が要る操作は、入力欄を開いてから送る。
+  async function advanceWith(openName,submitName,status,version){await page.getByRole('button',{name:openName,exact:true}).click();await page.locator('[name=targetVersion]').fill(version);await page.getByRole('button',{name:submitName,exact:true}).click();await page.locator('#detail > .workflow-'+status).waitFor();}
+  async function openConfirmation(){const opener=page.getByRole('button',{name:'確認結果を入力する',exact:true});if(await opener.isVisible())await opener.click();}
+  await advance('対応を始める','working');
+  await advance('修正済み・公開待ちにする','fixed');await advanceWith('公開してテスターへ確認を依頼する…','公開してテスターへ確認を依頼する','checking','QA-2');
+  await openConfirmation();await capture(page,'05-confirmation.png');
+  async function confirm(version,result,status){await openConfirmation();await page.locator('[name=version]').fill(version);await page.locator('[name=result]').selectOption(result);await page.getByRole('button',{name:'確認結果を送る',exact:true}).click();await page.locator('#notice').filter({hasText:version==='QA-0'?'対象と異なる':'まだ起きる'}).waitFor();assert.equal((await read(id)).status,status);}
   await confirm('QA-0','resolved','checking');await confirm('QA-2','unresolved','working');
-  await advance('修正済み・公開待ちにする','fixed');await advance('公開してテスターへ確認を依頼する','checking');
-  await page.locator('[name=version]').fill('QA-2');await page.locator('[name=result]').selectOption('resolved');await page.getByRole('button',{name:'確認結果を送る',exact:true}).click();await page.locator('#detail > .workflow-complete').waitFor();
+  await advance('修正済み・公開待ちにする','fixed');await advanceWith('公開してテスターへ確認を依頼する…','公開してテスターへ確認を依頼する','checking','QA-2');
+  await openConfirmation();await page.locator('[name=version]').fill('QA-2');await page.locator('[name=result]').selectOption('resolved');await page.getByRole('button',{name:'確認結果を送る',exact:true}).click();await page.locator('#detail > .workflow-complete').waitFor();
   report=await read(id);assert.equal(report.history.length,8);assert.equal(github.posts.length,1);await capture(page,'06-complete.png');
   checks.push('異なる版の確認は状態を保ち、未解消は対応中へ戻し、対象版の解消で完了する');
   await stop();await start(github);await page.goto(base+'/bugs/?report='+id);await page.locator('#detail > .workflow-complete').waitFor();

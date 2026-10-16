@@ -8,6 +8,7 @@ export const creationSettleMs = 60000;
 export const searchLimits = { queryLength: 200, words: 10 };
 export const initialPolicy = { maxBytes: 1024 ** 3, maxFiles: 20 };
 export const tagRoleNames = ['none', 'main', 'sub'];
+export const maxCategories = 50;
 export class BugError extends Error {
   constructor(status, message) { super(message); this.status = status; }
 }
@@ -18,6 +19,14 @@ export function validatePolicy(policy) {
   if (!Number.isSafeInteger(policy?.maxBytes) || policy.maxBytes < 1
       || !Number.isSafeInteger(policy?.maxFiles) || policy.maxFiles < 1) throw new BugError(400, '容量と件数の設定を確認してください。');
   return policy;
+}
+
+// 登録前のカテゴリの形を確かめ、idの小さい順にそろえる。未指定は空とする。
+export function normalizeCategories(value) {
+  if (value === undefined) return [];
+  if (!Array.isArray(value) || value.length > maxCategories || value.some(id => !Number.isSafeInteger(id) || id < 1)
+      || new Set(value).size !== value.length) throw new BugError(400, 'カテゴリを確認してください。');
+  return [...value].sort((a,b) => a - b);
 }
 
 export class BugStore {
@@ -31,7 +40,7 @@ export class BugStore {
     try {
       this.db.exec('PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL; PRAGMA synchronous = FULL;');
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (![0,1,2,3,4,5].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
+      if (![0,1,2,3,4,5,6].includes(version)) throw new Error('未対応の報告データです。保存先を保持しました。');
       if (version === 0) {
         if (!initialize || this.db.prepare("SELECT count(*) AS n FROM sqlite_master WHERE type='table'").get().n) throw new Error('報告データの形式を確認できません。');
         validatePolicy(policy);
@@ -100,6 +109,15 @@ export class BugStore {
           PRAGMA user_version=5;
         `);
       });
+      if(this.db.prepare('PRAGMA user_version').get().user_version===5) this.transaction(()=>{
+        // 登録前のカテゴリは、GitHubのタグのidで持つ。登録後はGitHubのタグが元になるが、作成後の最初の取得で付いたかを確かめるため、残す。
+        // category_missは、その確認で付いていなかったタグ。次の取得で消す。
+        this.db.exec(`
+          CREATE TABLE report_categories(report_id TEXT NOT NULL REFERENCES reports(id),label_id INTEGER NOT NULL,PRIMARY KEY(report_id,label_id)) STRICT;
+          ALTER TABLE registration_queue ADD COLUMN category_miss TEXT;
+          PRAGMA user_version=6;
+        `);
+      });
     } catch (error) { this.db.close(); throw error; }
   }
   close() { this.db.close(); }
@@ -165,21 +183,32 @@ export class BugStore {
   registration(id) {
     const value=this.db.prepare('SELECT * FROM registration_queue WHERE report_id=?').get(id);
     return {state:value.state,repository:value.repository,number:value.issue_number,url:value.issue_url,error:value.error,retryAt:value.retry_at,revision:value.revision,
-      tags:{state:value.label_state,labels:value.labels?JSON.parse(value.labels):[],fetchedAt:value.labels_at,error:value.labels_error},
+      tags:{state:value.label_state,labels:value.labels?JSON.parse(value.labels):[],fetchedAt:value.labels_at,error:value.labels_error,missing:value.category_miss?JSON.parse(value.category_miss):[]},
       checkedAt:value.checked_at,candidates:value.candidates?JSON.parse(value.candidates):null,
       holdUntil:value.state==='unknown'&&value.attempted_at!==null?value.attempted_at+creationSettleMs:null};
   }
-  summary(row,actor) {
+  // 登録前のカテゴリ（GitHubのタグのid）。idの小さい順に返す。
+  categoryIdsOf(id) {
+    return this.db.prepare('SELECT label_id FROM report_categories WHERE report_id=? ORDER BY label_id').all(id).map(row => row.label_id);
+  }
+  summary(row,actor,categories=this.categoryIdsOf(row.id)) {
     const totals = this.db.prepare("SELECT count(*) AS count,coalesce(sum(size),0) AS bytes FROM attachments WHERE report_id=? AND state<>'uploading'").get(row.id);
     const person = this.db.prepare('SELECT name FROM users WHERE id=?').get(row.reporter_id);
     const github=this.registration(row.id);
     return { id: row.id, title: row.body.trim().split(/\r?\n/)[0].slice(0,72), status: row.status, targetVersion: row.target_version, developerNote: row.developer_note, ticketState: github.state, github,
+      categories,
       reportedVersion: row.version, createdAt: row.created_at, updatedAt: row.updated_at, revision: row.revision,
       reporterName: person.name, isOwn: row.reporter_id===actor.id, attachmentCount: totals.count, attachmentBytes: totals.bytes };
   }
   listReports(actor) {
     const rows = this.db.prepare('SELECT * FROM reports ORDER BY updated_at DESC,id').all();
-    return rows.map(row => this.summary(row,actor));
+    // 報告の数だけ問い合わせないよう、カテゴリは1回で読む。
+    const categories = new Map();
+    for (const item of this.db.prepare('SELECT report_id,label_id FROM report_categories ORDER BY label_id').all()) {
+      if (!categories.has(item.report_id)) categories.set(item.report_id,[]);
+      categories.get(item.report_id).push(item.label_id);
+    }
+    return rows.map(row => this.summary(row,actor,categories.get(row.id) ?? []));
   }
   searchReports(query) {
     if (typeof query !== 'string') throw new BugError(400, '検索語を文字列で指定してください。');
@@ -209,7 +238,9 @@ export class BugStore {
         || typeof input.reportedVersion !== 'string' || input.reportedVersion.length > 200 || !validId(input.requestId)
         || !Array.isArray(input.uploadIds) || input.uploadIds.some(id => typeof id !== 'string')
         || new Set(input.uploadIds).size !== input.uploadIds.length) throw new BugError(400, '報告文と添付を確認してください。');
-    const fingerprint = digest(JSON.stringify([input.body,input.reportedVersion,input.uploadIds]));
+    const categories = normalizeCategories(input.categories);
+    // カテゴリを指定しない要求は、カテゴリを足す前の版と同じ値にする。更新前の要求の再送が、別の報告にならないようにする。
+    const fingerprint = digest(JSON.stringify([input.body,input.reportedVersion,input.uploadIds,...(categories.length ? [{categories}] : [])]));
     return this.transaction(() => {
       this.assertActive(actor);
       const previous = this.db.prepare('SELECT * FROM reports WHERE reporter_id=? AND request_id=?').get(actor.id,input.requestId);
@@ -217,6 +248,7 @@ export class BugStore {
         if (previous.request_hash !== fingerprint) throw new BugError(409, '同じ受付キーで別の報告は送れません。');
         return this.getReport(actor,previous.id);
       }
+      this.assertSelectable(categories);
       const files = input.uploadIds.map(id => this.db.prepare('SELECT * FROM attachments WHERE id=?').get(id));
       if (files.some(item => !item || (!actor.shared && item.owner_id !== actor.id) || item.report_id || item.state !== 'ready' || !existsSync(this.filePath(item.id)))) throw new BugError(409, '添付の保存完了を確認してください。');
       this.checkBudget(files.length,files.reduce((sum,item) => sum + item.size,0));
@@ -224,6 +256,33 @@ export class BugStore {
       this.db.prepare('INSERT INTO reports(id,reporter_id,request_id,request_hash,body,version,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?)').run(id,actor.id,input.requestId,fingerprint,input.body,input.reportedVersion,at,at);
       for (const file of files) this.db.prepare('UPDATE attachments SET report_id=? WHERE id=?').run(id,file.id);
       this.db.prepare('INSERT INTO registration_queue(report_id,repository) VALUES(?,?)').run(id,this.githubRepository||null);
+      for (const labelId of categories) this.db.prepare('INSERT INTO report_categories(report_id,label_id) VALUES(?,?)').run(id,labelId);
+      return this.getReport(actor,id);
+    });
+  }
+  // 選べるのは、「カテゴリの設定」でメインかサブを割り当てたタグだけ。
+  assertSelectable(ids) {
+    if (!ids.length) return;
+    const selectable = new Set(this.tagRoles().tags.filter(tag => tag.role === 'main' || tag.role === 'sub').map(tag => tag.id));
+    if (ids.some(id => !selectable.has(id))) throw new BugError(400, 'カテゴリに選べないタグが含まれています。「カテゴリの設定」でメインかサブを割り当てたタグを選んでください。');
+  }
+  // 登録前の報告のカテゴリを置き換える。Issueを作る要求を送る前の状態（登録待ち・登録失敗）だけで変えられる。
+  // 作成中・結果未確認は、要求がすでに送られたか、送られた可能性があり、登録後はGitHubのタグが元になる。
+  setCategories(actor,id,input) {
+    if (!Array.isArray(input?.categories) || !Number.isSafeInteger(input.revision) || input.revision < 1) throw new BugError(400,'カテゴリと更新番号を指定してください。');
+    const categories = normalizeCategories(input.categories);
+    return this.transaction(() => {
+      this.assertActive(actor);
+      const row = this.reportRow(actor,id), state = this.db.prepare('SELECT state FROM registration_queue WHERE report_id=?').get(id).state;
+      if (state === 'registered') throw new BugError(409,'登録後のカテゴリは、GitHubのタグで付けてください。');
+      if (state !== 'pending' && state !== 'failed') throw new BugError(409,'GitHubへ登録している最中は、カテゴリを変えられません。');
+      const current = this.categoryIdsOf(id);
+      if (categories.length === current.length && categories.every((labelId,index) => labelId === current[index])) return this.getReport(actor,id);
+      if (row.revision !== input.revision) throw new BugError(409,'報告が更新されています。「更新」で最新の状況を確認してください。');
+      this.assertSelectable(categories);
+      this.db.prepare('DELETE FROM report_categories WHERE report_id=?').run(id);
+      for (const labelId of categories) this.db.prepare('INSERT INTO report_categories(report_id,label_id) VALUES(?,?)').run(id,labelId);
+      this.db.prepare('UPDATE reports SET updated_at=?,revision=revision+1 WHERE id=?').run(now(),id);
       return this.getReport(actor,id);
     });
   }

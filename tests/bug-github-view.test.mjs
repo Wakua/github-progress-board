@@ -69,8 +69,10 @@ test('サブの選択肢は、選んだメインの報告に付いているサ�
   assert.deepEqual(subChoices([],[],'all'),[{value:'all',text:'すべて'}]);
 });
 test('登録状況の絞り込みは、メインの絞り込みと重ねられる',()=>{
-  assert.equal(matchesFilters(withTags('r','received',[2],'failed'),{main:'label:2',state:'failed',roles}),true);
-  assert.equal(matchesFilters(withTags('r','received',[2],'failed'),{main:'label:2',state:'registered',roles}),false);
+  // 登録前の報告のカテゴリは、保留したカテゴリ（タグのid）である。
+  const failed={...withTags('r','received',[],'failed'),categories:[2]};
+  assert.equal(matchesFilters(failed,{main:'label:2',state:'failed',roles}),true);
+  assert.equal(matchesFilters(failed,{main:'label:2',state:'registered',roles}),false);
 });
 test('reports saved before connection are distinguishable from the automatic registration queue',()=>{
   assert.equal(registrationName({github:{state:'pending',repository:null}}),'GitHub未登録');
@@ -121,12 +123,6 @@ test('other reporters see the original tester waiting instruction',()=>{
 });
 
 
-test('共通の利用者へ対応と確認の次の操作を表示する',()=>{
-  assert.match(nextAction({status:'received'},'shared'),/開始/);
-  assert.match(nextAction({status:'fixed'},'shared'),/確認対象/);
-  assert.match(nextAction({status:'checking',isOwn:false},'shared'),/結果を送って/);
-  assert.match(nextAction({status:'complete'},'shared'),/解消を確認/);
-});
 test('a failed report shows the repository the retry will use before the operation',()=>{
   const failed=repository=>({state:'failed',repository});
   assert.equal(registrationTarget(failed('example/typo'),'example/fixed'),'登録先：example/fixed（失敗した登録先：example/typo）');
