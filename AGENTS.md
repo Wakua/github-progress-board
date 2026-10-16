@@ -47,7 +47,8 @@ UIの構造や操作の流れは、観察、行動の整理、設計、試作の
 
 - 作業は [GitHub Project「github-progress-board 開発」](https://github.com/users/Wakua/projects/3) で管理する。
 - 作業を始める前に、対応するIssueを選ぶか作る。Projectで、そのIssueの「担当」「Iteration」「Estimate」を設定する。計画外の急ぎの作業は「優先度」を「緊急」にする。
-- Issueを作ったら、その場で、目標を表す親Issueのsub-issueにつなぐ。どの目標にも入らないIssueは、入らない理由をIssueの本文に書く。つないでいないIssueは、ボードの目標ごとの進み具合に入らない。
+- Issueを作ったら、その場で、目標を表す親Issueの子Issueとして紐づける（紐づけていないIssueは、ボードの目標ごとの進み具合に入らない）。どの目標にも入らないIssueは、入らない理由をIssueの本文に書く。
+  紐づけは `gh api -X POST repos/<owner>/<repo>/issues/<親の番号>/sub_issues -F sub_issue_id=<子のid>` で行う。`sub_issue_id` には、Issueの番号ではなく、`gh api repos/<owner>/<repo>/issues/<子の番号> --jq .id` で得るidを渡す。
 - 着手の前提がある作業のIssueには、依存関係（blocked by）を登録する。
 - Claude・CodexはGitHubのユーザーではないため、担当はAssigneeではなくProjectの「担当」フィールド（Wakua・Claude・Codex）で示す。
 - IssueとPRの本文は「目的」から始め、誰が何をできるようになるかを書く。実装の手段は「手段」として分けて書く。
