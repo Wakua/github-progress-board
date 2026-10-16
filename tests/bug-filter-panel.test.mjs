@@ -79,9 +79,10 @@ test('「解除」は、その条件の選びをすべて外し、onChangeを呼
   const fx=fixture();
   assert.equal(fx.clear('kind').hidden,true);
   fx.check('kind','bug');fx.check('kind','question');
+  const before=fx.changes.length;
   fx.clear('kind').onclick();
   assert.deepEqual(fx.panel.values('kind'),[]);assert.equal(fx.boxes('kind').some(input=>input.checked),false);
-  assert.deepEqual(fx.changes.at(-1),'kind');assert.equal(fx.clear('kind').hidden,true);assert.equal(fx.summary('kind').textContent,'種別');
+  assert.equal(fx.changes.length,before+1);assert.equal(fx.changes.at(-1),'kind');assert.equal(fx.clear('kind').hidden,true);assert.equal(fx.summary('kind').textContent,'種別');
 });
 test('メインとサブの選択肢は、渡されたものを並べる。ボタンには件数を出さない。なくなった値の選びは外す。選択肢がなければ隠す',()=>{
   const fx=fixture();
@@ -93,6 +94,18 @@ test('メインとサブの選択肢は、渡されたものを並べる。ボ�
   assert.deepEqual(fx.panel.values('main'),['label:2']);assert.equal(fx.summary('main').textContent,'メイン：通知');
   fx.panel.setChoices('main',[]);
   assert.equal(fx.group('main').hidden,true);assert.deepEqual(fx.panel.values('main'),[]);
+});
+test('選択肢が変わらないときは、メニューを作り直さず、チェックボックスを残す。変わったときは、作り直す',()=>{
+  const fx=fixture();
+  const list=[{value:'label:1',text:'予約（3）'},{value:'label:2',text:'通知（1）'}];
+  fx.panel.setChoices('main',list);
+  const first=fx.boxes('main');
+  fx.check('main','label:1');
+  fx.panel.setChoices('main',list.map(choice=>({...choice})));
+  assert.deepEqual(fx.boxes('main'),first);assert.equal(fx.boxes('main')[0],first[0]);
+  assert.deepEqual(fx.panel.values('main'),['label:1']);
+  fx.panel.setChoices('main',[{value:'label:1',text:'予約（4）'},{value:'label:2',text:'通知（1）'}]);
+  assert.notEqual(fx.boxes('main')[0],first[0]);assert.deepEqual(fx.panel.values('main'),['label:1']);assert.equal(fx.boxes('main')[0].checked,true);
 });
 test('メニューは、1つだけ開く。枠の外を押すと閉じ、枠の中を押しても閉じない。Escapeで閉じて、ボタンへ戻る',()=>{
   const fx=fixture();

@@ -90,6 +90,8 @@ export function mountFilterPanel({ root, onChange = () => {} }) {
     values: id => [...groups.get(id).checked],
     setChoices(id, choices) {
       const group = groups.get(id);
+      // 選択肢が変わらないときは、作り直さない。チェックを入れた直後に、キーボードのフォーカスが外れないようにするため。
+      if (JSON.stringify(group.choices) === JSON.stringify(choices)) return;
       group.choices = choices;
       group.checked = new Set([...group.checked].filter(value => choices.some(choice => choice.value === value)));
       draw(group);
