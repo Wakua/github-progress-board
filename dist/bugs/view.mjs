@@ -42,10 +42,13 @@ export const kindNames={bug:'不具合',request:'要望',question:'確認'};
 export const kindOf=report=>report.kind??'bug';
 // 未対応は、受付済みと対応中。
 export const isUnaddressed=report=>report.status==='received'||report.status==='working';
+// 絞り込みの値は、選んだ値の配列にする（空は絞り込まない）。1つの値（'all'は絞り込まない）も受け付ける。
+const asList=value=>Array.isArray(value)?value:(value===undefined||value===null||value==='all'?[]:[value]);
 function inMain(report,main,roles) {
-  if(main==='all')return true;
+  const wanted=asList(main);
+  if(!wanted.length)return true;
   const found=categoriesOf(report,roles);
-  return main===uncategorized?!found.main.length&&!found.sub.length:found.main.some(label=>'label:'+label.id===main);
+  return wanted.some(value=>value===uncategorized?!found.main.length&&!found.sub.length:found.main.some(label=>'label:'+label.id===value));
 }
 const byName=(a,b)=>a.name.localeCompare(b.name,'ja');
 // 報告に選べるカテゴリ。メインかサブを割り当てたタグを、役割ごとに名前順で返す。
@@ -54,8 +57,8 @@ export function selectableCategories(tags) {
   return {main:pick('main'),sub:pick('sub')};
 }
 const countUnaddressed=reports=>reports.filter(isUnaddressed).length;
-// 種別の絞り込みを選んだときだけ、選択肢の件数も、その種別で数える。
-const inKind=(reports,kind)=>kind==='all'?reports:reports.filter(report=>kindOf(report)===kind);
+// 種別の絞り込みを選んだときだけ、選択肢の件数も、選んだ種別で数える。
+const inKind=(reports,kind)=>{const wanted=asList(kind);return wanted.length?reports.filter(report=>wanted.includes(kindOf(report))):reports;};
 // メインの選択肢。割り当てたメインのタグと「未分類」に、未対応の件数を添える。報告のないメインも、件数0で出す。
 export function mainChoices(reports,tags,kind='all') {
   const roles=roleMap(tags),scope=inKind(reports,kind);
@@ -71,15 +74,19 @@ export function subChoices(reports,tags,main,kind='all') {
       .filter(entry=>entry.reports.length).map(entry=>({value:'label:'+entry.tag.id,text:entry.tag.name+'（'+countUnaddressed(entry.reports)+'）'}))];
 }
 // found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。roles: roleMapの結果。
-// status: 'all'、対応状況の値、または 'incomplete'（確認完了を除く）。
-export function matchesFilters(report,{main='all',sub='all',state='all',status='all',kind='all',found=null,roles=new Map()}={}) {
+// 条件ごとの値は、選んだ値の配列。同じ条件の中は「どれか」、条件同士は「すべて」に当てはまる報告を通す。
+// status：対応状況の値、または 'incomplete'（確認完了を除く）。
+export function matchesFilters(report,{main=[],sub=[],state=[],status=[],kind=[],found=null,roles=new Map()}={}) {
   if(found&&!found.has(report.id))return false;
-  if(kind!=='all'&&kindOf(report)!==kind)return false;
-  if(status==='incomplete'){if(report.status==='complete')return false;}
-  else if(status!=='all'&&report.status!==status)return false;
-  if(state!=='all'&&report.github.state!==state)return false;
+  const kinds=asList(kind);
+  if(kinds.length&&!kinds.includes(kindOf(report)))return false;
+  const statuses=asList(status);
+  if(statuses.length&&!statuses.some(value=>value==='incomplete'?report.status!=='complete':report.status===value))return false;
+  const states=asList(state);
+  if(states.length&&!states.includes(report.github.state))return false;
   if(!inMain(report,main,roles))return false;
-  return sub==='all'||categoriesOf(report,roles).sub.some(label=>'label:'+label.id===sub);
+  const subs=asList(sub);
+  return !subs.length||categoriesOf(report,roles).sub.some(label=>subs.includes('label:'+label.id));
 }
 export function contrastColor(color) {
   const channels=[0,2,4].map(index=>parseInt(color.slice(index,index+2),16)/255).map(value=>value<=.04045?value/12.92:((value+.055)/1.055)**2.4);
