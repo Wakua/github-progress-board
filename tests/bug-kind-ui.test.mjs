@@ -184,7 +184,7 @@ test('詳細は、種別を選ぶ欄を出し、登録の状態によらず、�
     assert.equal(select.value,'request',state);
   }
 });
-test('種別を変えると、更新番号とともに送り、報告を読み直して通知する',async()=>{
+test('種別を変えると、更新番号とともに送り、報告を読み直す。選択欄と行の印で分かるので、通知は出さない',async()=>{
   const item=report('p1',{kind:'bug',revision:7}),fx=fixture({reports:[item],details:new Map([['p1',item]])});
   await fx.show('p1');
   const select=fx.kindBox().children[1];
@@ -192,7 +192,7 @@ test('種別を変えると、更新番号とともに送り、報告を読み�
   select.value='question';await select.onchange();
   const sent=fx.requests.find(request=>request.route==='reports/p1/kind');
   assert.deepEqual(sent.body,{kind:'question',revision:7});
-  assert.equal(fx.refreshed(),1);assert.deepEqual(fx.notice(),{text:'種別を変えました。',error:false});
+  assert.equal(fx.refreshed(),1);assert.deepEqual(fx.notice(),{text:'',error:false});
 });
 test('種別を持たない更新前の報告の詳細は、不具合と表示する',async()=>{
   const item=report('p1',{revision:2}),fx=fixture({reports:[item],details:new Map([['p1',item]])});

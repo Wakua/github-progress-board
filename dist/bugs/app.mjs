@@ -296,7 +296,7 @@ function renderKind(report) {
     select.disabled=true;
     try {
       await api('reports/'+report.id+'/kind',json({kind:select.value,revision:report.revision}));
-      await refresh();notice('種別を変えました。');
+      await refresh();
     } catch(failure) {notice(failure.message,true);select.value=kindOf(report);select.disabled=false;}
   };
   label.append(element('span','種別'),select);
