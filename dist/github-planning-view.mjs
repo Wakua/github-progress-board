@@ -1,5 +1,5 @@
 import { githubPlan, githubProgress, githubModules } from './github-planning.mjs';
-import { githubMyWork, taskIteration, githubIterationLastDay, githubPeriodWorkload, blockerRef } from './github-work.mjs';
+import { githubMyWork, taskIteration, githubIterationLastDay, githubPeriodWorkload, blockerRef, githubProgressStates, PROGRESS_STATES } from './github-work.mjs';
 import { workloadChipClass, workloadChipTitle, workloadChipLabel, workloadFigures } from './workload-view.mjs';
 import { todayInTokyo } from './engine.mjs';
 import { MINE_GROUPS, labelFor } from './attention.mjs';
@@ -18,6 +18,26 @@ export function githubProgressMarkup(tasks, title, projectId = null) {
     return '<span class="github-progress unknown"><span class="github-progress-value"><strong>' + reason + '</strong><small>' + p.closed + ' / ' + p.total + '件がClosed</small>' + excluded + '</span>' + remaining + '</span>';
   }
   return '<span class="github-progress"><span class="github-progress-value"><strong>' + p.percent + '%</strong><small>終了 ' + points(p.closedPoints) + ' / ' + points(p.totalPoints) + '</small>' + excluded + '</span><span class="github-progress-track" role="progressbar" aria-label="' + esc(title) + 'のGitHub終了率' + (p.missingEstimates ? '（見積設定済みの作業）' : '') + '" aria-valuemin="0" aria-valuemax="100" aria-valuenow="' + p.percent + '"><span style="width:' + p.percent + '%"></span></span>' + remaining + '</span>';
+}
+// モジュールと目標の行の進み具合：完了・進行中・止まっている・未着手の4色の帯。帯の長さは状態ごとのEstimateの合計で、見積のない作業は帯に入れず、「見積なし」に件数を出す。
+// numbers が真なら、完了以外の作業の番号も添える。見積のない作業の番号と、見積を付けるProjectへのリンクは、いつも添える。
+const STATE_NUMBER_LIMIT = 15;
+export function githubStateProgressMarkup(plan, tasks, repositoryUrl, today, { numbers = false } = {}) {
+  const { total, groups, points: pts, totalPoints, missing } = githubProgressStates(plan, tasks, repositoryUrl, today);
+  if (!total) return '<span class="state-progress"><span class="state-count">作業未登録</span></span>';
+  const shown = PROGRESS_STATES.filter(([id]) => groups[id].length);
+  const refs = (list, text) => {
+    const body = list.slice(0, STATE_NUMBER_LIMIT).map(text).join(' ');
+    return ' <span class="state-numbers">' + body + (list.length > STATE_NUMBER_LIMIT ? ' ほか' + (list.length - STATE_NUMBER_LIMIT) + '件' : '') + '</span>';
+  };
+  const done = totalPoints > 0 ? Number(pts.done.toPrecision(12)) + ' / ' + points(totalPoints) + ' 完了 · ' + groups.done.length + ' / ' + total + '件' : groups.done.length + ' / ' + total + '件 完了';
+  const projectUrl = missing.find(item => item.projectUrl)?.projectUrl;
+  return '<span class="state-progress"><span class="state-count">' + done + '</span>'
+    + '<span class="state-bar" aria-hidden="true">' + shown.filter(([id]) => pts[id] > 0).map(([id]) => '<i class="' + id + '" style="width:' + pts[id] / totalPoints * 100 + '%"></i>').join('') + '</span>'
+    + '<span class="state-legend">' + shown.map(([id, name]) => '<span class="state-legend-row ' + id + '"><b>' + name + ' ' + groups[id].length + '件</b>' + (pts[id] > 0 ? ' ' + points(pts[id]) : '')
+      + (numbers && id !== 'done' ? refs(groups[id], item => '#' + item.number + (item.waitingOn.length ? '（' + item.waitingOn.map(esc).join('・') + '待ち）' : '')) : '') + '</span>').join('')
+    + (missing.length ? '<span class="state-legend-row missing"><b>見積なし ' + missing.length + '件</b>' + refs(missing, item => '#' + item.number) + (projectUrl ? ' ' + link(projectUrl, '見積を付ける') : '') + '</span>' : '')
+    + '</span></span>';
 }
 export const iterationEnd = i => new Date(Date.parse(i.startDate + 'T00:00:00Z') + (i.duration - 1) * 86400000).toISOString().slice(0, 10);
 const projectMeta = p => `${esc(p.owner ?? '担当未設定')} · ${esc(p.status ?? 'Status未設定')} · ${p.estimatePoints === null ? 'Estimate未設定' : p.estimatePoints + 'pt'} · ${p.iteration ? esc(p.iteration.title) : '期間未設定'}`;
@@ -114,15 +134,15 @@ export function renderGithubPeriods(snapshot, today = todayInTokyo()) {
     for (const t of tasks) { const key = t.goal?.number ?? null; if (!groups.has(key)) groups.set(key, []); groups.get(key).push(t); }
     return [...groups.values()].map(group => '<section class="github-period-goal"><h4>' + esc(group[0].goal?.item.title ?? '目標なし・親が別repository') + '</h4>' + githubTaskRows(group, false, projectId) + '</section>').join('');
   };
-  const goals = tasks => '<section class="github-plan-section"><h4>目標</h4>' + tasks.map(g => '<details class="github-period" data-github-disclosure="goal:' + g.number + ':' + esc(g.moduleKey ?? 'all') + '"><summary><span class="github-scope-name">#' + g.number + ' ' + esc(g.item.title) + '</span>' + githubProgressMarkup(g.tasks, g.item.title) + '</summary>' + githubGoalTree(snapshot, g.number, new Set(g.tasks.map(t => t.number))) + '</details>').join('') + '</section>';
+  const goals = tasks => '<section class="github-plan-section"><h4>目標</h4>' + tasks.map(g => '<details class="github-period" data-github-disclosure="goal:' + g.number + ':' + esc(g.moduleKey ?? 'all') + '"><summary class="state-summary"><span class="github-scope-name">#' + g.number + ' ' + esc(g.item.title) + '</span>' + githubStateProgressMarkup(plan, g.tasks, snapshot.repositoryUrl, today) + '</summary>' + githubGoalTree(snapshot, g.number, new Set(g.tasks.map(t => t.number))) + '</details>').join('') + '</section>';
   const releases = items => '<section class="github-plan-section"><h4>リリース（Milestone）</h4>' + items.map(m => '<details class="github-period" data-github-disclosure="release:' + m.number + ':' + esc(m.moduleKey ?? 'all') + '"><summary><span class="github-scope-name">' + esc(m.title) + '<small>期日 ' + (m.dueOn ? m.dueOn.slice(0, 10) : '未設定') + '</small></span>' + githubProgressMarkup(m.tasks, m.title) + '</summary><p class="footnote">' + link(m.url, 'GitHubのMilestone') + ' · ' + (m.state === 'closed' ? 'Closed' : 'Open') + '</p>' + (m.description ? '<p class="github-description">' + esc(m.description) + '</p>' : '') + githubTaskRows(m.tasks) + '</details>').join('') + '</section>';
   const modules = githubModules(plan);
   const moduleHtml = modules.map(module => {
     const name = moduleName(module);
-    return '<details class="github-module" data-github-module="' + esc(module.key) + '" data-github-disclosure="module:' + esc(module.key) + '"><summary><span class="github-scope-name">' + esc(name) + '<small>作業 ' + module.tasks.length + '件</small></span>' + githubProgressMarkup(module.tasks, name) + '</summary><div class="github-module-body"><p class="footnote">このモジュールに属する、取得したrepository内の作業だけを集計</p>' + goals(module.goals.map(g => ({ ...g, moduleKey: module.key }))) + releases(module.releases.map(m => ({ ...m, moduleKey: module.key }))) + (module.tasks.some(t => !t.goal) ? '<section class="github-plan-section"><h4>目標に属さない作業</h4>' + githubTaskRows(module.tasks.filter(t => !t.goal)) + '</section>' : '') + '</div></details>';
+    return '<details class="github-module" data-github-module="' + esc(module.key) + '" data-github-disclosure="module:' + esc(module.key) + '"><summary class="state-summary"><span class="github-scope-name">' + esc(name) + '</span>' + githubStateProgressMarkup(plan, module.tasks, snapshot.repositoryUrl, today, { numbers: true }) + '</summary><div class="github-module-body"><p class="footnote">このモジュールに属する、取得したrepository内の作業だけを集計</p>' + goals(module.goals.map(g => ({ ...g, moduleKey: module.key }))) + releases(module.releases.map(m => ({ ...m, moduleKey: module.key }))) + (module.tasks.some(t => !t.goal) ? '<section class="github-plan-section"><h4>目標に属さない作業</h4>' + githubTaskRows(module.tasks.filter(t => !t.goal)) + '</section>' : '') + '</div></details>';
   }).join('');
   const periodHtml = plan.periods.map(p => '<details class="github-period" data-github-disclosure="period:' + esc(p.key) + '"><summary><span class="github-scope-name">' + esc(p.iteration.title) + '<small>' + p.iteration.startDate + '–' + iterationEnd(p.iteration) + '</small></span>' + githubProgressMarkup(p.tasks, p.iteration.title, p.project.id) + '</summary><p class="footnote">' + link(p.project.url, p.project.title) + ' · 集計はこのProjectの期間内</p>' + githubWorkloadMarkup(p, today) + grouped(p.tasks, p.project.id) + '</details>').join('');
-  return '<section class="github-plan-section"><h3>モジュール別の進み具合</h3><p class="footnote">GitHubの終了率はClosedの末端IssueのEstimateで集計。複数モジュールの共有作業を含むため、モジュール間の件数は合算しません。</p>' + (moduleHtml || '<p class="empty-message">作業Issueはありません。</p>') + '</section><details class="github-period-browse" data-github-disclosure="periods"><summary>イテレーションから確認</summary>' + periodHtml + (plan.unassigned.length ? '<details class="github-period" data-github-disclosure="unassigned"><summary><span class="github-scope-name">期間未設定 ' + plan.unassigned.length + '件</span></summary>' + grouped(plan.unassigned) + '</details>' : '') + '</details>';
+  return '<section class="github-plan-section"><h3>モジュール別の進み具合</h3><p class="footnote">複数モジュールの共有作業を含むため、モジュール間の件数は合算しません。</p>' + (moduleHtml || '<p class="empty-message">作業Issueはありません。</p>') + '</section><details class="github-period-browse" data-github-disclosure="periods"><summary>イテレーションから確認</summary>' + periodHtml + (plan.unassigned.length ? '<details class="github-period" data-github-disclosure="unassigned"><summary><span class="github-scope-name">期間未設定 ' + plan.unassigned.length + '件</span></summary>' + grouped(plan.unassigned) + '</details>' : '') + '</details>';
 }
 export function githubItemPlanning(snapshot, number) {
   const plan = githubPlan(snapshot), i = plan?.issues.find(i => i.number === number);

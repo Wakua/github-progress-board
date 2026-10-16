@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSnapshot, validateSnapshot, attachSnapshot } from '../dist/github-snapshot.mjs';
 import { githubPlan, githubProgress, githubModules } from '../dist/github-planning.mjs';
-import { renderGithubWork, renderGithubPeriods, githubItemPlanning, githubProgressMarkup } from '../dist/github-planning-view.mjs';
+import { renderGithubWork, renderGithubPeriods, githubItemPlanning, githubProgressMarkup, githubStateProgressMarkup } from '../dist/github-planning-view.mjs';
+import { githubProgressStates } from '../dist/github-work.mjs';
 import { buildPlanning } from '../scripts/github-planning-fetch.mjs';
 import { createGithubRefresher } from '../scripts/local-github-refresh.mjs';
 import { hierarchyFixture, qaWorkspace } from './local-github-fixture.mjs';
@@ -274,4 +275,63 @@ test('未設定とゼロ見積しかない範囲は集計対象なしと示し�
   assert.ok(html.includes('見積のある作業なし'));
   assert.ok(html.includes('見積未設定 2件を除外'));
   assert.ok(!html.includes('progressbar') && !html.includes('github-progress-remaining'));
+});
+
+// 目標・モジュールの進み具合の帯：完了・進行中・止まっている・未着手に分け、見積がなくても数える。
+const stateFixture = () => {
+  const value = snapshot(inputs()), plan = githubPlan(value), today = '2026-10-06', tasks = structuredClone(plan.tasks);
+  const clone = (number, change = {}) => Object.assign(structuredClone(tasks[0]), { number }, change);
+  const blocked = clone(7, { blockedBy: [{ number: 5, url: repo + '/issues/5', title: 'QA Issue 5', state: 'open', spec: false }] });
+  const reviewed = clone(8, { pullRequests: [{ number: 20, url: repo + '/pull/20', draft: false }] });
+  return { value, plan, today, tasks: [...tasks, blocked, reviewed], clone };
+};
+test('作業を、完了・進行中・止まっている・未着手に分け、前提が未完了なら作業中でも止まっているとする', () => {
+  const { plan, today, tasks } = stateFixture();
+  const { total, groups, points, totalPoints, missing } = githubProgressStates(plan, tasks, repo, today);
+  assert.equal(total, 6);
+  assert.deepEqual(groups.done.map(i => i.number), [4]);
+  assert.deepEqual(groups.active.map(i => i.number), [3, 8], '作業中と、承認待ちのPRがある作業は進行中');
+  assert.deepEqual(groups.blocked, [{ number: 7, waitingOn: ['#5'], points: 2 }]);
+  assert.deepEqual(groups.todo.map(i => i.number), [5, 6], 'StatusがProjectごとに違う作業と、Project未登録の作業は未着手');
+  assert.deepEqual(points, { done: 1, active: 4, blocked: 2, todo: 0 });
+  assert.equal(totalPoints, 7);
+  assert.deepEqual(missing.map(i => i.number), [5, 6], '複数Projectで出典が決まらない作業と、Project未登録の作業は、見積なし');
+});
+test('担当者のいない作業中は、要対応でも進行中に数える', () => {
+  const { plan, today, tasks, clone } = stateFixture();
+  const noOwner = clone(9, { projects: tasks[0].projects.map(p => ({ ...p, owner: null })) });
+  assert.deepEqual(githubProgressStates(plan, [noOwner], repo, today).groups.active.map(i => i.number), [9]);
+});
+test('進み具合の帯は、状態ごとのEstimateの合計の長さで描き、見積のない作業は帯に入れず、件数と番号を出す', () => {
+  const { plan, today, tasks } = stateFixture();
+  const html = githubStateProgressMarkup(plan, tasks, repo, today, { numbers: true });
+  assert.ok(html.includes('1 / 7pt 完了 · 1 / 6件'));
+  assert.ok(html.includes('class="state-bar" aria-hidden="true"'), '凡例が同じ内容を文字で示すため、帯は読み上げない');
+  const widths = [...html.matchAll(/<i class="(\w+)" style="width:([\d.]+)%"/g)];
+  assert.deepEqual(widths.map(m => m[1]), ['done', 'active', 'blocked'], '点数のない未着手は、帯に出さない');
+  assert.ok(Math.abs(widths.reduce((sum, m) => sum + Number(m[2]), 0) - 100) < 1e-9);
+  assert.ok(Math.abs(Number(widths[1][2]) - 400 / 7) < 1e-9, '進行中は4/7');
+  for (const text of ['完了 1件</b> 1pt', '進行中・確認待ち 2件</b> 4pt', '止まっている 1件</b> 2pt', '未着手 2件</b>']) assert.ok(html.includes(text), text);
+  assert.ok(html.includes('#7（#5待ち）') && html.includes('#3 #8') && html.includes('#5 #6'));
+  assert.ok(html.includes('見積なし 2件') && html.includes('href="https://github.com/users/Wakua/projects/3"') && html.includes('見積を付ける'));
+  assert.ok(!html.includes('#4'), '完了の番号は出さない');
+  const plain = githubStateProgressMarkup(plan, tasks, repo, today);
+  assert.ok(!plain.includes('#7') && !plain.includes('#3 #8'), '状態ごとの番号は numbers のときだけ');
+  assert.ok(plain.includes('見積なし 2件') && plain.includes('#5 #6') && plain.includes('見積を付ける'), '見積なしの件数・番号・リンクは、目標の行にも出す');
+  const estimated = githubStateProgressMarkup(plan, [tasks[1]], repo, today, { numbers: true });
+  assert.ok(estimated.includes('1 / 1pt 完了 · 1 / 1件') && !estimated.includes('見積なし'));
+});
+test('進み具合の帯の番号は15件までにし、残りは件数で示す。点数がなければ帯を空にし、作業がなければ作業未登録と示す', () => {
+  const { plan, today, clone } = stateFixture();
+  const many = Array.from({ length: 20 }, (_, i) => clone(100 + i, { projects: [] }));
+  const html = githubStateProgressMarkup(plan, many, repo, today, { numbers: true });
+  assert.ok(html.includes('未着手 20件') && html.includes('見積なし 20件') && html.includes('#114') && !html.includes('#115') && html.includes('ほか5件'));
+  assert.ok(html.includes('0 / 20件 完了') && !html.includes('<i class='));
+  assert.ok(githubStateProgressMarkup(plan, [], repo, today).includes('作業未登録'));
+});
+test('モジュールと目標の行に帯を出し、リリースと期間の行は見積の終了率のままにする', () => {
+  const { value, today } = stateFixture(), html = renderGithubPeriods(value, today);
+  assert.equal([...html.matchAll(/class="state-bar"/g)].length >= 2, true, 'モジュールと目標の行');
+  assert.ok(html.includes('class="state-summary"') && html.includes('リリース（Milestone）'));
+  assert.ok(html.includes('github-progress-track'), 'リリースと期間の行');
 });
