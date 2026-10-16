@@ -1,8 +1,6 @@
 export const statusNames={received:'受付済み',working:'対応中',fixed:'修正済み・公開待ち',checking:'テスター確認待ち',complete:'確認完了'};
 export const nextStatusNames={received:'対応を始める',working:'修正済み・公開待ちにする',fixed:'公開してテスターへ確認を依頼する'};
 export function nextAction(report,role) {
-  if(role==='shared')return {received:'調査・修正を開始してください。',working:'修正を終えたら、公開待ちへ進めてください。',fixed:'修正版を公開し、確認対象のバージョンを指定してください。',checking:'報告した操作を修正版で試し、結果を送ってください。',complete:'対象バージョンでの解消を確認しました。'}[report.status];
-  if(role==='admin')return {received:'調査・修正を開始してください。',working:'修正を終えたら、公開待ちへ進めてください。',fixed:'修正版を公開し、確認対象のバージョンを指定してください。',checking:'報告したテスターの確認結果を待っています。',complete:'テスターが対象バージョンで解消を確認しました。'}[report.status];
   return {received:'報告は保存済みです。開発側の対応をお待ちください。',working:'開発側が調査・修正しています。再確認の依頼をお待ちください。',fixed:'修正は完了し、公開を待っています。再確認の依頼をお待ちください。',checking:report.isOwn===false?'報告したテスターの確認結果を待っています。':'報告した操作を修正版で試し、結果を送ってください。',complete:report.isOwn===false?'報告したテスターが対象バージョンで解消を確認しました。':'対象バージョンでの解消を確認しました。'}[report.status];
 }
 export const registrationNames={pending:'GitHub登録待ち',creating:'GitHub登録中',registered:'GitHub登録済み',failed:'GitHub登録失敗',unknown:'GitHub作成結果が未確認'};
