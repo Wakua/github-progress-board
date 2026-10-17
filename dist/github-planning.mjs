@@ -180,7 +180,8 @@ export function githubProgress(tasks, projectId = null) {
     estimatedTasks: estimates.filter(row => row.points !== null).length, totalPoints, closedPoints, remainingPoints,
     missingEstimates: estimates.filter(row => row.points === null && !row.ambiguous).length,
     ambiguousEstimates: estimates.filter(row => row.ambiguous).length,
-    percent: percent !== null && remaining.length ? Math.min(99, percent) : percent };
+    // 見積のない作業が未完了で残るときも、100%にしない。見積のある作業がすべてClosedでも、残りがあるため。
+    percent: percent !== null && tasks.some(task => task.item.state !== 'closed') ? Math.min(99, percent) : percent };
 }
 export function githubModules(plan) {
   const groups = new Map();
