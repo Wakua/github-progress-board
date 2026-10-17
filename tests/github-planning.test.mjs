@@ -250,17 +250,22 @@ test('見積未設定を分母と分子から除外し、Issueの件数と一覧
     assert.equal(progress.percent, 33);
   }
 });
-test('見積のある作業が全てClosedなら未見積のOpenがあっても集計対象の終了率は100%', () => {
+test('見積のある作業が全てClosedでも、未見積のOpenが残るあいだは、終了率を100%にしない。残りがなければ100%', () => {
   const plan = githubPlan(snapshot(inputs()));
-  const closed = plan.tasks.find(t => t.number === 4), missing = plan.tasks.find(t => t.number === 6);
+  const closed = plan.tasks.find(t => t.number === 4), missing = structuredClone(plan.tasks.find(t => t.number === 6));
   const progress = githubProgress([closed, missing]);
-  assert.equal(progress.percent, 100);
+  assert.equal(progress.percent, 99, '見積のないOpenが残る');
   assert.equal(progress.remainingPoints, 0);
   const html = githubProgressMarkup([closed, missing], '確認用');
-  assert.ok(html.includes('aria-valuenow="100"'));
+  assert.ok(html.includes('aria-valuenow="99"') && !html.includes('aria-valuenow="100"'));
   assert.ok(html.includes('見積未設定 1件を除外'));
   assert.ok(html.includes('終了 1pt / 1pt'));
   assert.ok(html.includes('（見積設定済みの作業）'));
+  missing.item.state = 'closed';
+  assert.equal(githubProgress([closed, missing]).percent, 100, '見積のない作業もClosedなら、100%');
+  assert.equal(githubProgress([closed]).percent, 100, '残りがなければ、100%');
+  missing.item.state = 'open';
+  assert.equal(githubProgress([closed, missing], 'P1').percent, 99, '期間の行（Projectを指定した集計）も、同じ');
 });
 test('未設定とゼロ見積しかない範囲は集計対象なしと示し、割合や残りを作らない', () => {
   const plan = githubPlan(snapshot(inputs()));
