@@ -320,6 +320,7 @@ test('進み具合の帯は、状態ごとのEstimateの合計の長さで描き
   for (const text of ['完了 1件</b> 1pt', '進行中・確認待ち 2件</b> 4pt', '止まっている 1件</b> 2pt', '未着手 2件</b>']) assert.ok(html.includes(text), text);
   assert.ok(html.includes('#7（#5待ち）') && html.includes('#3 #8') && html.includes('#5 #6'));
   assert.ok(html.includes('見積なし 1件') && html.includes('見積の出典確認 1件'));
+  assert.match(html, /見積の出典確認 1件<\/b> <span class="state-numbers">#5<\/span><\/span>/, '出典確認の行は、番号だけを持ち、リンクを持たない');
   assert.ok(!html.includes('見積を付ける'), 'Projectに登録した、見積のない作業がないときは、リンクを出さない');
   assert.ok(!html.includes('#4'), '完了の番号は出さない');
   const plain = githubStateProgressMarkup(plan, tasks, repo, today);
