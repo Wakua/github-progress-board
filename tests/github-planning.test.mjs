@@ -264,6 +264,8 @@ test('見積のある作業が全てClosedでも、未見積のOpenが残るあ�
   missing.item.state = 'closed';
   assert.equal(githubProgress([closed, missing]).percent, 100, '見積のない作業もClosedなら、100%');
   assert.equal(githubProgress([closed]).percent, 100, '残りがなければ、100%');
+  missing.item.state = 'open';
+  assert.equal(githubProgress([closed, missing], 'P1').percent, 99, '期間の行（Projectを指定した集計）も、同じ');
 });
 test('未設定とゼロ見積しかない範囲は集計対象なしと示し、割合や残りを作らない', () => {
   const plan = githubPlan(snapshot(inputs()));
