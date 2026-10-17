@@ -350,13 +350,27 @@ test('見積を付けるリンクは、Projectに登録した作業があると�
   const withProject = clone(10, { projects: tasks[0].projects.map(p => ({ ...p, estimatePoints: null })) });
   const finished = clone(11, { item: { ...tasks[0].item, state: 'closed' }, projects: tasks[0].projects.map(p => ({ ...p, estimatePoints: null, status: 'Done' })) });
   const html = githubStateProgressMarkup(plan, [withProject, finished], repo, today, { numbers: true });
-  assert.ok(html.includes('見積なし 1件') && html.includes('href="https://github.com/users/Wakua/projects/3"') && html.includes('見積を付ける'));
+  assert.ok(html.includes('<b>見積なし 1件</b>') && html.includes('href="https://github.com/users/Wakua/projects/3"') && html.includes('見積を付ける'));
   assert.ok(!html.includes('#11') && !html.includes('出典確認'));
   assert.ok(html.includes('1 / 2件 完了'), '完了した作業も、件数には数える');
   const only = githubStateProgressMarkup(plan, [finished], repo, today, { numbers: true });
-  assert.ok(!only.includes('見積なし') && only.includes('1 / 1件 完了'));
+  assert.ok(!only.includes('<b>見積なし') && only.includes('1 / 1件 完了'), '完了した作業は、見積なしの行には出さない');
+  assert.ok(only.includes('（うち見積なし 1件）'), '完了の行に、見積のない件数だけを添える');
+  assert.ok(html.includes('（うち見積なし 1件）') && !html.includes('#11'), '番号は出さない');
   const states = githubProgressStates(plan, [withProject, finished], repo, today);
-  assert.deepEqual([states.missing.map(i => i.number), states.sourceCheck.length], [[10], 0]);
+  assert.deepEqual([states.missing.map(i => i.number), states.sourceCheck.length, states.doneMissing.map(i => i.number)], [[10], 0, [11]]);
+});
+test('完了の行には、見積のない完了した作業があるときだけ、その件数を添える。目標の行にも添え、見積のある完了だけなら添えない', () => {
+  const { plan, today, tasks, clone } = stateFixture();
+  const finished = (number, projects) => clone(number, { item: { ...tasks[0].item, state: 'closed' }, projects: projects.map(p => ({ ...p, status: 'Done' })) });
+  const noEstimate = finished(11, tasks[0].projects.map(p => ({ ...p, estimatePoints: null })));
+  const twoProjects = finished(12, [...tasks[0].projects, { ...tasks[0].projects[0], id: 'P2', title: 'P2' }]);
+  const estimated = finished(13, tasks[0].projects);
+  const note = html => html.match(/（うち見積なし (\d+)件）/)?.[1];
+  assert.equal(note(githubStateProgressMarkup(plan, [estimated], repo, today, { numbers: true })), undefined, '見積のある完了だけなら、添えない');
+  assert.equal(note(githubStateProgressMarkup(plan, [estimated, noEstimate, twoProjects], repo, today, { numbers: true })), '2', '見積のない完了と、出典の決まらない完了を数える');
+  assert.equal(note(githubStateProgressMarkup(plan, [estimated, noEstimate, twoProjects], repo, today)), '2', '目標の行にも添える');
+  assert.ok(githubStateProgressMarkup(plan, [noEstimate], repo, today).includes('完了 1件</b> <span class="state-note">'), '完了の行の中に添える');
 });
 test('進み具合の帯の番号は15件までにし、残りは件数で示す。点数がなければ帯を空にし、作業がなければ作業未登録と示す', () => {
   const { plan, today, clone } = stateFixture();
