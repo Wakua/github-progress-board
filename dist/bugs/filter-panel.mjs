@@ -1,4 +1,4 @@
-import {statusNames,kindNames} from './view.mjs';
+import {statusNames,kindNames,decisionNames} from './view.mjs';
 
 // 絞り込みの条件。値のチェックボックスを入れた瞬間に、一覧を絞り込む。
 // 同じ条件の中は「どれか」、条件同士は「すべて」。何も選んでいない条件は、絞り込まない。
@@ -8,6 +8,7 @@ export const filterDefs = [
   { id: 'sub', name: 'サブ' },
   { id: 'status', name: '対応状況', exclusive: 'incomplete', choices: [{ value: 'incomplete', text: '確認完了を除く' }, ...Object.entries(statusNames).map(([value, text]) => ({ value, text }))] },
   { id: 'kind', name: '種別', choices: Object.entries(kindNames).map(([value, text]) => ({ value, text })) },
+  { id: 'decision', name: '判定', choices: Object.entries(decisionNames).map(([value, text]) => ({ value, text })) },
   { id: 'registration', name: 'GitHub登録', choices: [
     { value: 'pending', text: '登録待ち・未登録' }, { value: 'creating', text: '登録中' }, { value: 'registered', text: '登録済み' },
     { value: 'failed', text: '登録失敗' }, { value: 'unknown', text: '作成結果が未確認' }] }

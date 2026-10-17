@@ -15,6 +15,7 @@
 | POST | reports/:reportId/confirmations | 修正版の確認結果を保存する |
 | POST | reports/:reportId/categories | 登録前のカテゴリを置き換える |
 | POST | reports/:reportId/kind | 報告の種別を変える |
+| POST | reports/:reportId/decision | 要望の判定を残す |
 | GET | tag-roles | タグの一覧と、タグごとの役割 |
 | POST | tag-roles | タグの役割を保存する |
 | GET | uploads | 全確定済み・未登録データの情報 |
@@ -74,6 +75,29 @@ JSONの要求は `Content-Type: application/json` を使い、最大2MiBまで�
 | 409 | 更新番号が古い |
 | 404 | 報告が見つからない |
 
+## 要望の判定
+
+判定の意味と、残せる条件は[運用仕様](bug-reporting.md#要望の判定)に従う。
+
+報告の一覧と詳細は、`decision` として `{value, note, at}` を返す。
+`value` は、`undecided`（未判定）、`accept`（対応する）、`defer`（保留）のどれかである。
+`at` は判定した日時（ISO 8601）で、未判定は `null` である。
+更新前の報告は、`undecided` である。
+
+`POST reports/:reportId/decision` は、JSONで `{decision, note, revision}` を送り、判定を残す。
+`note` は省略できる文字列で、前後の空白を除いて保存する。
+`revision` は、報告自身の現在の更新番号である。
+成功時は200と `{report: ...}` を返し、報告の更新番号を一つ進める。
+送った判定と理由が保存済みと同じなら、何も変えずに現在の報告を返す。
+未判定を送ると、理由と日時を消す。
+GitHubへ要求を送らず、履歴の出来事も足さない。
+
+| Status | 条件 |
+| --- | --- |
+| 400 | decisionが規定の値でない、noteが文字列でないか500文字を超える、更新番号がない、報告が要望でない |
+| 409 | 更新番号が古い |
+| 404 | 報告が見つからない |
+
 ## 本文の検索
 
 `POST reports/search` は、JSONの `query` に検索語の文字列を送る。語の区切り、上限、一致の条件は[検索の規則](bug-reporting.md#報告一覧と検索)に従う。成功時は200と、一致した報告のIDを更新が新しい順に並べた `{ids: [...]}` を返す。一致がなければ空の配列を返す。
@@ -126,7 +150,7 @@ targetVersionとversionの長さは、報告のreportedVersionと同じ上限で
 異なる要求の更新番号が古い場合も409を返す。
 保存失敗時は[対応状況と履歴の保存条件](bug-reporting.md#修正後の確認)に従う。
 
-報告の一覧・詳細はstatus、targetVersion、developerNote、isOwn、categories、kindを持つ。
+報告の一覧・詳細はstatus、targetVersion、developerNote、isOwn、categories、kind、decisionを持つ。
 isOwnは報告者IDと共通利用者のIDが同じ場合にtrueとなる。
 以前の報告はfalseでも追加と確認を行える。
 詳細のhistoryは更新順の配列で、id、kind（statusまたはconfirmation）、fromStatus、toStatus、targetVersion、version、result、matchesTarget、note、at、actorNameを持つ。

@@ -25,11 +25,11 @@ const rejects400=(action,message)=>assert.throws(action,error=>error instanceof 
 
 test('schema v6 data migrates to the current version; every existing report stays a bug',t=>{
   const fx=fixture(t);const first=fx.create(),second=fx.create();
-  fx.store.db.exec('ALTER TABLE reports DROP COLUMN kind; PRAGMA user_version=6;');
+  fx.store.db.exec('ALTER TABLE reports DROP COLUMN decision; ALTER TABLE reports DROP COLUMN decision_note; ALTER TABLE reports DROP COLUMN decided_at; ALTER TABLE reports DROP COLUMN kind; PRAGMA user_version=6;');
   fx.release();
   const reopened=new BugStore(fx.dir);
   try {
-    assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,7);
+    assert.equal(reopened.db.prepare('PRAGMA user_version').get().user_version,8);
     const actor=reopened.sharedActor();
     assert.deepEqual(reopened.listReports(actor).map(item=>item.kind),['bug','bug']);
     const migrated=reopened.getReport(actor,first.id);

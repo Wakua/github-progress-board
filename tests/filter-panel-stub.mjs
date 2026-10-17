@@ -1,9 +1,9 @@
 // 絞り込みの枠（dist/bugs/filter-panel.mjs）の、画面のテスト用の模擬。
 // 画面のコードが渡す選択肢と、選んだ値を覚える。テストは、choose で条件の値を選び、選んだ値と選択肢の文字を読む。
-const ids = { '#main-filter': 'main', '#sub-filter': 'sub', '#status-filter': 'status', '#kind-filter': 'kind', '#registration-filter': 'registration' };
+const ids = { '#main-filter': 'main', '#sub-filter': 'sub', '#status-filter': 'status', '#kind-filter': 'kind', '#decision-filter': 'decision', '#registration-filter': 'registration' };
 
 export function createFilterPanelStub() {
-  const state = { main: [], sub: [], status: [], kind: [], registration: [] }, choices = {};
+  const state = { main: [], sub: [], status: [], kind: [], decision: [], registration: [] }, choices = {};
   let onChange = () => {};
   return {
     mountFilterPanel(options) {

@@ -1,7 +1,7 @@
 import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction,threadEvents} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
 import {mountFilterPanel} from './filter-panel.mjs';
-import {categoriesEditable,selectableCategories,kindNames,kindOf,boardColumns} from './view.mjs';
+import {categoriesEditable,selectableCategories,kindNames,kindOf,boardColumns,decisionNames,decisionOf} from './view.mjs';
 const $ = selector => document.querySelector(selector);
 const element = (tag,text,className) => { const node=document.createElement(tag); if(text!==undefined) node.textContent=text; if(className) node.className=className; return node; };
 const bytes = size => size >= 1024**3 ? (size/1024**3).toFixed(2)+' GiB' : size >= 1024**2 ? (size/1024**2).toFixed(1)+' MiB' : size>=1024 ? (size/1024).toFixed(1)+' KiB' : size+' B';
@@ -75,7 +75,7 @@ async function refresh() {
 function renderList() {
   const box=$('#reports'); box.replaceChildren();
   const roles=roleMap(tagRoles.tags());
-  const filters={main:filterPanel.values('main'),sub:filterPanel.values('sub'),state:filterPanel.values('registration'),status:filterPanel.values('status'),kind:filterPanel.values('kind'),found:searchIds,roles};
+  const filters={main:filterPanel.values('main'),sub:filterPanel.values('sub'),state:filterPanel.values('registration'),status:filterPanel.values('status'),kind:filterPanel.values('kind'),decision:filterPanel.values('decision'),found:searchIds,roles};
   const visible=reports.filter(report=>matchesFilters(report,filters));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
@@ -86,6 +86,7 @@ function renderList() {
     row.title=report.title;
     states.append(element('span',statusNames[report.status],'status workflow-'+report.status));
     if(kindOf(report)!=='bug')states.append(element('span',kindNames[kindOf(report)],'kind-mark'));
+    if(['accept','defer'].includes(decisionOf(report)))states.append(element('span',decisionNames[decisionOf(report)],'kind-mark decision-'+decisionOf(report)));
     if(mark)states.append(element('span',mark,'status status-'+report.github.state));
     const text=element('span',undefined,'report-text'),area=areaText(report,roles);
     const head=element('span',undefined,'report-head');
@@ -140,6 +141,7 @@ async function openReport(id,move=true) {
     ...(report.reportedVersion?[element('p','発生したバージョン：'+report.reportedVersion,'meta')]:[]),
     element('div',report.body,'report-body'),element('h3','再現データ · '+report.attachmentCount+'件 / '+bytes(report.attachmentBytes)));
   detail.insertBefore(renderKind(report),detail.querySelector('.report-body'));
+  if(kindOf(report)==='request')detail.insertBefore(renderDecision(report),detail.querySelector('.report-body'));
   detail.insertBefore(renderWorkflow(report),detail.querySelector('.report-body'));
   const githubBox=element('div');githubBox.id='github-status';githubBox.append(renderGitHub(report));detail.insertBefore(githubBox,detail.querySelector('.report-body'));
   const categoryBox=element('div');categoryBox.id='category-status';fillCategories(categoryBox,report);detail.insertBefore(categoryBox,detail.querySelector('.report-body'));
@@ -331,6 +333,25 @@ function renderKind(report) {
   };
   label.append(element('span','種別'),select);
   return label;
+}
+// 要望の判定。判定（未判定、対応する、保留）と理由を、ツールの中だけで持つ。判定した日付は、保存のあとに出す。変えたときだけ、保存を出す。
+function renderDecision(report) {
+  const form=element('form',undefined,'decision-edit'),label=element('label',undefined,'decision-label'),select=element('select'),note=element('input'),save=element('button','保存'),current=decisionOf(report),decision=report.decision??{value:'undecided',note:'',at:null};
+  for(const [value,text] of Object.entries(decisionNames)){const option=element('option',text);option.value=value;select.append(option);}
+  select.value=current;note.value=decision.note;note.maxLength=500;note.placeholder='理由';
+  const sync=()=>{note.hidden=select.value==='undecided';save.hidden=select.value===current&&note.value===decision.note;};
+  select.onchange=note.oninput=sync;sync();
+  form.onsubmit=async event=>{
+    event.preventDefault();select.disabled=note.disabled=save.disabled=true;
+    try {
+      await api('reports/'+report.id+'/decision',json({decision:select.value,note:note.value,revision:report.revision}));
+      await refresh();
+    } catch(failure) {notice(failure.message,true);select.disabled=note.disabled=save.disabled=false;}
+  };
+  label.append(element('span','判定'),select);
+  form.append(label,note,save);
+  if(decision.at)form.append(element('span',new Date(decision.at).toLocaleDateString('ja-JP'),'meta'));
+  return form;
 }
 function renderGitHub(report) {
   const box=element('section',undefined,'github-panel'),github=report.github,tags=github.tags;

@@ -32,14 +32,15 @@ const tags=[{id:1,name:'予約',role:'main'},{id:2,name:'通知',role:'main'},{i
 const label=id=>({id,name:tags.find(tag=>tag.id===id).name});
 const report=(id,{status='received',kind,state='registered',ids=[]}={})=>({id,status,...(kind?{kind}:{}),github:{state,tags:{labels:ids.map(label)}}});
 
-test('条件は、メイン・サブ・対応状況・種別・GitHub登録の順に、ボタンで並ぶ。選択肢のないメインとサブは隠す',()=>{
+test('条件は、メイン・サブ・対応状況・種別・判定・GitHub登録の順に、ボタンで並ぶ。選択肢のないメインとサブは隠す',()=>{
   const fx=fixture();
-  assert.deepEqual(filterDefs.map(def=>def.id),['main','sub','status','kind','registration']);
-  assert.deepEqual(fx.root.children.map(node=>node.dataset.filter),['main','sub','status','kind','registration']);
-  assert.deepEqual(fx.root.children.map(node=>node.children[0].textContent),['メイン','サブ','対応状況','種別','GitHub登録']);
-  assert.deepEqual(fx.root.children.map(node=>node.hidden),[true,true,false,false,false]);
+  assert.deepEqual(filterDefs.map(def=>def.id),['main','sub','status','kind','decision','registration']);
+  assert.deepEqual(fx.root.children.map(node=>node.dataset.filter),['main','sub','status','kind','decision','registration']);
+  assert.deepEqual(fx.root.children.map(node=>node.children[0].textContent),['メイン','サブ','対応状況','種別','判定','GitHub登録']);
+  assert.deepEqual(fx.root.children.map(node=>node.hidden),[true,true,false,false,false,false]);
   assert.deepEqual(fx.texts('status'),['確認完了を除く','受付済み','対応中','修正済み・公開待ち','テスター確認待ち','確認完了']);
   assert.deepEqual(fx.texts('kind'),['不具合','要望','確認']);
+  assert.deepEqual(fx.texts('decision'),['未判定','対応する','保留']);
   assert.deepEqual(fx.texts('registration'),['登録待ち・未登録','登録中','登録済み','登録失敗','作成結果が未確認']);
   for(const def of filterDefs)assert.deepEqual(fx.panel.values(def.id),[]);
 });
