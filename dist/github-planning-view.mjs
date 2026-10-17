@@ -12,7 +12,8 @@ const points = value => Number(value.toPrecision(12)) + 'pt';
 export function githubProgressMarkup(tasks, title, projectId = null) {
   const p = githubProgress(tasks, projectId);
   const excluded = p.missingEstimates ? '<small>見積未設定 ' + p.missingEstimates + '件を除外</small>' : '';
-  const remaining = p.remainingPoints !== null && p.estimatedTasks ? '<span class="github-progress-remaining"><small>残り</small><strong>' + points(p.remainingPoints) + '</strong></span>' : '';
+  // 見積のない未完了の作業が残るときは、残りの点数が0でも、「残り 0pt」と出さない。
+  const remaining = p.remainingPoints !== null && p.estimatedTasks && !(p.remainingPoints === 0 && p.openMissingEstimates) ? '<span class="github-progress-remaining"><small>残り</small><strong>' + points(p.remainingPoints) + '</strong></span>' : '';
   if (p.percent === null) {
     const reason = !p.total ? '作業未登録' : p.ambiguousEstimates ? '見積の出典確認 ' + p.ambiguousEstimates + '件' : !p.estimatedTasks ? '見積のある作業なし' : '見積の集計要確認';
     return '<span class="github-progress unknown"><span class="github-progress-value"><strong>' + reason + '</strong><small>' + p.closed + ' / ' + p.total + '件がClosed</small>' + excluded + '</span>' + remaining + '</span>';
