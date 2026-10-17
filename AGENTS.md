@@ -64,8 +64,11 @@ UIの構造や操作の流れは、観察、行動の整理、設計、試作の
 
 ## 文章とGit
 
-- 文章を書く前に [文章の書き方](docs/writing-guidelines.md) を読む。返答、進捗報告、文書、Issue、PRに適用する。
-- 文書の変更をレビューするときは、[文書レビューの手順](docs/writing-guidelines.md#文書レビュー) を適用する。
+- 文章を書く前に、共通ルール [文章の書き方](https://github.com/Wakua/writing-guidelines/blob/main/writing-guidelines.md)（private）を読む。
+  返答、進捗報告、文書、Issue、PRに適用する。
+  端末への配置は、共通リポジトリのREADMEに従う（配置先：`%USERPROFILE%\.codex\shared-rules\writing-guidelines\writing-guidelines.md`）。
+  読めないときは、その旨を伝え、読んだものとして扱わない。
+- 文書の変更をレビューするときは、共通ルールの [文書レビューの手順](https://github.com/Wakua/writing-guidelines/blob/main/writing-guidelines.md#文書レビュー) を適用する。
 - ブランチ名は `codex/` で始める。コミット対象のファイルを個別に指定し、`git add -A` や `git add .` は使わない。
 - PRは、ユーザーが対象PRを承認してからマージする。
 - 実装の委任やAIレビューは、ユーザーが明示的に求めた場合だけ行う。
