@@ -78,8 +78,7 @@ export function githubProgressStates(plan, tasks, repositoryUrl, today = todayIn
       : group === 'review' || group === 'active' || (group === 'action' && task.projects.length && task.projects.every(p => p.status === 'In Progress')) ? 'active' : 'todo';
     const points = task.projects.length === 1 && task.projects[0].estimatePoints > 0 ? task.projects[0].estimatePoints : null;
     groups[state].push({ number: task.number, waitingOn: state === 'blocked' ? open.map(b => blockerRef(b, repositoryUrl)) : [], points });
-    if (points === null && state !== 'done') (task.projects.length > 1 ? sourceCheck : missing).push({ number: task.number, projectUrl: task.projects[0]?.url ?? null });
-    if (points === null && state === 'done') doneMissing.push({ number: task.number });
+    if (points === null) (state === 'done' ? doneMissing : task.projects.length > 1 ? sourceCheck : missing).push({ number: task.number, projectUrl: task.projects[0]?.url ?? null });
   }
   const points = Object.fromEntries(PROGRESS_STATES.map(([id]) => [id, groups[id].reduce((sum, item) => sum + (item.points ?? 0), 0)]));
   return { total: tasks.length, groups, points, totalPoints: Object.values(points).reduce((sum, value) => sum + value, 0), missing, sourceCheck, doneMissing };
