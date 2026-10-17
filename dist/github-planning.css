@@ -48,3 +48,4 @@ details[open]>summary>.github-scope-name:before{transform:rotate(90deg)}
 .github-progress.no-remaining{grid-template-columns:120px minmax(60px,1fr)}
 @media(max-width:850px){.github-progress.no-remaining{grid-template-columns:110px minmax(60px,1fr)}}
 @media(max-width:440px){.github-progress.no-remaining{grid-template-columns:1fr;gap:8px}}
+.state-note{color:var(--amber)}

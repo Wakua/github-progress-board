@@ -24,7 +24,7 @@ export function githubProgressMarkup(tasks, title, projectId = null) {
 // numbers が真なら、完了以外の作業の番号も添える。見積のない作業の番号と、見積を付けるProjectへのリンクは、いつも添える。
 const STATE_NUMBER_LIMIT = 15;
 export function githubStateProgressMarkup(plan, tasks, repositoryUrl, today, { numbers = false } = {}) {
-  const { total, groups, points: pts, totalPoints, missing, sourceCheck } = githubProgressStates(plan, tasks, repositoryUrl, today);
+  const { total, groups, points: pts, totalPoints, missing, sourceCheck, doneMissing } = githubProgressStates(plan, tasks, repositoryUrl, today);
   if (!total) return '<span class="state-progress"><span class="state-count">作業未登録</span></span>';
   const shown = PROGRESS_STATES.filter(([id]) => groups[id].length);
   const refs = (list, text) => {
@@ -35,7 +35,7 @@ export function githubStateProgressMarkup(plan, tasks, repositoryUrl, today, { n
   const projectUrl = missing.find(item => item.projectUrl)?.projectUrl;
   return '<span class="state-progress"><span class="state-count">' + done + '</span>'
     + '<span class="state-bar" aria-hidden="true">' + shown.filter(([id]) => pts[id] > 0).map(([id]) => '<i class="' + id + '" style="width:' + pts[id] / totalPoints * 100 + '%"></i>').join('') + '</span>'
-    + '<span class="state-legend">' + shown.map(([id, name]) => '<span class="state-legend-row ' + id + '"><b>' + name + ' ' + groups[id].length + '件</b>' + (pts[id] > 0 ? ' ' + points(pts[id]) : '')
+    + '<span class="state-legend">' + shown.map(([id, name]) => '<span class="state-legend-row ' + id + '"><b>' + name + ' ' + groups[id].length + '件</b>' + (pts[id] > 0 ? ' ' + points(pts[id]) : '') + (id === 'done' && doneMissing.length ? ' <span class="state-note">（うち見積なし ' + doneMissing.length + '件）</span>' : '')
       + (numbers && id !== 'done' ? refs(groups[id], item => '#' + item.number + (item.waitingOn.length ? '（' + item.waitingOn.map(esc).join('・') + '待ち）' : '')) : '') + '</span>').join('')
     + (missing.length ? '<span class="state-legend-row missing"><b>見積なし ' + missing.length + '件</b>' + refs(missing, item => '#' + item.number) + (projectUrl ? ' ' + link(projectUrl, '見積を付ける') : '') + '</span>' : '')
     + (sourceCheck.length ? '<span class="state-legend-row missing"><b>見積の出典確認 ' + sourceCheck.length + '件</b>' + refs(sourceCheck, item => '#' + item.number) + '</span>' : '')
