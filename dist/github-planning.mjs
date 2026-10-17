@@ -179,6 +179,8 @@ export function githubProgress(tasks, projectId = null) {
   return { total: tasks.length, closed: estimates.filter(row => row.task.item.state === 'closed').length,
     estimatedTasks: estimates.filter(row => row.points !== null).length, totalPoints, closedPoints, remainingPoints,
     missingEstimates: estimates.filter(row => row.points === null && !row.ambiguous).length,
+    // 見積がなく、未完了の作業の数。残りの点数に入らないため、残りが0でも、残りがないとは言えない。
+    openMissingEstimates: estimates.filter(row => row.points === null && !row.ambiguous && row.task.item.state !== 'closed').length,
     ambiguousEstimates: estimates.filter(row => row.ambiguous).length,
     // 見積のない作業が未完了で残るときも、100%にしない。見積のある作業がすべてClosedでも、残りがあるため。
     percent: percent !== null && tasks.some(task => task.item.state !== 'closed') ? Math.min(99, percent) : percent };

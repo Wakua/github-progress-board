@@ -198,7 +198,7 @@ test('モジュールの部分取得と不正なラベルを保存しない', ()
 test('末端Issueの見積で重みを付け、Closedだけを終了として集計する', () => {
   const plan = githubPlan(snapshot(inputs()));
   const progress = githubProgress(plan.goals[0].tasks);
-  assert.deepEqual(progress, { total: 2, closed: 1, estimatedTasks: 2, totalPoints: 3, closedPoints: 1, remainingPoints: 2, missingEstimates: 0, ambiguousEstimates: 0, percent: 33 });
+  assert.deepEqual(progress, { total: 2, closed: 1, estimatedTasks: 2, totalPoints: 3, closedPoints: 1, remainingPoints: 2, missingEstimates: 0, openMissingEstimates: 0, ambiguousEstimates: 0, percent: 33 });
   assert.equal(githubProgress([...plan.goals[0].tasks, plan.goals[0].tasks[0]]).total, 2);
   const openDone = structuredClone(plan.goals[0].tasks); openDone[1].item.state = 'open';
   assert.equal(githubProgress(openDone).percent, 0);
@@ -258,14 +258,30 @@ test('見積のある作業が全てClosedでも、未見積のOpenが残るあ�
   assert.equal(progress.remainingPoints, 0);
   const html = githubProgressMarkup([closed, missing], '確認用');
   assert.ok(html.includes('aria-valuenow="99"') && !html.includes('aria-valuenow="100"'));
+  assert.equal(progress.openMissingEstimates, 1);
+  assert.ok(!html.includes('github-progress-remaining'), '見積のない未完了の作業が残り、残りの点数が0のときは、「残り 0pt」を出さない');
+  assert.ok(html.includes('class="github-progress no-remaining"'), '残りを出さないときは、帯が、残りの欄まで広がる');
+  const period = githubProgressMarkup([closed, missing], '確認用', 'P1');
+  assert.ok(!period.includes('github-progress-remaining') && period.includes('no-remaining'), '期間の行（Projectを指定した集計）も、同じ');
   assert.ok(html.includes('見積未設定 1件を除外'));
   assert.ok(html.includes('終了 1pt / 1pt'));
   assert.ok(html.includes('（見積設定済みの作業）'));
   missing.item.state = 'closed';
   assert.equal(githubProgress([closed, missing]).percent, 100, '見積のない作業もClosedなら、100%');
+  const finished = githubProgressMarkup([closed, missing], '確認用');
+  assert.ok(finished.includes('github-progress-remaining') && !finished.includes('no-remaining'), '残りがなければ、「残り 0pt」を出す');
   assert.equal(githubProgress([closed]).percent, 100, '残りがなければ、100%');
   missing.item.state = 'open';
   assert.equal(githubProgress([closed, missing], 'P1').percent, 99, '期間の行（Projectを指定した集計）も、同じ');
+});
+test('見積のある未完了の作業があるときは、見積のない未完了の作業が残っていても、残りの点数を出す', () => {
+  const plan = githubPlan(snapshot(inputs()));
+  const open = plan.tasks.find(t => t.number === 3), missing = plan.tasks.find(t => t.number === 6);
+  const progress = githubProgress([open, missing]);
+  assert.equal(progress.remainingPoints, 2);
+  assert.equal(progress.openMissingEstimates, 1);
+  const html = githubProgressMarkup([open, missing], '確認用');
+  assert.ok(html.includes('github-progress-remaining') && html.includes('2pt'));
 });
 test('未設定とゼロ見積しかない範囲は集計対象なしと示し、割合や残りを作らない', () => {
   const plan = githubPlan(snapshot(inputs()));

@@ -45,3 +45,6 @@ details[open]>summary>.github-scope-name:before{transform:rotate(90deg)}
 .state-legend-row.missing:before{background:repeating-linear-gradient(45deg,var(--amber) 0 2px,transparent 2px 4px);box-shadow:inset 0 0 0 1px var(--amber)}
 .state-legend-row.missing>b{color:var(--amber)}
 .state-legend-row.missing a{color:inherit;text-decoration:underline;margin-left:4px}
+.github-progress.no-remaining{grid-template-columns:120px minmax(60px,1fr)}
+@media(max-width:850px){.github-progress.no-remaining{grid-template-columns:110px minmax(60px,1fr)}}
+@media(max-width:440px){.github-progress.no-remaining{grid-template-columns:1fr;gap:8px}}
