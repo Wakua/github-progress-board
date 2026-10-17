@@ -292,7 +292,7 @@ const stateFixture = () => {
 };
 test('作業を、完了・進行中・止まっている・未着手に分け、前提が未完了なら作業中でも止まっているとする', () => {
   const { plan, today, tasks } = stateFixture();
-  const { total, groups, points, totalPoints, missing } = githubProgressStates(plan, tasks, repo, today);
+  const { total, groups, points, totalPoints, missing, sourceCheck } = githubProgressStates(plan, tasks, repo, today);
   assert.equal(total, 6);
   assert.deepEqual(groups.done.map(i => i.number), [4]);
   assert.deepEqual(groups.active.map(i => i.number), [3, 8], '作業中と、承認待ちのPRがある作業は進行中');
@@ -300,7 +300,8 @@ test('作業を、完了・進行中・止まっている・未着手に分け�
   assert.deepEqual(groups.todo.map(i => i.number), [5, 6], 'StatusがProjectごとに違う作業と、Project未登録の作業は未着手');
   assert.deepEqual(points, { done: 1, active: 4, blocked: 2, todo: 0 });
   assert.equal(totalPoints, 7);
-  assert.deepEqual(missing.map(i => i.number), [5, 6], '複数Projectで出典が決まらない作業と、Project未登録の作業は、見積なし');
+  assert.deepEqual(missing.map(i => i.number), [6], 'Project未登録で、見積のない未完了の作業は、見積なし');
+  assert.deepEqual(sourceCheck.map(i => i.number), [5], '複数Projectで出典が決まらない作業は、見積なしと区別して、出典確認');
 });
 test('担当者のいない作業中は、要対応でも進行中に数える', () => {
   const { plan, today, tasks, clone } = stateFixture();
@@ -318,19 +319,34 @@ test('進み具合の帯は、状態ごとのEstimateの合計の長さで描き
   assert.ok(Math.abs(Number(widths[1][2]) - 400 / 7) < 1e-9, '進行中は4/7');
   for (const text of ['完了 1件</b> 1pt', '進行中・確認待ち 2件</b> 4pt', '止まっている 1件</b> 2pt', '未着手 2件</b>']) assert.ok(html.includes(text), text);
   assert.ok(html.includes('#7（#5待ち）') && html.includes('#3 #8') && html.includes('#5 #6'));
-  assert.ok(html.includes('見積なし 2件') && html.includes('href="https://github.com/users/Wakua/projects/3"') && html.includes('見積を付ける'));
+  assert.ok(html.includes('見積なし 1件') && html.includes('見積の出典確認 1件'));
+  assert.ok(!html.includes('見積を付ける'), 'Projectに登録した、見積のない作業がないときは、リンクを出さない');
   assert.ok(!html.includes('#4'), '完了の番号は出さない');
   const plain = githubStateProgressMarkup(plan, tasks, repo, today);
   assert.ok(!plain.includes('#7') && !plain.includes('#3 #8'), '状態ごとの番号は numbers のときだけ');
-  assert.ok(plain.includes('見積なし 2件') && plain.includes('#5 #6') && plain.includes('見積を付ける'), '見積なしの件数・番号・リンクは、目標の行にも出す');
+  assert.ok(plain.includes('見積なし 1件') && plain.includes('見積の出典確認 1件'), '見積なしと出典確認の件数は、目標の行にも出す');
   const estimated = githubStateProgressMarkup(plan, [tasks[1]], repo, today, { numbers: true });
   assert.ok(estimated.includes('1 / 1pt 完了 · 1 / 1件') && !estimated.includes('見積なし'));
+});
+test('見積を付けるリンクは、Projectに登録した作業があるときだけ出す。完了した作業は、見積がなくても、見積なしにも出典確認にも入れない', () => {
+  const { plan, today, tasks, clone } = stateFixture();
+  const withProject = clone(10, { projects: tasks[0].projects.map(p => ({ ...p, estimatePoints: null })) });
+  const finished = clone(11, { item: { ...tasks[0].item, state: 'closed' }, projects: tasks[0].projects.map(p => ({ ...p, estimatePoints: null, status: 'Done' })) });
+  const html = githubStateProgressMarkup(plan, [withProject, finished], repo, today, { numbers: true });
+  assert.ok(html.includes('見積なし 1件') && html.includes('href="https://github.com/users/Wakua/projects/3"') && html.includes('見積を付ける'));
+  assert.ok(!html.includes('#11') && !html.includes('出典確認'));
+  assert.ok(html.includes('1 / 2件 完了'), '完了した作業も、件数には数える');
+  const only = githubStateProgressMarkup(plan, [finished], repo, today, { numbers: true });
+  assert.ok(!only.includes('見積なし') && only.includes('1 / 1件 完了'));
+  const states = githubProgressStates(plan, [withProject, finished], repo, today);
+  assert.deepEqual([states.missing.map(i => i.number), states.sourceCheck.length], [[10], 0]);
 });
 test('進み具合の帯の番号は15件までにし、残りは件数で示す。点数がなければ帯を空にし、作業がなければ作業未登録と示す', () => {
   const { plan, today, clone } = stateFixture();
   const many = Array.from({ length: 20 }, (_, i) => clone(100 + i, { projects: [] }));
   const html = githubStateProgressMarkup(plan, many, repo, today, { numbers: true });
   assert.ok(html.includes('未着手 20件') && html.includes('見積なし 20件') && html.includes('#114') && !html.includes('#115') && html.includes('ほか5件'));
+  assert.ok(!html.includes('見積を付ける'), 'Projectに登録した作業がなければ、リンクを出さない');
   assert.ok(html.includes('0 / 20件 完了') && !html.includes('<i class='));
   assert.ok(githubStateProgressMarkup(plan, [], repo, today).includes('作業未登録'));
 });
