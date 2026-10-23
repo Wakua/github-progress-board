@@ -5,6 +5,7 @@ import {tmpdir} from 'node:os';
 import path from 'node:path';
 import {BugStore} from '../server/bug-store.mjs';
 import {createProgressServer} from '../server.mjs';
+import {checkBugList} from './bug-list-browser-qa.mjs';
 
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const dataDir=await mkdtemp(path.join(tmpdir(),'github-board-bug-qa-'));
@@ -106,6 +107,7 @@ try {
   await stop();await start(github);await page.goto(base+'/bugs/?report='+id);await page.locator('#detail > .workflow-complete').waitFor();
   report=await read(id);assert.equal(report.history.length,8);assert.equal(report.attachmentCount,2);assert.equal(github.posts.length,1);
   checks.push('再起動後も確認履歴・添付・Issueの関連付けを保持する');
+  await stop();await checkBugList({browser,artifacts,checks,errors});
   assert.deepEqual(errors,[]);await writeFile(path.join(artifacts,'summary.json'),JSON.stringify({checks,errors},null,2));
   console.log(JSON.stringify({checks:checks.length,errors,artifacts},null,2));
 } finally {
