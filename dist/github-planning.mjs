@@ -124,6 +124,15 @@ export function validatePlanning(planning, snapshot) {
   return planning;
 }
 
+// 親Issue(子Issueを持つIssue)のタイトルは、先頭の「[Hub] 」を外して表示する。GitHub上のタイトルは変えない。
+// 親かどうかは子Issueの有無で決め、タイトルでは決めない。外すと空になるときは、元のタイトルを残す。
+export const parentTitle = title => title.replace(/^\[Hub\] /, '') || title;
+export const planTitle = issue => issue.childCount > 0 ? parentTitle(issue.item.title) : issue.item.title;
+export function snapshotTitleOf(snapshot) {
+  const parents = new Set((snapshot?.planning?.issues ?? []).filter(i => i.childCount > 0).map(i => i.number));
+  return item => item.kind === 'issue' && parents.has(item.number) ? parentTitle(item.title) : item.title;
+}
+
 export function githubPlan(snapshot) {
   if (!snapshot?.planning) return null;
   const records = new Map(snapshot.items.filter(i => i.kind === 'issue').map(i => [i.number, i]));
