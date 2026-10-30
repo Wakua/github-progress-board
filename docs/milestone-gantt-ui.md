@@ -63,6 +63,14 @@ Aを小さな操作試作の対象とした。
 Chromeの実操作で、詳細が開くこと、親の下に子2件が表示されること、戻ると元の開始条件ボタンにフォーカスが戻ることを確認した。
 画像は`14-prototype-before.jpg`、`15-prototype-details.jpg`、`16-prototype-expanded.jpg`、`17-prototype-return.jpg`に記録した。
 
+以下は同じ試作をEdgeの検証用ブラウザで操作し、幅800ピクセルで撮った操作前後の画像である。
+詳細の表示、子の展開、元のボタンへのフォーカスの復帰を再確認した。
+製品の変更前後を示す画像ではない。
+
+![開始条件を開く前の試作](screens/127/before-01-start-condition.jpg)
+
+![親Issueの配下を開いた試作](screens/127/after-01-start-condition.jpg)
+
 試作では違いを表示して開けることを確認しただけであり、利用者が迷わず判断できたとは扱わない。
 
 ## 残る確認
