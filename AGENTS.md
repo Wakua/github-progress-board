@@ -66,6 +66,7 @@ UIの構造や操作の流れは、観察、行動の整理、設計、試作の
   紐づけは `gh api -X POST repos/<owner>/<repo>/issues/<親の番号>/sub_issues -F sub_issue_id=<子のid>` で行う。`sub_issue_id` には、Issueの番号ではなく、`gh api repos/<owner>/<repo>/issues/<子の番号> --jq .id` で得るidを渡す。
 - 着手の前提がある作業のIssueには、依存関係（blocked by）を登録する。
 - Claude・CodexはGitHubのユーザーではないため、担当はAssigneeではなくProjectの「担当」フィールド（Wakua・Claude・Codex）で示す。
+- 子Issueを持つ親Issueのタイトルは `[Hub] ` で始める。最初の子Issueを紐づけるときに付け、子Issueを持たない作業のIssueには付けない。
 - IssueとPRの本文は「目的」から始め、誰が何をできるようになるかを書く。実装の手段は「手段」として分けて書く。
 - PRの「目的」の先頭に、対応するIssueを `- #番号` の箇条書きで置く。GitHubがIssueのタイトルを表示する。
 - PRの本文では、対応するIssueを `Closes #番号` か `Refs #番号` で示す。対応するIssueのないPRは作らない。
