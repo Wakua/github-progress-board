@@ -30,10 +30,10 @@ h1{font-size:22px;margin:12px 0}h2{font-size:18px}p{margin:12px 0}.hint{font-siz
 <svg id="connections" class="connections" role="img" aria-label="実装Bから結合確認、実装Aから結合確認への2本の依存矢印"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs><path id="edge-b" marker-end="url(#arrow)"/><path id="edge-a" marker-end="url(#arrow)"/></svg>
 </div>
 <div class="path-summary"><p><strong>依存関係：</strong>実装A・実装Bの<strong>両方が完了 → 結合確認</strong></p><p><strong>クリティカルパス：</strong>#202 実装B → #210 結合確認</p></div>
-<p class="explanation">余裕は、計算上の完了を遅らせずに開始を延ばせる日数。</p>
+<p class="explanation">余裕は、リリースの計算上の完了を遅らせずに開始を延ばせる日数。</p>
 <div class="start"><span>#210の開始 <strong>11/5</strong>　<span class="label">既存分類：着手可能</span></span><button id="reason">#210の開始条件を見る</button></div>
 </section>
-<dialog id="details"><div class="head"><h2>#210 結合確認</h2><button id="close">閉じる</button></div><p><span class="label">既存分類：着手可能</span></p><p>計算上の開始は11/5。前提の子作業2件が両方とも完了するのを待つ。</p><details id="parent"><summary>#200 機能A　Closed　未完了の子2件</summary><table><tr><th>計算で待つ作業</th><th>計算上の完了</th></tr><tr><td>#201 実装A</td><td>11/3</td></tr><tr><td>#202 実装B</td><td>11/4</td></tr></table></details><p class="hint">親のClosedと配下の完了は別に扱う。</p><button id="back">ガントの#210へ戻る</button></dialog>
+<dialog id="details" aria-labelledby="details-title"><div class="head"><h2 id="details-title">#210 結合確認</h2><button id="close">閉じる</button></div><p><span class="label">既存分類：着手可能</span></p><p>計算上の開始は11/5。前提の子作業2件が両方とも完了するのを待つ。</p><details id="parent"><summary>#200 機能A　Closed　未完了の子2件</summary><table><tr><th>計算で待つ作業</th><th>計算上の完了</th></tr><tr><td>#201 実装A</td><td>11/3</td></tr><tr><td>#202 実装B</td><td>11/4</td></tr></table></details><p class="hint">親のClosedと配下の完了は別に扱う。</p><button id="back">ガントの#210へ戻る</button></dialog>
 </main>
 <script>
 const dialog = document.querySelector('#details');
@@ -42,6 +42,18 @@ reason.onclick = () => dialog.showModal();
 document.querySelector('#close').onclick = () => dialog.close();
 document.querySelector('#back').onclick = () => dialog.close();
 dialog.addEventListener('close', () => reason.focus());
+dialog.addEventListener('keydown', (event) => {
+  if (event.key !== 'Tab') return;
+  const first = dialog.querySelector('#close');
+  const last = dialog.querySelector('#back');
+  if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  }
+});
 // Capture variants keep the same content and interactions at a bounded layout width.
 const width = Number(new URLSearchParams(location.search).get('width'));
 if (width >= 320 && width <= 800) document.querySelector('main').style.width = width + 'px';

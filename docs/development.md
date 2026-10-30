@@ -132,7 +132,8 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 完了予定日と、期日に間に合うかの判定は出さない。
 [採用済みのガントチャート要件](milestone-gantt.md)にある日程計算、クリティカルパス、作業進捗率の初期設定・取得・更新、担当重複の警告は未実装である。
 別repositoryの前提は現行実装では開閉と`仕様`ラベルだけを取得し、Projectの計画情報と配下の子Issueを取得する拡張は未実装である。
-この要件の画面構成と操作は、UI観察・試作による確認前である。
+開始条件の表示は、[公開デモの観察と小さな操作試作](milestone-gantt-ui.md)で検討している。
+画面全体の構成と、利用者が表示を読み取れるかの確認は残っている。
 
 担当別の負荷の上限は、手動計画とGitHubの計画の画面で確認した。
 変更前後の画面は `docs/screens/18/` にある。
