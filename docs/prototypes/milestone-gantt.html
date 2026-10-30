@@ -6,56 +6,72 @@
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#131923;color:#eef2f8;font:16px/1.6 system-ui,'Yu Gothic UI',Meiryo,sans-serif}
-main{max-width:800px;margin:24px auto;padding:24px;container-type:inline-size}
-h1{font-size:22px;margin:12px 0}h2{font-size:18px}p{margin:12px 0}.hint{font-size:12px;color:#bbc7d8}
-.head{display:flex;justify-content:space-between;gap:16px;align-items:center}.warn{color:#ffd08a}.card{padding:18px;margin:18px 0;background:#1d2533;border:1px solid #47546a;border-radius:12px}
-.legend{display:flex;flex-wrap:wrap;gap:10px 20px;margin:0 0 18px;font-size:13px}.key{display:inline-flex;align-items:center;gap:8px}.swatch{display:inline-block;width:25px;height:14px;border:1px solid #a4c7f9;background:#345f91;border-radius:3px}.swatch.critical{border-color:#ffd08a;background:#68482b}
-.timeline-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.scale-buttons{display:flex;gap:4px}.scale-buttons button{min-width:46px}.scale-buttons button[aria-pressed="true"]{background:#375a7c;border:2px solid #c0dfff;font-weight:700}.scale-buttons button[aria-pressed="true"]::before{content:'✓ '}.visible-range{font-size:13px;color:#c6d2e3}
-.timeline-scroll{overflow-x:auto;scrollbar-color:#829abb #1d2533}.timeline-scroll:focus-visible{outline:3px solid #8dccff;outline-offset:3px}.chart{position:relative;--name-width:176px;--column-gap:16px;--axis-width:392px;min-width:calc(var(--name-width) + var(--column-gap) + var(--axis-width))}.row{display:grid;grid-template-columns:var(--name-width) minmax(var(--axis-width),1fr);gap:var(--column-gap);min-height:104px}.row.header{min-height:42px;border-bottom:1px solid #46516a;font-size:12px;color:#c6d2e3}.name,.name-header{position:sticky;left:0;z-index:2;background:#1d2533;box-shadow:8px 0 #1d2533}.name{padding:12px 0;font-size:14px}.name strong{display:block}.duration{display:block;font-size:12px;color:#c6d2e3}.slack{display:inline-block;margin-top:5px;font-size:12px;color:#d9e9ff}.slack.critical{color:#ffd08a;font-weight:700}.track{position:relative;min-width:0}.dates{display:flex}.dates>span{flex-shrink:0;text-align:center;white-space:normal;overflow-wrap:anywhere;border-left:1px solid #46516a;padding:4px 0}.dates .weekend{background:#303849}.bar{position:absolute;top:14px;left:var(--start);width:var(--span);height:32px;line-height:30px;text-align:center;background:#345f91;border:1px solid #a4c7f9;border-radius:4px;font-size:13px;font-weight:700}.bar.critical{background:#68482b;border:2px solid #ffd08a;line-height:28px}.chart:not([data-scale="day"]) .bar-text{display:none}
-.connections{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.connections path{fill:none;stroke:#d4dbe5;stroke-width:2}.connections marker path{fill:#d4dbe5;stroke:none}.path-summary{padding-top:10px;border-top:1px solid #46516a;font-size:14px}.path-summary p{margin:6px 0}.explanation{font-size:12px;color:#bbc7d8;margin-bottom:16px}.label{display:inline-block;background:#334253;color:#eef2f8;border-radius:5px;padding:2px 7px;font-size:12px}.start{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}button{background:#2b3e58;color:#fff;border:1px solid #829abb;border-radius:6px;padding:8px 12px;cursor:pointer;font:inherit;font-size:14px}button:focus-visible,summary:focus-visible{outline:3px solid #8dccff;outline-offset:3px}summary{cursor:pointer}dialog{max-width:550px;width:calc(100% - 32px);background:#1d2533;color:#eef2f8;border:1px solid #829abb;border-radius:12px;padding:24px}dialog::backdrop{background:#000a}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid #46516a}
+main{max-width:800px;margin:24px auto;padding:24px;container-type:inline-size}h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:20px 0 8px}p{margin:12px 0}.hint{font-size:12px;color:#bbc7d8}
+.title-row,.head,.summary{display:flex;align-items:center;justify-content:space-between;gap:12px}.title-row{margin-bottom:14px}.summary{font-size:14px;flex-wrap:wrap}.warn,.critical-mark{color:#ffd08a}.card{padding:18px;margin-top:18px;background:#1d2533;border:1px solid #47546a;border-radius:12px}
+button{background:#2b3e58;color:#fff;border:1px solid #829abb;border-radius:6px;padding:8px 12px;cursor:pointer;font:inherit;font-size:14px}button:focus-visible,summary:focus-visible,.timeline-scroll:focus-visible{outline:3px solid #8dccff;outline-offset:2px}.plain-action{background:transparent;border:0;padding:6px 0;color:inherit;display:inline-flex;align-items:center;gap:8px;text-align:left}.plain-action::after{content:'';width:6px;height:6px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:rotate(45deg);margin:0 3px}.plain-action:hover{text-decoration:underline}h1 .plain-action{font:inherit}
+.timeline-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.scale-buttons{display:flex;gap:4px;margin-left:auto}.scale-buttons button{min-width:46px}.scale-buttons button[aria-pressed="true"]{background:#375a7c;border:2px solid #c0dfff;font-weight:700}.scale-buttons button[aria-pressed="true"]::before{content:'✓ '}.visible-range{font-size:14px;color:#c6d2e3}.legend{display:flex;gap:18px;align-items:center;font-size:12px;margin:0 0 12px;color:#c6d2e3}.key{display:inline-flex;align-items:center;gap:6px}.legend svg{width:24px;height:12px;fill:none;stroke:#d4dbe5;stroke-width:1.5}
+.timeline-scroll{overflow-x:auto;scrollbar-color:#829abb #1d2533}.chart{position:relative;--name-width:160px;--column-gap:12px;--axis-width:392px;min-width:calc(var(--name-width) + var(--column-gap) + var(--axis-width))}.row{display:grid;grid-template-columns:var(--name-width) minmax(var(--axis-width),1fr);gap:var(--column-gap);min-height:62px}.row.header{min-height:36px;border-bottom:1px solid #46516a;font-size:12px;color:#c6d2e3}.name,.name-header{position:sticky;left:0;z-index:2;background:#1d2533;box-shadow:8px 0 #1d2533}.name{display:flex;align-items:center;min-width:0}.task-button{width:100%;min-height:44px;gap:5px;font-size:14px;flex-wrap:wrap}.task-name{font-weight:700}.duration{font-size:12px;color:#c6d2e3}.critical-mark{font-size:11px}.track{position:relative;min-width:0}.dates{display:flex}.dates>span{flex-shrink:0;text-align:center;overflow-wrap:anywhere;border-left:1px solid #46516a;padding:4px 0}.dates .weekday{display:block;font-size:.92em;color:#bbc7d8}.dates .weekend{background:#303849}.bar{position:absolute;top:16px;left:var(--start);width:var(--span);height:28px;background:#345f91;border:1px solid #a4c7f9;border-radius:4px}.bar.critical{background:#68482b;border:2px solid #ffd08a}
+.connections{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.connections path{fill:none;stroke:#d4dbe5;stroke-width:2}.connections marker path{fill:#d4dbe5;stroke:none}.connections #edge-b{stroke:#ffd08a;stroke-width:3}
+dialog{max-width:550px;width:calc(100% - 32px);background:#1d2533;color:#eef2f8;border:1px solid #829abb;border-radius:12px;padding:24px}dialog::backdrop{background:#000a}.facts{margin:16px 0}.facts>div{display:grid;grid-template-columns:5em minmax(0,1fr);gap:12px;margin:8px 0}.facts dt{color:#bbc7d8}.facts dd{margin:0}summary{cursor:pointer;min-height:32px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid #46516a}
 @media(max-width:650px){main{margin:0;padding:12px}}
-@container(max-width:540px){.card{padding:12px}.chart{--name-width:120px;--column-gap:8px}.row{min-height:110px}.row.header{min-height:40px}.name{font-size:13px}.dates{font-size:11px}.head{align-items:flex-start;flex-direction:column;gap:4px}.path-summary{font-size:13px}.legend{font-size:12px;gap:6px 12px}}
+@container(max-width:540px){.card{padding:12px}.chart{--name-width:136px;--column-gap:8px}.task-button{font-size:13px}.dates{font-size:11px}.summary{gap:6px}.legend{gap:12px}.head{align-items:flex-start;flex-wrap:wrap}}
 </style>
 <main>
-<p class="hint">操作試作・架空データ</p>
-<h1>リリースA</h1>
-<div class="head"><span>計算上の完了 <strong>11/5</strong>　<span class="warn">期日を1日超過</span></span><span>期日 11/4</span></div>
-<p class="hint">基準日 11/2　取得時点 11/2 09:00</p>
+<div class="title-row"><h1><button id="release-details" class="plain-action" aria-label="リリースAの計算根拠">リリースA</button></h1><span class="hint">試作</span></div>
+<div class="summary"><span>見込み <strong>11/5</strong> <span class="warn">1日超過</span></span><span>期日 11/4</span></div>
 <section class="card" aria-label="作業の日程と依存関係">
 <div class="timeline-toolbar"><span id="visible-range" class="visible-range" role="status"></span><div class="scale-buttons" role="group" aria-label="時間軸の表示単位"><button type="button" data-scale="day" aria-pressed="true">日</button><button type="button" data-scale="week" aria-pressed="false">週</button><button type="button" data-scale="month" aria-pressed="false">月</button></div></div>
-<div class="legend" aria-label="棒の色の意味"><span class="key"><i class="swatch critical" aria-hidden="true"></i>余裕0日（クリティカル）</span><span class="key"><i class="swatch" aria-hidden="true"></i>余裕あり</span></div>
+<div class="legend"><span class="key"><span class="critical-mark" aria-hidden="true">◆</span>クリティカル</span><span class="key"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M1 6 H22 M17 1 L22 6 L17 11"/></svg>依存</span></div>
 <div class="timeline-scroll" tabindex="0" role="region" aria-label="ガントの時間軸。狭い画面では左右にスクロールできます">
 <div class="chart" id="chart" data-scale="day">
-<div class="row header"><span class="name-header">作業 / 日数 / 余裕</span><div id="dates" class="dates"></div></div>
-<div class="row"><div class="name"><strong>#202 実装B</strong><span class="duration">3日 · 11/2–11/4</span><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-b" class="bar critical" role="img"><span class="bar-text">3日</span></span></div></div>
-<div class="row"><div class="name"><strong>#201 実装A</strong><span class="duration">2日 · 11/2–11/3</span><span class="slack">余裕1日</span></div><div class="track"><span id="bar-a" class="bar" role="img"><span class="bar-text">2日</span></span></div></div>
-<div class="row"><div class="name"><strong>#210 結合確認</strong><span class="duration">1日 · 11/5</span><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-target" class="bar critical" role="img"><span class="bar-text">1日</span></span></div></div>
-<svg id="connections" class="connections" role="img" aria-label="実装Bから結合確認、実装Aから結合確認への2本の依存矢印"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs><path id="edge-b" marker-end="url(#arrow)"/><path id="edge-a" marker-end="url(#arrow)"/></svg>
+<div class="row header"><span class="name-header"></span><div id="dates" class="dates"></div></div>
+<div class="row"><div class="name"><button class="plain-action task-button" data-task="bar-b" aria-label="実装Bの詳細。3日、クリティカル"><span class="critical-mark" aria-hidden="true">◆</span><span class="task-name">実装B</span><span class="duration">3日</span></button></div><div class="track"><span id="bar-b" class="bar critical" role="img"></span></div></div>
+<div class="row"><div class="name"><button class="plain-action task-button" data-task="bar-a" aria-label="実装Aの詳細。2日"><span class="task-name">実装A</span><span class="duration">2日</span></button></div><div class="track"><span id="bar-a" class="bar" role="img"></span></div></div>
+<div class="row"><div class="name"><button id="reason" class="plain-action task-button" data-task="bar-target" aria-label="結合確認の詳細。1日、クリティカル、前提2件"><span class="critical-mark" aria-hidden="true">◆</span><span class="task-name">結合確認</span><span class="duration">1日</span></button></div><div class="track"><span id="bar-target" class="bar critical" role="img"></span></div></div>
+<svg id="connections" class="connections" role="img" aria-label="実装Aと実装Bの両方が完了した後に結合確認を開始。クリティカルパスは実装Bから結合確認"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs><path id="edge-b" marker-end="url(#arrow)"/><path id="edge-a" marker-end="url(#arrow)"/></svg>
 </div>
 </div>
-<div class="path-summary"><p><strong>依存関係：</strong>実装A・実装Bの<strong>両方が完了 → 結合確認</strong></p><p><strong>クリティカルパス：</strong>#202 実装B → #210 結合確認</p></div>
-<p class="explanation">余裕は、リリースの計算上の完了を遅らせずに開始を延ばせる日数。</p>
-<div class="start"><span>#210の開始 <strong>11/5</strong>　<span class="label">既存分類：着手可能</span></span><button id="reason">#210の開始条件を見る</button></div>
 </section>
-<dialog id="details" aria-labelledby="details-title"><div class="head"><h2 id="details-title">#210 結合確認</h2><button id="close">閉じる</button></div><p><span class="label">既存分類：着手可能</span></p><p>計算上の開始は11/5。前提の子作業2件が両方とも完了するのを待つ。</p><details id="parent"><summary>#200 機能A　Closed　未完了の子2件</summary><table><tr><th>計算で待つ作業</th><th>計算上の完了</th></tr><tr><td>#201 実装A</td><td>11/3</td></tr><tr><td>#202 実装B</td><td>11/4</td></tr></table></details><p class="hint">親のClosedと配下の完了は別に扱う。</p><button id="back">ガントの#210へ戻る</button></dialog>
+<dialog id="details" aria-labelledby="details-title"><div class="head"><h2 id="details-title"></h2><button id="close">閉じる</button></div><div id="details-body"></div></dialog>
 </main>
 <script>
 const dialog = document.querySelector('#details');
-const reason = document.querySelector('#reason');
-reason.onclick = () => dialog.showModal();
+let opener;
+function openDetails(key, button) {
+  opener = button;
+  const title = document.querySelector('#details-title');
+  const body = document.querySelector('#details-body');
+  if (key === 'release') {
+    title.textContent = 'リリースA';
+    body.innerHTML = '<dl class="facts"><div><dt>基準日</dt><dd>2026/11/2</dd></div><div><dt>取得時点</dt><dd>11/2 09:00</dd></div></dl><p>余裕は、リリースの完了見込みを遅らせずに開始を延ばせる日数。</p><p class="hint">架空データの操作試作。</p>';
+  } else {
+    const task = tasks.find(item => item.id === key);
+    title.textContent = task.name;
+    const firstDay = monthDay(parseDate(task.start)), lastDay = monthDay(addDays(parseDate(task.end), -1));
+    const period = firstDay === lastDay ? firstDay : firstDay + '–' + lastDay;
+    body.innerHTML = '<dl class="facts"><div><dt>期間</dt><dd>'+period+'</dd></div><div><dt>作業量</dt><dd>'+task.duration+'日</dd></div><div><dt>余裕</dt><dd>'+(key === 'bar-a' ? 1 : 0)+'日</dd></div></dl>';
+    if (key === 'bar-target') {
+      body.innerHTML += '<h3>開始条件</h3><p>前提の子2件が完了後に開始。</p><details id="parent" open><summary>#200 機能A · Closed</summary><table><tr><th>前提</th><th>完了見込み</th></tr><tr><td>#201 実装A</td><td>11/3</td></tr><tr><td>#202 実装B</td><td>11/4</td></tr></table></details><dl class="facts"><div><dt>既存分類</dt><dd>着手可能</dd></div></dl>';
+    } else {
+      body.innerHTML += '<dl class="facts"><div><dt>前提</dt><dd>なし</dd></div><div><dt>後続</dt><dd>結合確認</dd></div></dl>';
+    }
+  }
+  dialog.showModal();
+}
+document.querySelector('#release-details').onclick = event => openDetails('release', event.currentTarget);
+for (const button of document.querySelectorAll('[data-task]')) {
+  button.onclick = () => openDetails(button.dataset.task, button);
+}
 document.querySelector('#close').onclick = () => dialog.close();
-document.querySelector('#back').onclick = () => dialog.close();
-dialog.addEventListener('close', () => reason.focus());
-dialog.addEventListener('keydown', (event) => {
+dialog.addEventListener('close', () => opener.focus());
+dialog.addEventListener('keydown', event => {
   if (event.key !== 'Tab') return;
-  const first = dialog.querySelector('#close');
-  const last = dialog.querySelector('#back');
+  const controls = dialog.querySelectorAll('button, summary');
+  const first = controls[0], last = controls[controls.length - 1];
   if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault();
-    first.focus();
+    event.preventDefault(); first.focus();
   } else if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault();
-    last.focus();
+    event.preventDefault(); last.focus();
   }
 });
 // Capture variants keep the same content and interactions at a bounded layout width.
@@ -92,8 +108,16 @@ function setScale(scale) {
     label.textContent = scale === 'month'
       ? tick.getUTCFullYear() + '年' + (tick.getUTCMonth() + 1) + '月'
       : scale === 'week'
-        ? monthDay(tick) + '–' + monthDay(addDays(next, -1))
-        : monthDay(tick) + ' ' + '日月火水木金土'[tick.getUTCDay()];
+        ? (tick.getUTCMonth() === start.getUTCMonth() && addDays(next, -1).getUTCMonth() === start.getUTCMonth()
+          ? tick.getUTCDate() + '–' + addDays(next, -1).getUTCDate()
+          : monthDay(tick) + '–' + monthDay(addDays(next, -1)))
+        : (tick.getUTCMonth() === start.getUTCMonth() ? tick.getUTCDate() : monthDay(tick)) + '日';
+    if (scale === 'day') {
+      const weekday = document.createElement('span');
+      weekday.className = 'weekday';
+      weekday.textContent = '日月火水木金土'[tick.getUTCDay()];
+      label.append(weekday);
+    }
     if (scale === 'day' && [0, 6].includes(tick.getUTCDay())) label.className = 'weekend';
     dates.append(label);
     tick = next;
@@ -112,7 +136,9 @@ function setScale(scale) {
   for (const button of document.querySelectorAll('[data-scale]')) {
     if (button.tagName === 'BUTTON') button.setAttribute('aria-pressed', String(button.dataset.scale === scale));
   }
-  document.querySelector('#visible-range').textContent = start.getUTCFullYear() + '/' + monthDay(start) + '–' + addDays(end, -1).getUTCFullYear() + '/' + monthDay(addDays(end, -1));
+  const range = document.querySelector('#visible-range');
+  range.hidden = scale === 'month';
+  range.textContent = start.getUTCFullYear() + '年' + (start.getUTCMonth() + 1) + '月';
   document.querySelector('.timeline-scroll').scrollLeft = 0;
   drawDependencies();
 }
