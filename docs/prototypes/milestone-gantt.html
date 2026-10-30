@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="ja">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>前提の確認・操作試作</title>
+<style>
+*{box-sizing:border-box}
+body{margin:0;background:#131923;color:#eef2f8;font:16px/1.6 system-ui,'Yu Gothic UI',Meiryo,sans-serif}
+main{max-width:800px;margin:24px auto;padding:24px;container-type:inline-size}
+h1{font-size:22px;margin:12px 0}h2{font-size:18px}p{margin:12px 0}.hint{font-size:12px;color:#bbc7d8}
+.head{display:flex;justify-content:space-between;gap:16px;align-items:center}.warn{color:#ffd08a}.card{padding:18px;margin:18px 0;background:#1d2533;border:1px solid #47546a;border-radius:12px}
+.legend{display:flex;flex-wrap:wrap;gap:10px 20px;margin:0 0 18px;font-size:13px}.key{display:inline-flex;align-items:center;gap:8px}.swatch{display:inline-block;width:25px;height:14px;border:1px solid #a4c7f9;background:#345f91;border-radius:3px}.swatch.critical{border-color:#ffd08a;background:#68482b}
+.chart{position:relative}.row{display:grid;grid-template-columns:176px minmax(0,1fr);gap:16px;min-height:92px}.row.header{min-height:42px;border-bottom:1px solid #46516a;font-size:12px;color:#c6d2e3}.name{padding:12px 0;font-size:14px}.name strong{display:block}.slack{display:inline-block;margin-top:5px;font-size:12px;color:#d9e9ff}.slack.critical{color:#ffd08a;font-weight:700}.track{position:relative;min-width:0}.dates{display:grid;grid-template-columns:repeat(4,1fr)}.dates span{text-align:center;white-space:nowrap}.bar{position:absolute;top:14px;left:var(--start);width:calc(var(--span) - 5px);height:32px;line-height:30px;text-align:center;background:#345f91;border:1px solid #a4c7f9;border-radius:5px;font-size:13px;font-weight:700}.bar.critical{background:#68482b;border:2px solid #ffd08a;line-height:28px}
+.connections{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.connections path{fill:none;stroke:#d4dbe5;stroke-width:2}.connections marker path{fill:#d4dbe5;stroke:none}.path-summary{padding-top:10px;border-top:1px solid #46516a;font-size:14px}.path-summary p{margin:6px 0}.explanation{font-size:12px;color:#bbc7d8;margin-bottom:16px}.label{display:inline-block;background:#334253;color:#eef2f8;border-radius:5px;padding:2px 7px;font-size:12px}.start{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}button{background:#2b3e58;color:#fff;border:1px solid #829abb;border-radius:6px;padding:8px 12px;cursor:pointer;font:inherit;font-size:14px}button:focus-visible,summary:focus-visible{outline:3px solid #8dccff;outline-offset:3px}summary{cursor:pointer}dialog{max-width:550px;width:calc(100% - 32px);background:#1d2533;color:#eef2f8;border:1px solid #829abb;border-radius:12px;padding:24px}dialog::backdrop{background:#000a}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid #46516a}
+@media(max-width:650px){main{margin:0;padding:12px}}
+@container(max-width:540px){.card{padding:12px}.row{grid-template-columns:120px minmax(0,1fr);gap:8px;min-height:94px}.row.header{min-height:40px}.name{font-size:13px}.dates{font-size:11px}.weekday{display:none}.head{align-items:flex-start;flex-direction:column;gap:4px}.path-summary{font-size:13px}.legend{font-size:12px;gap:6px 12px}}
+</style>
+<main>
+<p class="hint">操作試作・架空データ</p>
+<h1>リリースA</h1>
+<div class="head"><span>計算上の完了 <strong>11/5</strong>　<span class="warn">期日を1日超過</span></span><span>期日 11/4</span></div>
+<p class="hint">基準日 11/2　取得時点 11/2 09:00</p>
+<section class="card" aria-label="作業の日程と依存関係">
+<div class="legend" aria-label="棒の色の意味"><span class="key"><i class="swatch critical" aria-hidden="true"></i>余裕0日（クリティカル）</span><span class="key"><i class="swatch" aria-hidden="true"></i>余裕あり</span></div>
+<div class="chart" id="chart">
+<div class="row header"><span>作業 / 余裕</span><div class="dates"><span>11/2<span class="weekday"> 月</span></span><span>11/3<span class="weekday"> 火</span></span><span>11/4<span class="weekday"> 水</span></span><span>11/5<span class="weekday"> 木</span></span></div></div>
+<div class="row"><div class="name"><strong>#202 実装B</strong><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-b" class="bar critical" style="--start:0%;--span:75%">3日</span></div></div>
+<div class="row"><div class="name"><strong>#201 実装A</strong><span class="slack">余裕1日</span></div><div class="track"><span id="bar-a" class="bar" style="--start:0%;--span:50%">2日</span></div></div>
+<div class="row"><div class="name"><strong>#210 結合確認</strong><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-target" class="bar critical" style="--start:75%;--span:25%">1日</span></div></div>
+<svg id="connections" class="connections" role="img" aria-label="実装Bから結合確認、実装Aから結合確認への2本の依存矢印"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs><path id="edge-b" marker-end="url(#arrow)"/><path id="edge-a" marker-end="url(#arrow)"/></svg>
+</div>
+<div class="path-summary"><p><strong>依存関係：</strong>実装A・実装Bの<strong>両方が完了 → 結合確認</strong></p><p><strong>クリティカルパス：</strong>#202 実装B → #210 結合確認</p></div>
+<p class="explanation">余裕は、計算上の完了を遅らせずに開始を延ばせる日数。</p>
+<div class="start"><span>#210の開始 <strong>11/5</strong>　<span class="label">既存分類：着手可能</span></span><button id="reason">#210の開始条件を見る</button></div>
+</section>
+<dialog id="details"><div class="head"><h2>#210 結合確認</h2><button id="close">閉じる</button></div><p><span class="label">既存分類：着手可能</span></p><p>計算上の開始は11/5。前提の子作業2件が両方とも完了するのを待つ。</p><details id="parent"><summary>#200 機能A　Closed　未完了の子2件</summary><table><tr><th>計算で待つ作業</th><th>計算上の完了</th></tr><tr><td>#201 実装A</td><td>11/3</td></tr><tr><td>#202 実装B</td><td>11/4</td></tr></table></details><p class="hint">親のClosedと配下の完了は別に扱う。</p><button id="back">ガントの#210へ戻る</button></dialog>
+</main>
+<script>
+const dialog = document.querySelector('#details');
+const reason = document.querySelector('#reason');
+reason.onclick = () => dialog.showModal();
+document.querySelector('#close').onclick = () => dialog.close();
+document.querySelector('#back').onclick = () => dialog.close();
+dialog.addEventListener('close', () => reason.focus());
+// Capture variants keep the same content and interactions at a bounded layout width.
+const width = Number(new URLSearchParams(location.search).get('width'));
+if (width >= 320 && width <= 800) document.querySelector('main').style.width = width + 'px';
+const chart = document.querySelector('#chart');
+function drawDependencies() {
+  const origin = chart.getBoundingClientRect();
+  const box = (id) => {
+    const r = document.getElementById(id).getBoundingClientRect();
+    return {left:r.left-origin.left,right:r.right-origin.left,top:r.top-origin.top,y:r.top-origin.top+r.height/2};
+  };
+  const a=box('bar-a'), b=box('bar-b'), target=box('bar-target');
+  document.querySelector('#edge-b').setAttribute('d', 'M '+b.right+' '+b.y+' H '+(target.left+12)+' V '+(target.top-16)+' H '+(target.left-14)+' V '+(target.y-7)+' H '+target.left);
+  document.querySelector('#edge-a').setAttribute('d', 'M '+a.right+' '+a.y+' H '+(a.right+12)+' V '+(target.y+7)+' H '+target.left);
+}
+new ResizeObserver(drawDependencies).observe(chart);
+drawDependencies();
+</script>
+</html>
