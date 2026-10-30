@@ -10,10 +10,11 @@ main{max-width:800px;margin:24px auto;padding:24px;container-type:inline-size}
 h1{font-size:22px;margin:12px 0}h2{font-size:18px}p{margin:12px 0}.hint{font-size:12px;color:#bbc7d8}
 .head{display:flex;justify-content:space-between;gap:16px;align-items:center}.warn{color:#ffd08a}.card{padding:18px;margin:18px 0;background:#1d2533;border:1px solid #47546a;border-radius:12px}
 .legend{display:flex;flex-wrap:wrap;gap:10px 20px;margin:0 0 18px;font-size:13px}.key{display:inline-flex;align-items:center;gap:8px}.swatch{display:inline-block;width:25px;height:14px;border:1px solid #a4c7f9;background:#345f91;border-radius:3px}.swatch.critical{border-color:#ffd08a;background:#68482b}
-.chart{position:relative}.row{display:grid;grid-template-columns:176px minmax(0,1fr);gap:16px;min-height:92px}.row.header{min-height:42px;border-bottom:1px solid #46516a;font-size:12px;color:#c6d2e3}.name{padding:12px 0;font-size:14px}.name strong{display:block}.slack{display:inline-block;margin-top:5px;font-size:12px;color:#d9e9ff}.slack.critical{color:#ffd08a;font-weight:700}.track{position:relative;min-width:0}.dates{display:grid;grid-template-columns:repeat(4,1fr)}.dates span{text-align:center;white-space:nowrap}.bar{position:absolute;top:14px;left:var(--start);width:calc(var(--span) - 5px);height:32px;line-height:30px;text-align:center;background:#345f91;border:1px solid #a4c7f9;border-radius:5px;font-size:13px;font-weight:700}.bar.critical{background:#68482b;border:2px solid #ffd08a;line-height:28px}
+.timeline-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.scale-buttons{display:flex;gap:4px}.scale-buttons button{min-width:46px}.scale-buttons button[aria-pressed="true"]{background:#375a7c;border:2px solid #c0dfff;font-weight:700}.scale-buttons button[aria-pressed="true"]::before{content:'✓ '}.visible-range{font-size:13px;color:#c6d2e3}
+.timeline-scroll{overflow-x:auto;scrollbar-color:#829abb #1d2533}.timeline-scroll:focus-visible{outline:3px solid #8dccff;outline-offset:3px}.chart{position:relative;--name-width:176px;--column-gap:16px;--axis-width:392px;min-width:calc(var(--name-width) + var(--column-gap) + var(--axis-width))}.row{display:grid;grid-template-columns:var(--name-width) minmax(var(--axis-width),1fr);gap:var(--column-gap);min-height:104px}.row.header{min-height:42px;border-bottom:1px solid #46516a;font-size:12px;color:#c6d2e3}.name,.name-header{position:sticky;left:0;z-index:2;background:#1d2533;box-shadow:8px 0 #1d2533}.name{padding:12px 0;font-size:14px}.name strong{display:block}.duration{display:block;font-size:12px;color:#c6d2e3}.slack{display:inline-block;margin-top:5px;font-size:12px;color:#d9e9ff}.slack.critical{color:#ffd08a;font-weight:700}.track{position:relative;min-width:0}.dates{display:flex}.dates>span{flex-shrink:0;text-align:center;white-space:normal;overflow-wrap:anywhere;border-left:1px solid #46516a;padding:4px 0}.dates .weekend{background:#303849}.bar{position:absolute;top:14px;left:var(--start);width:var(--span);height:32px;line-height:30px;text-align:center;background:#345f91;border:1px solid #a4c7f9;border-radius:4px;font-size:13px;font-weight:700}.bar.critical{background:#68482b;border:2px solid #ffd08a;line-height:28px}.chart:not([data-scale="day"]) .bar-text{display:none}
 .connections{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.connections path{fill:none;stroke:#d4dbe5;stroke-width:2}.connections marker path{fill:#d4dbe5;stroke:none}.path-summary{padding-top:10px;border-top:1px solid #46516a;font-size:14px}.path-summary p{margin:6px 0}.explanation{font-size:12px;color:#bbc7d8;margin-bottom:16px}.label{display:inline-block;background:#334253;color:#eef2f8;border-radius:5px;padding:2px 7px;font-size:12px}.start{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-top:16px}button{background:#2b3e58;color:#fff;border:1px solid #829abb;border-radius:6px;padding:8px 12px;cursor:pointer;font:inherit;font-size:14px}button:focus-visible,summary:focus-visible{outline:3px solid #8dccff;outline-offset:3px}summary{cursor:pointer}dialog{max-width:550px;width:calc(100% - 32px);background:#1d2533;color:#eef2f8;border:1px solid #829abb;border-radius:12px;padding:24px}dialog::backdrop{background:#000a}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid #46516a}
 @media(max-width:650px){main{margin:0;padding:12px}}
-@container(max-width:540px){.card{padding:12px}.row{grid-template-columns:120px minmax(0,1fr);gap:8px;min-height:94px}.row.header{min-height:40px}.name{font-size:13px}.dates{font-size:11px}.weekday{display:none}.head{align-items:flex-start;flex-direction:column;gap:4px}.path-summary{font-size:13px}.legend{font-size:12px;gap:6px 12px}}
+@container(max-width:540px){.card{padding:12px}.chart{--name-width:120px;--column-gap:8px}.row{min-height:110px}.row.header{min-height:40px}.name{font-size:13px}.dates{font-size:11px}.head{align-items:flex-start;flex-direction:column;gap:4px}.path-summary{font-size:13px}.legend{font-size:12px;gap:6px 12px}}
 </style>
 <main>
 <p class="hint">操作試作・架空データ</p>
@@ -21,13 +22,16 @@ h1{font-size:22px;margin:12px 0}h2{font-size:18px}p{margin:12px 0}.hint{font-siz
 <div class="head"><span>計算上の完了 <strong>11/5</strong>　<span class="warn">期日を1日超過</span></span><span>期日 11/4</span></div>
 <p class="hint">基準日 11/2　取得時点 11/2 09:00</p>
 <section class="card" aria-label="作業の日程と依存関係">
+<div class="timeline-toolbar"><span id="visible-range" class="visible-range" role="status"></span><div class="scale-buttons" role="group" aria-label="時間軸の表示単位"><button type="button" data-scale="day" aria-pressed="true">日</button><button type="button" data-scale="week" aria-pressed="false">週</button><button type="button" data-scale="month" aria-pressed="false">月</button></div></div>
 <div class="legend" aria-label="棒の色の意味"><span class="key"><i class="swatch critical" aria-hidden="true"></i>余裕0日（クリティカル）</span><span class="key"><i class="swatch" aria-hidden="true"></i>余裕あり</span></div>
-<div class="chart" id="chart">
-<div class="row header"><span>作業 / 余裕</span><div class="dates"><span>11/2<span class="weekday"> 月</span></span><span>11/3<span class="weekday"> 火</span></span><span>11/4<span class="weekday"> 水</span></span><span>11/5<span class="weekday"> 木</span></span></div></div>
-<div class="row"><div class="name"><strong>#202 実装B</strong><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-b" class="bar critical" style="--start:0%;--span:75%">3日</span></div></div>
-<div class="row"><div class="name"><strong>#201 実装A</strong><span class="slack">余裕1日</span></div><div class="track"><span id="bar-a" class="bar" style="--start:0%;--span:50%">2日</span></div></div>
-<div class="row"><div class="name"><strong>#210 結合確認</strong><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-target" class="bar critical" style="--start:75%;--span:25%">1日</span></div></div>
+<div class="timeline-scroll" tabindex="0" role="region" aria-label="ガントの時間軸。狭い画面では左右にスクロールできます">
+<div class="chart" id="chart" data-scale="day">
+<div class="row header"><span class="name-header">作業 / 日数 / 余裕</span><div id="dates" class="dates"></div></div>
+<div class="row"><div class="name"><strong>#202 実装B</strong><span class="duration">3日 · 11/2–11/4</span><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-b" class="bar critical" role="img"><span class="bar-text">3日</span></span></div></div>
+<div class="row"><div class="name"><strong>#201 実装A</strong><span class="duration">2日 · 11/2–11/3</span><span class="slack">余裕1日</span></div><div class="track"><span id="bar-a" class="bar" role="img"><span class="bar-text">2日</span></span></div></div>
+<div class="row"><div class="name"><strong>#210 結合確認</strong><span class="duration">1日 · 11/5</span><span class="slack critical">余裕0日・クリティカル</span></div><div class="track"><span id="bar-target" class="bar critical" role="img"><span class="bar-text">1日</span></span></div></div>
 <svg id="connections" class="connections" role="img" aria-label="実装Bから結合確認、実装Aから結合確認への2本の依存矢印"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs><path id="edge-b" marker-end="url(#arrow)"/><path id="edge-a" marker-end="url(#arrow)"/></svg>
+</div>
 </div>
 <div class="path-summary"><p><strong>依存関係：</strong>実装A・実装Bの<strong>両方が完了 → 結合確認</strong></p><p><strong>クリティカルパス：</strong>#202 実装B → #210 結合確認</p></div>
 <p class="explanation">余裕は、リリースの計算上の完了を遅らせずに開始を延ばせる日数。</p>
@@ -58,6 +62,60 @@ dialog.addEventListener('keydown', (event) => {
 const width = Number(new URLSearchParams(location.search).get('width'));
 if (width >= 320 && width <= 800) document.querySelector('main').style.width = width + 'px';
 const chart = document.querySelector('#chart');
+const dayMs = 24 * 60 * 60 * 1000;
+const parseDate = (value) => new Date(value + 'T00:00:00Z');
+const addDays = (date, count) => new Date(date.getTime() + count * dayMs);
+const monthDay = (date) => (date.getUTCMonth() + 1) + '/' + date.getUTCDate();
+// Fixed sample dates. Switching the axis never recalculates the schedule.
+const tasks = [
+  { id:'bar-b', name:'#202 実装B', start:'2026-11-02', end:'2026-11-05', duration:3 },
+  { id:'bar-a', name:'#201 実装A', start:'2026-11-02', end:'2026-11-04', duration:2 },
+  { id:'bar-target', name:'#210 結合確認', start:'2026-11-05', end:'2026-11-06', duration:1 }
+];
+function setScale(scale) {
+  const first = parseDate(tasks[0].start);
+  let start = addDays(first, -((first.getUTCDay() + 6) % 7));
+  let end = addDays(start, scale === 'day' ? 7 : 28);
+  if (scale === 'month') {
+    start = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1));
+    end = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 3, 1));
+  }
+  const span = end - start;
+  const dates = document.querySelector('#dates');
+  dates.replaceChildren();
+  for (let tick = start; tick < end;) {
+    const next = scale === 'month'
+      ? new Date(Date.UTC(tick.getUTCFullYear(), tick.getUTCMonth() + 1, 1))
+      : addDays(tick, scale === 'week' ? 7 : 1);
+    const label = document.createElement('span');
+    label.style.width = ((next - tick) / span * 100) + '%';
+    label.textContent = scale === 'month'
+      ? tick.getUTCFullYear() + '年' + (tick.getUTCMonth() + 1) + '月'
+      : scale === 'week'
+        ? monthDay(tick) + '–' + monthDay(addDays(next, -1))
+        : monthDay(tick) + ' ' + '日月火水木金土'[tick.getUTCDay()];
+    if (scale === 'day' && [0, 6].includes(tick.getUTCDay())) label.className = 'weekend';
+    dates.append(label);
+    tick = next;
+  }
+  chart.dataset.scale = scale;
+  chart.style.setProperty('--axis-width', ({day:392, week:504, month:504})[scale] + 'px');
+  for (const task of tasks) {
+    const bar = document.getElementById(task.id);
+    const taskStart = parseDate(task.start), taskEnd = parseDate(task.end);
+    bar.style.setProperty('--start', ((taskStart - start) / span * 100) + '%');
+    bar.style.setProperty('--span', ((taskEnd - taskStart) / span * 100) + '%');
+    const description = task.name + '、' + monthDay(taskStart) + 'から' + monthDay(addDays(taskEnd, -1)) + '、' + task.duration + '日';
+    bar.setAttribute('aria-label', description);
+    bar.title = description;
+  }
+  for (const button of document.querySelectorAll('[data-scale]')) {
+    if (button.tagName === 'BUTTON') button.setAttribute('aria-pressed', String(button.dataset.scale === scale));
+  }
+  document.querySelector('#visible-range').textContent = start.getUTCFullYear() + '/' + monthDay(start) + '–' + addDays(end, -1).getUTCFullYear() + '/' + monthDay(addDays(end, -1));
+  document.querySelector('.timeline-scroll').scrollLeft = 0;
+  drawDependencies();
+}
 function drawDependencies() {
   const origin = chart.getBoundingClientRect();
   const box = (id) => {
@@ -66,9 +124,13 @@ function drawDependencies() {
   };
   const a=box('bar-a'), b=box('bar-b'), target=box('bar-target');
   document.querySelector('#edge-b').setAttribute('d', 'M '+b.right+' '+b.y+' H '+(target.left+12)+' V '+(target.top-16)+' H '+(target.left-14)+' V '+(target.y-7)+' H '+target.left);
-  document.querySelector('#edge-a').setAttribute('d', 'M '+a.right+' '+a.y+' H '+(a.right+12)+' V '+(target.y+7)+' H '+target.left);
+  const aTurn = a.right + Math.min(12, (target.left-a.right)/2);
+  document.querySelector('#edge-a').setAttribute('d', 'M '+a.right+' '+a.y+' H '+aTurn+' V '+(target.y+7)+' H '+target.left);
 }
 new ResizeObserver(drawDependencies).observe(chart);
-drawDependencies();
+for (const button of document.querySelectorAll('.scale-buttons button')) {
+  button.addEventListener('click', () => setScale(button.dataset.scale));
+}
+setScale('day');
 </script>
 </html>
