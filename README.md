@@ -52,6 +52,7 @@ npm run check
 | [GitHub snapshotの取得](docs/github-integration.md) | 自動取得の設定、JSONでの再取得と取込 |
 | [利用場面](docs/use-cases.md) | ツールが助ける場面と画面の対応 |
 | [開発と検証](docs/development.md) | 内部構造、ビルドと検証、実装状況、バージョン、公開対象 |
+| [開発手順と実施記録](docs/development-workflow.md) | 着手から受入までの工程、証拠、提出前の照合 |
 | [クラウド共有保存](docs/cloud-workspace.md) | 認証、端末間の共有、移行と障害時の操作 |
 | [クラウドの本番確認](docs/cloud-release-verification.md#本番で残る確認) | 公開前に必要な確認と未確認事項 |
 | [バグ報告](docs/bug-reporting.md) | 報告の初期設定、GitHub登録、修正版の確認 |

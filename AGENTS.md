@@ -11,6 +11,7 @@
 
 ## 対象と検証
 
+- 変更は[開発手順と実施記録](docs/development-workflow.md)に従い、工程ごとの証拠をIssue・PRから確認できるようにする。
 - このリポジトリの目的は [README.md](README.md) を読む。
 - 公開対象の条件は [公開対象](docs/development.md#公開対象) に従う。
 - 仕様は [進捗管理の仕様](docs/specification.md)、実装状況は [開発と検証](docs/development.md#実装状況) を読む。
