@@ -22,9 +22,10 @@ function load() {
   $('#release-details').setAttribute('aria-label', $('#release-details').textContent + 'の計算根拠');
   $('#summary').innerHTML = `<span>${milestone.finish ? `見込み <strong>${monthDay(parseDate(milestone.finish.date))}</strong>${milestone.dueDate ? ` <span class="warn">${dueText(milestone.dueDifference)}</span>` : ''}` : ({ incomplete:'見込み未算出・クリティカル未確定', empty:'作業未登録', completed:'全作業完了' })[milestone.state]}</span><span>${due}</span>`;
   const diagnostics = milestone.diagnosticIds;
+  const hasCycle = result.cycles.some(cycle => diagnostics.includes(cycle.diagnosticId));
   $('#alerts').innerHTML = [
     overlaps.length ? `<button class="plain-action warn" data-panel="overlaps">担当調整 ${overlaps.length}件</button>` : '',
-    diagnostics.length ? `<button class="plain-action warn" data-panel="diagnostics">${result.cycles.length ? '循環・情報不足' : '情報不足'} ${diagnostics.length}件</button>` : '',
+    diagnostics.length ? `<button class="plain-action warn" data-panel="diagnostics">${hasCycle ? '循環・情報不足' : '情報不足'} ${diagnostics.length}件</button>` : '',
     unchecked.length ? `<button class="plain-action warn" data-panel="unchecked">重複未確認 ${unchecked.length}件</button>` : '',
   ].join('');
   for (const button of $('#alerts').querySelectorAll('button')) button.onclick = () => openDetails(button.dataset.panel, button);
