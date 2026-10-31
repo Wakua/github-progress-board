@@ -15,6 +15,7 @@ permissions:
   contents: read
   pull-requests: read
   checks: write
+  statuses: write
 
 concurrency:
   group: ui-review-${{ github.event.pull_request.number || inputs.pull_number }}
@@ -37,5 +38,6 @@ jobs:
         with:
           script: |
             const { runUiReview } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/run-ui-review.mjs`);
-            await runUiReview({ github, context,
+            const result = await runUiReview({ github, context,
               pullNumber: Number(context.payload.pull_request?.number ?? context.payload.inputs?.pull_number) });
+            await core.summary.addCodeBlock(result.summary).write();

@@ -45,26 +45,28 @@ export async function runUiReview({ github, context, pullNumber }) {
   if (context.payload.pull_request && context.payload.pull_request.head.sha !== pr.head.sha) {
     throw new Error('PRの版が変わったため、最新の実行で確認する');
   }
-  const externalId = `ui-review:${pullNumber}`;
-  const existing = (await github.paginate(github.rest.checks.listForRef, {
-    ...repo, ref: pr.head.sha, check_name: 'UI review gate', filter: 'all', per_page: 100
-  })).filter(check => check.name === 'UI review gate' && check.app?.id === 15368 &&
-    (check.external_id === externalId || (!check.external_id &&
-      check.output?.summary?.includes(`対象版: ${pr.head.sha}`) && check.output.summary.includes('検査コード: '))))
-    .sort((a, b) => a.id - b.id);
-  const pending = {
-    status: 'in_progress', external_id: externalId,
-    output: { title: '提出記録を検査中', summary: `検査コード: ${context.sha}\n対象版: ${pr.head.sha}` }
-  };
-  const { data: check } = existing.length ? await github.rest.checks.update({ ...repo, check_run_id: existing[0].id, ...pending }) : await github.rest.checks.create({
-    ...repo, name: 'UI review gate', head_sha: pr.head.sha,
-    details_url: `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`,
-    ...pending
+  const runUrl = `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`;
+  const report = (state, description) => github.rest.repos.createCommitStatus({
+    ...repo, sha: pr.head.sha, context: 'UI review gate', state, description, target_url: runUrl
   });
-  // 旧版が作った重複は保留中の正本へまとめる。正本の判定を待たずに合格にはならない。
-  for (const duplicate of existing.slice(1)) {
-    await github.rest.checks.update({ ...repo, check_run_id: duplicate.id, status: 'completed', conclusion: 'neutral',
-      output: { title: '同じheadの検査へ統合した', summary: `現在の判定: https://github.com/${repo.owner}/${repo.repo}/runs/${check.id}` } });
+  // 過去の成功を無効にしてから、旧チェックの移行と現在の本文の検査を始める。
+  await report('pending', '提出記録を検査中');
+  const externalId = `ui-review:${pullNumber}`;
+  const checks = (await github.paginate(github.rest.checks.listForRef, {
+    ...repo, ref: pr.head.sha, filter: 'all', per_page: 100
+  })).filter(check => ['UI review gate', 'UI review gate (legacy)'].includes(check.name) && check.app?.id === 15368);
+  const owned = checks.filter(check =>
+    (check.external_id === externalId || (!check.external_id &&
+      check.output?.summary?.includes(`対象版: ${pr.head.sha}`) && check.output.summary.includes('検査コード: '))));
+  const ownedUrls = new Set(owned.map(check => `現在の判定: https://github.com/${repo.owner}/${repo.repo}/runs/${check.id}`));
+  const existing = checks.filter(check => check.name === 'UI review gate' && (owned.includes(check) ||
+    (!check.external_id && check.output?.title === '同じheadの検査へ統合した' && ownedUrls.has(check.output.summary))));
+  // 同名のcheck runとcommit statusは両方が必須になるため、所有する旧チェックだけを退役する。
+  for (const check of existing) {
+    await github.rest.checks.update({ ...repo, check_run_id: check.id,
+      name: 'UI review gate (legacy)', status: 'completed', conclusion: 'neutral',
+      output: { title: 'commit statusへ移行した',
+        summary: `現在の検査: ${runUrl}\n以前の判定: ${check.conclusion}\n\n${(check.output?.summary ?? '').slice(0, 60000)}` } });
   }
   let conclusion = 'failure';
   let problems = [];
@@ -97,11 +99,10 @@ export async function runUiReview({ github, context, pullNumber }) {
   }
   const summary = conclusion === 'neutral' ? 'Draftは作業中のため未判定。Ready化で必須検査を行う。' :
     problems.length ? problems.join('\n') : '提出記録の形式・問い・画像の対応を確認した。画面の使いやすさと操作の実施事実は人が確認する。';
-  await github.rest.checks.update({
-    ...repo, check_run_id: check.id, status: 'completed', conclusion,
-    output: { title: conclusion === 'failure' ? '提出記録に不足がある' : conclusion === 'neutral' ? '作業中・未判定' : '提出記録を確認した',
-      summary: `${summary}\n\n検査コード: ${context.sha}\n対象版: ${pr.head.sha}\n実行記録: https://github.com/${repo.owner}/${repo.repo}/actions/runs/${context.runId}` }
-  });
+  await report(conclusion === 'neutral' ? 'pending' : conclusion,
+    conclusion === 'failure' ? '提出記録に不足がある。実行記録を確認する' :
+      conclusion === 'neutral' ? 'Draftは作業中・未判定。Ready化で検査する' : '提出記録を確認した');
   // 合否は必須チェックへ集約する。結果の書込みに失敗した場合だけ呼出元へ例外を返す。
-  return { conclusion, problems };
+  return { conclusion, problems,
+    summary: `${summary}\n\n検査コード: ${context.sha}\n対象版: ${pr.head.sha}\n実行記録: ${runUrl}` };
 }
