@@ -474,6 +474,21 @@ test('PROGRESS_GITHUB_REPOSは owner/repository とURLを受け付け、既定�
   for (const bad of ['qa-local', 'https://example.com/a/b', 'qa-local/alpha,QA-LOCAL/alpha', 'a/b/c']) assert.throws(() => parseRepositoryList(bad));
 });
 
+test('ガント追加取得の原因コードをHTTP 502で返し、内部の応答は漏らさない', async () => {
+  for (const code of ['schedule_forbidden', 'schedule_failed', 'schedule_limit', 'schedule_invalid']) {
+    await withServer(async origin => {
+      const config = await (await fetch(origin + '/api/local-github', { headers: { 'X-Progress-Client': '1' } })).json();
+      const result = await fetch(origin + '/api/github/refresh', { method: 'POST', headers: { Origin: origin, 'X-Progress-CSRF': config.csrfToken, 'Content-Type': 'application/json' }, body: JSON.stringify({ repository: key }) });
+      assert.equal(result.status, 502); assert.deepEqual(await result.json(), { error: code });
+    }, { refresh: async () => { throw Object.assign(new Error('QA secret response'), { code }); } });
+    const h = clientHarness({ fetchImpl: async endpoint => endpoint.endsWith('local-github') ? Response.json({ schemaVersion: 1, repositories: QA_REPOSITORIES, csrfToken: 'a'.repeat(64) }) : Response.json({ error: code }, { status: 502 }) });
+    const before = h.storage.getItem(STORAGE_KEY);
+    await h.client.connect(); await h.client.refresh();
+    assert.equal(h.client.state(key).phase, 'error');
+    assert.equal(h.storage.getItem(STORAGE_KEY), before);
+  }
+});
+
 test('許可される最大50件のrepository設定を、URLの上限でも接続できる', async () => {
   try {
     for (const length of [100, 500]) {
