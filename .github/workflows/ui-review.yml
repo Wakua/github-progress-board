@@ -1,0 +1,41 @@
+name: UI review
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, edited, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: 検査するPR番号
+        required: true
+        type: number
+
+permissions:
+  contents: read
+  pull-requests: read
+  checks: write
+
+concurrency:
+  group: ui-review-${{ github.event.pull_request.number || inputs.pull_number }}
+  cancel-in-progress: false
+
+jobs:
+  ui-review:
+    name: Run trusted UI review
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      # github.shaはmainの版。PRのコードはcheckout・import・実行しない。
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Check the PR using main's rules
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const { runUiReview } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/run-ui-review.mjs`);
+            await runUiReview({ github, context, core,
+              pullNumber: Number(context.payload.pull_request?.number ?? context.payload.inputs?.pull_number) });
