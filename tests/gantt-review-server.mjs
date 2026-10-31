@@ -17,7 +17,16 @@ const seed=()=>{const w=qaWorkspace();w.projects=w.projects.slice(0,1);w.project
 const server=createProgressServer({root:path.join(root,'dist'),repositories:[repositoryUrl,foreign.repositoryUrl],refresher:{refresh:async()=>{if(mode==='hold')await new Promise(r=>{resume=r;});if(mode==='fail')throw Object.assign(new Error('fixture failure'),{code:'network'});return snapshot();}}});
 const production=server.listeners('request')[0];server.removeAllListeners('request');
 server.on('request',async(req,res)=>{
- if(req.url==='/qa-text200') {
+ if(req.url==='/qa-clock') {
+   const html=await readFile(path.join(root,'dist/index.html'),'utf8');
+   res.setHeader('Content-Type','text/html;charset=utf-8');
+   res.end(html.replace('<head>','<head><script src="/qa-clock.mjs"></script>'));
+ }
+ else if(req.url==='/qa-clock.mjs') {
+   res.setHeader('Content-Type','text/javascript;charset=utf-8');
+   res.end(await readFile(new URL('./gantt-review-clock.mjs',import.meta.url),'utf8'));
+ }
+ else if(req.url==='/qa-text200') {
    const html=await readFile(path.join(root,'dist/index.html'),'utf8');
    const css='.gantt{font-size:32px}.gantt button,.gantt .task-button,.gantt .summary,.gantt .visible-range{font-size:28px}.gantt h2{font-size:36px}.gantt h3{font-size:30px}.gantt .hint,.gantt .legend,.gantt .duration,.gantt .dates,.gantt .row-warning,.gantt [data-gantt="alerts"] button{font-size:24px}.gantt .chart{--name-width:250px}.gantt .row{min-height:110px}.gantt .row.header{min-height:80px}.gantt .bar{top:40px}.gantt .bar.point{top:49px}.gantt dialog{max-width:740px}';
    res.setHeader('Content-Type','text/html;charset=utf-8');res.end(html.replace('</head>','<style>'+css+'</style></head>'));

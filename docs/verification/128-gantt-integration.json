@@ -622,6 +622,7 @@
     "Actual work-progress write followed by reacquisition; not authorized and PR #136 is unmerged.",
     "Independent user operation and full product acceptance.",
     "Actual browser zoom, screen-reader speech, touch devices and navigation across many tasks.",
-    "Midnight rollover in a live browser; model date change and weekend shift are covered."
-  ]
+    "Actual Japan midnight rollover remains unverified; page-local simulated Date with native browser timers and synthetic visibilitychange is verified in 128-gantt-clock.json."
+  ],
+  "dateRolloverEvidence": "128-gantt-clock.json"
 }
