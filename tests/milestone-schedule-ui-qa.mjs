@@ -58,7 +58,9 @@ try {
       const screenshot = `${version}-${String(index + 1).padStart(2, '0')}-${screen.name}.jpg`;
       await page.screenshot({ path: path.join(output, screenshot), type: 'jpeg', quality: 60, fullPage: true, animations: 'disabled', style: '#toast { visibility: hidden !important; }' });
       const opener = page.locator('#release-panel [data-action="github-item"][data-id="issue:3"]');
-      await opener.focus();
+      await page.getByRole('tab', { name: 'リリース', exact: true }).click();
+      for (let step = 0; step < 30 && !await opener.evaluate(el => el === document.activeElement); step++) await page.keyboard.press('Tab');
+      assert.equal(await opener.evaluate(el => el === document.activeElement), true, 'Issue #3 is reachable with Tab');
       const scrollBefore = await page.evaluate(() => scrollY);
       await page.keyboard.press('Enter');
       await page.locator('#detail-dialog').waitFor({ state: 'visible' });
