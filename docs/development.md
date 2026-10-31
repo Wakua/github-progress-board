@@ -49,6 +49,8 @@ Issue本文、コメント、CI、レビュー、完了条件は取得しない�
 共有SQLの試験はNodeのSQLiteを使う。
 MCP出力契約の試験にはPythonとjsonschemaが必要であり、テスト環境のPATHからPythonを起動できるようにする。
 `npm run check`はJavaScriptの構文と[画面画像の保存規則](screenshots.md#保存の規則)を検査する。
+PRの判定表と根拠は[UIレビューのCI検査](ui-ux-review.md#ciによる検査)で確認する。
+ローカルでは、`body`、変更パスの配列`files`、`headSha`、`repository`を持つJSONを用意し、`npm run check:ui-review -- <JSONファイル>`で同じ検査を行う。
 
 ### ブラウザ検証
 
