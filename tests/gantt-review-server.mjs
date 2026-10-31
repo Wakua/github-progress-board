@@ -28,4 +28,3 @@ server.on('request',async(req,res)=>{
  else production(req,res);
 });
 server.listen(Number(process.argv[2]),'127.0.0.1',()=>console.log('Gantt QA http://127.0.0.1:'+server.address().port+'/qa'));
-

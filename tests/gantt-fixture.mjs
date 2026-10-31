@@ -29,4 +29,3 @@ export function ganttSnapshot(name = 'basic', progress = null, fetchedAt = '2026
   validateSnapshot(snapshot);
   return snapshot;
 }
-

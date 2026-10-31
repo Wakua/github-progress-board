@@ -32,4 +32,3 @@ export function releaseGanttModel(snapshot, { selectedProjectId, sourceProjectId
   input.milestones = input.milestones.map(m => ({...m, title: snapshot.planning.milestones.find(p => p.url.toLowerCase() === m.key)?.title ?? m.key}));
   return { projects, selectedProjectId, input, result };
 }
-

@@ -61,4 +61,3 @@ test('古いsnapshotを0%で補わず、Projectの削除と空の取得を扱う
   assert.equal(ganttProjects(ganttSnapshot('empty')).length,0);
   assert.equal(releaseGanttModel(null),null);
 });
-

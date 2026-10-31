@@ -11,13 +11,13 @@
     "dist/gantt-chart.mjs": "940ec6b414804d171210b7ea412184e8f141e87d",
     "dist/gantt-template.mjs": "d0851fe0a87beaa363798507b1f78103fcd869d3",
     "dist/gantt.css": "2bd6ee5e2582feeb7077e1a9103c8533b5912faa",
-    "dist/release-gantt-model.mjs": "3f8bed2a0c6f03b5c08b9fc01d7ebd119c4617ce",
-    "dist/release-gantt.mjs": "c6de68800c868cf75e8afd18569316723b02ff0d",
+    "dist/release-gantt-model.mjs": "8771a5fa070dbd1c808d0f24adc99dc45ff4cd8c",
+    "dist/release-gantt.mjs": "8a8a4b8863ad730a38babe625edb5df89423fe54",
     "dist/github-schedule-input.mjs": "8aafdb32515b1b9ac2facbb8f87e2aa36bb4fd3e",
     "dist/milestone-schedule.mjs": "6bbcb6e6f6cea0244e95d1e1125d014b9312e104",
-    "tests/gantt-fixture.mjs": "3d46fda86459df58112f735619945536499f6b5e",
-    "tests/gantt-review-server.mjs": "020c46f09f3e466c4bd738b835a8920bea7059eb",
-    "tests/release-gantt.test.mjs": "775f4ac846b8ffd26f7ad056cbf74cd34a7dc18f"
+    "tests/gantt-fixture.mjs": "09989f9926e2215569c768098e0a448943a93b3d",
+    "tests/gantt-review-server.mjs": "b394381987c949cbe7f0d81679784311eb4fef15",
+    "tests/release-gantt.test.mjs": "1f86709471febe86a705cc95dc6d64c969f16a66"
   },
   "conditions": {
     "browser": "Chrome via CUA",
