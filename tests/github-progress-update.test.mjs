@@ -4,6 +4,9 @@ import { setupProgress, updateProgress, numberField } from '../scripts/github-pr
 import { createProgressClient } from '../scripts/github-progress-client.mjs';
 import { main } from '../scripts/update-github-progress.mjs';
 import { calculateMilestoneSchedule } from '../dist/milestone-schedule.mjs';
+import { attachSnapshot } from '../dist/github-snapshot.mjs';
+import { githubScheduleInput } from '../dist/github-schedule-input.mjs';
+import { scheduleFixture, scheduleSnapshot, repo, external, url } from './github-schedule-fixture.mjs';
 
 const request = overrides => ({ issue: 7, actor: 'Codex', operation: 'task7-validation', progress: 60,
   expectedProgress: null, expectedEstimate: 5, reason: '実装3ptを確認した。\n検証2ptが残る。\nhttps://github.com/example/demo/pull/8', ...overrides });
@@ -198,27 +201,50 @@ test('CLI rejects unknown options and mixed setup/update before any network oper
   await assert.rejects(main(['--project-id', 'PVT_demo', '--repo', 'example/demo', '--setup', '--issue', '7']), /別々/);
 });
 
-test('updated fixture readback feeds the adopted schedule contract without further writes', async () => {
+test('進捗更新後の取得snapshotを再取込して日程を変え、空欄の再取込では日程を確定しない', async () => {
   const { client, state } = fixture();
-  state.item.values.progress = 0;
-  const read = value => ({ value, problem: null });
-  const links = keys => ({ keys, totalCount: keys.length, complete: true, problem: null });
-  const calculate = async () => {
-    const item = await client.item(7);
-    return calculateMilestoneSchedule({ baseDate: '2026-10-05', fetchedAt: '2026-10-05T09:00:00Z', selectedProjectId: 'PVT_demo',
-      milestones: [{ key: 'https://github.com/example/demo/milestone/1', state: 'open', dueDate: null, tasks: links([item.url]) }],
-      issues: [{ key: item.url, state: read('open'), completion: { value: 'not-done', reasons: ['existing-classification:active'] },
-        parent: read(null), children: links([]), blockedBy: links([]), planning: {
-          sourceProjectId: 'PVT_demo', sourceProblem: null, status: read('In Progress'), owner: read('Codex'),
-          estimatePoints: read(item.values.estimate), workProgressPercent: read(item.values.progress),
-          iteration: read({ startDate: '2026-10-05', endDate: '2026-10-30' }),
-        },
-      }],
-    });
+  const data = scheduleFixture();
+  const rawFields = data.hierarchyPages[0].data.repository.issues.nodes[0].projectItems.nodes[0].fieldValues;
+  rawFields.nodes.find(value => value.field.name === 'Estimate').number = 5;
+  state.project.id = 'P1';
+  state.project.fields.forEach(field => { field.id = `P1-${field.name}`; });
+  Object.assign(state.item, { number: 1, url: url(1), values: { 'P1-Estimate': 5, 'P1-作業進捗率': 0 } });
+  const setNumber = client.setNumber;
+  client.setNumber = async (projectId, itemId, fieldId, value) => {
+    await setNumber(projectId, itemId, fieldId, value);
+    rawFields.nodes.find(entry => entry.field.id === fieldId).number = value;
   };
-  assert.equal((await calculate()).tasks[0].durationDays, 5);
-  await updateProgress(client, request({ expectedProgress: 0 }), { apply: true });
+  const project = { id: 'qa', repositoryUrl: repo };
+  const options = { baseDate: '2026-10-05', selectedProjectId: 'P1',
+    sourceProjectIds: Object.fromEntries([1, 2, 3, 4, 5].map(n => [url(n, external), 'P2'])) };
+  const reimport = async () => {
+    // Use #125's collector, snapshot builder/validator and importer, not a hand-built ScheduleInput.
+    attachSnapshot(project, await scheduleSnapshot(data));
+    const input = githubScheduleInput(project.githubSnapshot, options);
+    return { input, result: calculateMilestoneSchedule(input) };
+  };
+  const first = await reimport();
+  assert.equal(first.result.tasks.find(task => task.key === url(1)).durationDays, 5);
+  assert.equal(first.result.milestones[0].finish.coordinate, 7);
+  assert.equal(state.writes.length, 0);
+
+  await updateProgress(client, request({ issue: 1, expectedProgress: 0 }), { apply: true });
   const writes = state.writes.length;
-  assert.equal((await calculate()).tasks[0].durationDays, 2);
+  data.fetchedAt = '2026-10-03T12:01:00Z';
+  const updated = await reimport();
+  assert.equal(updated.input.fetchedAt, data.fetchedAt);
+  assert.deepEqual(updated.input.issues.find(issue => issue.key === url(1)).planning.workProgressPercent, { value: 60, problem: null });
+  assert.equal(updated.result.tasks.find(task => task.key === url(1)).durationDays, 2);
+  assert.equal(updated.result.milestones[0].finish.coordinate, 4);
+
+  // A later read can return an empty field. It must replace the old 60%, without becoming zero.
+  rawFields.nodes = rawFields.nodes.filter(entry => entry.field.name !== '作業進捗率');
+  rawFields.totalCount = rawFields.nodes.length;
+  data.fetchedAt = '2026-10-03T12:02:00Z';
+  const missing = await reimport();
+  assert.deepEqual(missing.input.issues.find(issue => issue.key === url(1)).planning.workProgressPercent, { value: null, problem: null });
+  assert.equal(missing.result.milestones[0].state, 'incomplete');
+  assert.equal(missing.result.milestones[0].finish, null);
+  assert.ok(missing.result.diagnostics.some(diagnostic => diagnostic.field === 'workProgressPercent'));
   assert.equal(state.writes.length, writes);
 });
