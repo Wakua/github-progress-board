@@ -37,5 +37,5 @@ jobs:
         with:
           script: |
             const { runUiReview } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/run-ui-review.mjs`);
-            await runUiReview({ github, context, core,
+            await runUiReview({ github, context,
               pullNumber: Number(context.payload.pull_request?.number ?? context.payload.inputs?.pull_number) });

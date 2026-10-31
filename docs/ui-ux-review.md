@@ -100,6 +100,10 @@ UI変更の情報量と判断の手掛かりは対象外にできない。
 Draftは「作業中・未判定」（neutral）とし、Ready化で必須検査を行う。
 Readyで欠落・要修正・未確認が見つかった場合は失敗とし、担当者はDraftへ戻して修正する。
 マージ前には最新の本文とheadで成功していることを確かめる。
+同じPR・headでは一つのチェックを更新し、本文修正前の失敗を別チェックとして残さない。
+旧形式の重複は、再検査中のチェックへ統合する。
+記録の不備による失敗は`UI review gate`へ記録する。
+実行ジョブは結果を書き込めた場合に成功とし、通信・権限などで書き込めなかった場合に失敗する。
 
 [ui-review.yml](../.github/workflows/ui-review.yml)は`pull_request_target`で起動し、mainの版だけをcheckoutする。
 その版の[実行コード](../scripts/run-ui-review.mjs)、[検査コード](../scripts/check-ui-review.mjs)、必須の問いを使う。

@@ -34,7 +34,7 @@ export function createBlobReader(github, repo) {
 const sameVersion = (a, b) => a.head.sha === b.head.sha && a.base.sha === b.base.sha &&
   a.body === b.body && a.draft === b.draft && a.state === b.state;
 
-export async function runUiReview({ github, context, core, pullNumber }) {
+export async function runUiReview({ github, context, pullNumber }) {
   if (!['pull_request_target', 'workflow_dispatch'].includes(context.eventName) || context.ref !== 'refs/heads/main') {
     throw new Error('mainの信頼済みworkflowからだけ実行する');
   }
@@ -45,11 +45,27 @@ export async function runUiReview({ github, context, core, pullNumber }) {
   if (context.payload.pull_request && context.payload.pull_request.head.sha !== pr.head.sha) {
     throw new Error('PRの版が変わったため、最新の実行で確認する');
   }
-  const { data: check } = await github.rest.checks.create({
-    ...repo, name: 'UI review gate', head_sha: pr.head.sha, status: 'in_progress',
-    details_url: `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`,
+  const externalId = `ui-review:${pullNumber}`;
+  const existing = (await github.paginate(github.rest.checks.listForRef, {
+    ...repo, ref: pr.head.sha, check_name: 'UI review gate', filter: 'all', per_page: 100
+  })).filter(check => check.name === 'UI review gate' && check.app?.id === 15368 &&
+    (check.external_id === externalId || (!check.external_id &&
+      check.output?.summary?.includes(`対象版: ${pr.head.sha}`) && check.output.summary.includes('検査コード: '))))
+    .sort((a, b) => a.id - b.id);
+  const pending = {
+    status: 'in_progress', external_id: externalId,
     output: { title: '提出記録を検査中', summary: `検査コード: ${context.sha}\n対象版: ${pr.head.sha}` }
+  };
+  const { data: check } = existing.length ? await github.rest.checks.update({ ...repo, check_run_id: existing[0].id, ...pending }) : await github.rest.checks.create({
+    ...repo, name: 'UI review gate', head_sha: pr.head.sha,
+    details_url: `https://github.com/${repo.owner}/${repo.repo}/actions/runs/${context.runId}`,
+    ...pending
   });
+  // 旧版が作った重複は保留中の正本へまとめる。正本の判定を待たずに合格にはならない。
+  for (const duplicate of existing.slice(1)) {
+    await github.rest.checks.update({ ...repo, check_run_id: duplicate.id, status: 'completed', conclusion: 'neutral',
+      output: { title: '同じheadの検査へ統合した', summary: `現在の判定: https://github.com/${repo.owner}/${repo.repo}/runs/${check.id}` } });
+  }
   let conclusion = 'failure';
   let problems = [];
   try {
@@ -84,8 +100,8 @@ export async function runUiReview({ github, context, core, pullNumber }) {
   await github.rest.checks.update({
     ...repo, check_run_id: check.id, status: 'completed', conclusion,
     output: { title: conclusion === 'failure' ? '提出記録に不足がある' : conclusion === 'neutral' ? '作業中・未判定' : '提出記録を確認した',
-      summary: `${summary}\n\n検査コード: ${context.sha}\n対象版: ${pr.head.sha}` }
+      summary: `${summary}\n\n検査コード: ${context.sha}\n対象版: ${pr.head.sha}\n実行記録: https://github.com/${repo.owner}/${repo.repo}/actions/runs/${context.runId}` }
   });
-  if (conclusion === 'failure') core.setFailed(summary);
+  // 合否は必須チェックへ集約する。結果の書込みに失敗した場合だけ呼出元へ例外を返す。
   return { conclusion, problems };
 }
