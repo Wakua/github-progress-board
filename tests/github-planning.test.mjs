@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSnapshot, validateSnapshot, attachSnapshot } from '../dist/github-snapshot.mjs';
-import { githubPlan, githubProgress, githubModules } from '../dist/github-planning.mjs';
-import { renderGithubWork, renderGithubPeriods, githubItemPlanning, githubProgressMarkup, githubStateProgressMarkup } from '../dist/github-planning-view.mjs';
+import { githubPlan, githubProgress, githubModules, snapshotTitleOf } from '../dist/github-planning.mjs';
+import { renderGithubWork, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubProgressMarkup, githubStateProgressMarkup } from '../dist/github-planning-view.mjs';
 import { githubProgressStates } from '../dist/github-work.mjs';
 import { buildPlanning } from '../scripts/github-planning-fetch.mjs';
 import { createGithubRefresher } from '../scripts/local-github-refresh.mjs';
@@ -386,4 +386,32 @@ test('モジュールと目標の行に帯を出し、リリースと期間の�
   assert.equal([...html.matchAll(/class="state-bar"/g)].length >= 2, true, 'モジュールと目標の行');
   assert.ok(html.includes('class="state-summary"') && html.includes('リリース（Milestone）'));
   assert.ok(html.includes('github-progress-track'), 'リリースと期間の行');
+});
+
+test('子Issueを持つ親の先頭の[Hub]は、目標名を出す箇所で外し、末端の作業とsnapshotのタイトルは変えない', () => {
+  const d = inputs();
+  d.issuePages[0][0].title = '[Hub] QA目標';
+  d.issuePages[0][1].title = '[Hub] QA中間の親';
+  d.issuePages[0][2].title = '[Hub] 接頭語つきの作業';
+  const value = snapshot(d);
+  const periods = renderGithubPeriods(value), work = renderGithubWork(value), tree = githubGoalTree(value);
+  for (const [name, html] of [['目標一覧と期間', periods], ['作業の行', work], ['親子のツリー', tree], ['作業の詳細', githubItemPlanning(value, 3)], ['親の詳細', githubItemPlanning(value, 1)]])
+    assert.ok(!html.includes('[Hub] QA') && !html.includes('[Hub] QA中間'), name + 'に親の[Hub]が出ている');
+  assert.ok(periods.includes('#1 QA目標') && tree.includes('#1 QA目標') && tree.includes('#2 QA中間の親'));
+  assert.ok(periods.includes('· QA目標</p>') && githubItemPlanning(value, 3).includes('目標：QA目標'), '作業の行と詳細に出す目標名');
+  assert.ok(tree.includes('#3 [Hub] 接頭語つきの作業'), '末端の作業のタイトルは変えない');
+  assert.equal(value.items.find(i => i.number === 1).title, '[Hub] QA目標', 'snapshotのタイトルは書き換えない');
+  const titleOf = snapshotTitleOf(value);
+  assert.deepEqual([1, 2, 3].map(n => titleOf(value.items.find(i => i.number === n))), ['QA目標', 'QA中間の親', '[Hub] 接頭語つきの作業']);
+});
+
+test('親のタイトルが[Hub]だけのとき、空にせず元の表示を残す。先頭以外や別の接頭語は外さない', () => {
+  const d = inputs();
+  d.issuePages[0][0].title = '[Hub] ';
+  d.issuePages[0][1].title = '中間 [Hub] 親';
+  const value = snapshot(d), titleOf = snapshotTitleOf(value);
+  assert.equal(titleOf(value.items.find(i => i.number === 1)), '[Hub] ');
+  assert.equal(titleOf(value.items.find(i => i.number === 2)), '中間 [Hub] 親');
+  const none = snapshot(inputs()), plain = snapshotTitleOf({ ...none, planning: undefined });
+  assert.equal(plain(none.items[0]), none.items[0].title, '親子の情報がないsnapshotは、タイトルを変えない');
 });

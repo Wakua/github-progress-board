@@ -1,4 +1,4 @@
-import { githubPlan } from './github-planning.mjs';
+import { githubPlan, snapshotTitleOf } from './github-planning.mjs';
 import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems, githubMineItems, githubUrgentSummary } from './github-planning-view.mjs';
 import { releaseSummaries, releasePanelMarkup } from './release.mjs';
 import { attentionPanelMarkup, attentionCount, attentionReasons, manualEndedOn, MINE_GROUPS } from './attention.mjs';
@@ -219,7 +219,8 @@ function renderGithubSnapshot(project) {
   const snapshot = project.githubSnapshot;
   const local = `<div data-local-github>${localGithubMarkup(project)}</div>`;
   if (!snapshot) return `<h2>GitHub snapshot</h2>${local}<p class="empty-message">未取得。GitHubから取得したJSONを読み込むと、Issue・PRの状態を確認できます。</p>`;
-  const rows = items => items.length ? `<ul class="snapshot-items">${items.map(item => `<li><button class="text-button" data-action="github-item" data-id="${item.kind}:${item.number}"><small>${item.kind === 'issue' ? 'Issue' : 'PR'} #${item.number}</small><span>${escape(item.title)}</span></button><span class="github-state">${escape(githubStateLabel(item))}</span></li>`).join('')}</ul>` : '<p class="empty-message">該当なし</p>';
+  const titleOf = snapshotTitleOf(snapshot);
+  const rows = items => items.length ? `<ul class="snapshot-items">${items.map(item => `<li><button class="text-button" data-action="github-item" data-id="${item.kind}:${item.number}"><small>${item.kind === 'issue' ? 'Issue' : 'PR'} #${item.number}</small><span>${escape(titleOf(item))}</span></button><span class="github-state">${escape(githubStateLabel(item))}</span></li>`).join('')}</ul>` : '<p class="empty-message">該当なし</p>';
   return `<div class="snapshot-heading"><h2>GitHub snapshot <small>読み取り専用</small></h2>${snapshotAgeMarkup(snapshot)}</div>${local}<p class="footnote">取得：${escape(utcTime(snapshot.fetchedAt))} · 出典：${sourceLink(snapshot.repositoryUrl, snapshot.repositoryUrl.slice(19))}</p><p class="snapshot-note">GitHubが正本です。表示は取得時点のIssue・PR状態で、作業の受入完了は未確認です。${snapshot.planning ? '担当・期間・EstimateはProject、リリースはMilestoneから表示します。' : '親子Issue・Project・Milestoneは未取得です。'}</p>${[['issue', 'Issue'], ['pull_request', 'PR']].map(([kind, label]) => {
     const items = snapshot.items.filter(item => item.kind === kind), open = items.filter(item => item.state === 'open'), closed = items.filter(item => item.state === 'closed');
     return `<section class="snapshot-kind" data-snapshot-kind="${kind}"><h3>${label} <small>Open ${open.length} / Closed ${closed.length}</small></h3>${rows(open)}${closed.length ? `<details class="snapshot-history"><summary>Closedの${label} ${closed.length}件を確認</summary>${rows(closed)}</details>` : ''}</section>`;
@@ -709,7 +710,7 @@ function renderPanelContent() {
       body.innerHTML = '<p class="empty-message">最新snapshotにこのIssue・PRは含まれていません。</p>';
       return;
     }
-    $('#drawer-title').textContent = `${item.kind === 'issue' ? 'Issue' : 'PR'} #${item.number} ${item.title}`;
+    $('#drawer-title').textContent = `${item.kind === 'issue' ? 'Issue' : 'PR'} #${item.number} ${snapshotTitleOf(snapshot)(item)}`;
     body.innerHTML = `<div class="detail-meta"><span class="github-state">${escape(githubStateLabel(item))}</span>${snapshotAgeMarkup(snapshot)}</div><dl class="snapshot-facts"><dt>出典</dt><dd>${sourceLink(item.url, item.url)}</dd><dt>取得日時</dt><dd>${escape(utcTime(snapshot.fetchedAt))}</dd><dt>GitHub更新日時</dt><dd>${escape(utcTime(item.updatedAt))}</dd><dt>Closed日時</dt><dd>${item.closedAt ? escape(utcTime(item.closedAt)) : 'なし'}</dd>${item.kind === 'pull_request' ? `<dt>merge日時</dt><dd>${item.mergedAt ? escape(utcTime(item.mergedAt)) : 'なし'}</dd>` : ''}<dt>受入完了・完了条件</dt><dd>未確認</dd></dl>${item.kind === 'issue' ? githubItemPlanning(snapshot, item.number) : ''}<p class="snapshot-note">${item.kind === 'pull_request' ? 'PRのmergeは作業の受入完了を表しません。' : 'IssueのClosedは完了条件の達成を表しません。'} 成果と完了条件の確認は、手動の作業で別に記録します。</p><details class="panel-note"><summary>取得元のcollection URL</summary>${Object.values(snapshot.sources).flatMap(source => source.urls).map(url => `<p>${sourceLink(url, url)}</p>`).join('')}</details>`;
     return;
   }
