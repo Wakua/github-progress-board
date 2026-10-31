@@ -4,6 +4,7 @@ import { buildSnapshot, repositoryKey, MAX_IMPORT_BYTES } from '../dist/github-s
 import { MAX_LOCAL_REPOSITORIES } from '../dist/local-github.mjs';
 import { normalizeRepositoryUrl } from '../dist/workspace.mjs';
 import { planningQuery, buildPlanning } from './github-planning-fetch.mjs';
+import { collectSchedule, scheduleIssueQuery, ScheduleFetchError } from './github-schedule-fetch.mjs';
 
 const runFile = promisify(execFile);
 // PROGRESS_GITHUB_REPOS はカンマ区切りの owner/repository または https://github.com/owner/repository。
@@ -54,7 +55,7 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
     const controller = new AbortController(), timer = setTimeout(() => controller.abort(), timeoutMs);
     let bytes = 0;
     try {
-      async function read(args) {
+      async function read(args, schedule = false) {
         if (controller.signal.aborted) throw new RefreshError('timeout');
         let stdout, failure = null;
         try {
@@ -79,7 +80,7 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
           const until = limitedUntil({ ...response, data, stderr: failure?.stderr }, now());
           if (until !== null) { budget = { remaining: 0, resetAt: until }; throw new RefreshError('rate_limited', until); }
         }
-        if (failure) throw new RefreshError(failure.code === 'ENOENT' ? 'gh_unavailable' : 'gh_failed');
+        if (failure) throw new RefreshError(failure.code === 'ENOENT' ? 'gh_unavailable' : schedule ? response.status === 403 ? 'schedule_forbidden' : 'schedule_failed' : 'gh_failed');
         return data;
       }
       async function collect(endpoint) {
@@ -111,11 +112,18 @@ export function createGithubRefresher({ repositories: urls = configuredRepositor
         cursors.add(info.endCursor); cursor = info.endCursor;
       }
       const planning = buildPlanning({ repositoryUrl, issuePages, milestonePages, hierarchyPages });
+      planning.schedule = await collectSchedule({ repositoryUrl, issuePages, hierarchyPages, planning, readIssue: async url => {
+        assertBudget();
+        const result = await read(['graphql', '--include', '-f', 'query=' + scheduleIssueQuery(url)], true);
+        const limit = result?.data?.rateLimit, resetAt = Date.parse(limit?.resetAt);
+        if (Number.isSafeInteger(limit?.remaining) && Number.isFinite(resetAt)) budget = { remaining: limit.remaining, resetAt };
+        return result;
+      } });
       const snapshot = buildSnapshot({ repositoryUrl, fetchedAt: new Date(now()).toISOString(), issuePages, pullPages, planning });
       if (Buffer.byteLength(JSON.stringify(snapshot)) > MAX_IMPORT_BYTES) throw new RefreshError('invalid_snapshot');
       cache.set(key, { snapshot, expires: now() + cacheMs });
       return snapshot;
-    } catch (error) { throw error instanceof RefreshError ? error : new RefreshError('invalid_snapshot'); }
+    } catch (error) { throw error instanceof RefreshError ? error : new RefreshError(error instanceof ScheduleFetchError ? error.code : 'invalid_snapshot'); }
     finally { clearTimeout(timer); }
   }
   function refresh(key) {

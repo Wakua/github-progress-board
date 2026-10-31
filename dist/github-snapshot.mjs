@@ -109,6 +109,11 @@ export function attachSnapshot(project, incoming, now = Date.now()) {
       const old = oldItems.get(snapshotIdentity(incoming, item));
       if (old && Date.parse(item.updatedAt) < Date.parse(old.updatedAt)) fail('Issue・PRの更新日時が古くなっています。以前のsnapshotを保持しました。');
     }
+    const oldSchedule = new Map((previous.planning?.schedule?.issues ?? []).map(i => [i.key, i]));
+    for (const issue of incoming.planning?.schedule?.issues ?? []) {
+      const old = oldSchedule.get(issue.key);
+      if (old && Date.parse(issue.updatedAt) < Date.parse(old.updatedAt)) fail('外部Issueの更新日時が古くなっています。以前のsnapshotを保持しました。');
+    }
   }
   project.githubSnapshot = { ...structuredClone(incoming), projectId: project.id };
 }

@@ -2,161 +2,35 @@
 <html lang="ja">
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>前提の確認・操作試作</title>
+<title>ガント画面・計算結果の操作試作</title>
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#131923;color:#eef2f8;font:16px/1.6 system-ui,'Yu Gothic UI',Meiryo,sans-serif}
 main{max-width:800px;margin:24px auto;padding:24px;container-type:inline-size}h1{font-size:22px;margin:0}h2{font-size:18px;margin:0}h3{font-size:15px;margin:20px 0 8px}p{margin:12px 0}.hint{font-size:12px;color:#bbc7d8}
 .title-row,.head,.summary{display:flex;align-items:center;justify-content:space-between;gap:12px}.title-row{margin-bottom:14px}.summary{font-size:14px;flex-wrap:wrap}.warn,.critical-mark{color:#ffd08a}.card{padding:18px;margin-top:18px;background:#1d2533;border:1px solid #47546a;border-radius:12px}
 button{background:#2b3e58;color:#fff;border:1px solid #829abb;border-radius:6px;padding:8px 12px;cursor:pointer;font:inherit;font-size:14px}button:focus-visible,summary:focus-visible,.timeline-scroll:focus-visible{outline:3px solid #8dccff;outline-offset:2px}.plain-action{background:transparent;border:0;padding:6px 0;color:inherit;display:inline-flex;align-items:center;gap:8px;text-align:left}.plain-action::after{content:'';width:6px;height:6px;border-top:1.5px solid currentColor;border-right:1.5px solid currentColor;transform:rotate(45deg);margin:0 3px}.plain-action:hover{text-decoration:underline}h1 .plain-action{font:inherit}
-.timeline-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.scale-buttons{display:flex;gap:4px;margin-left:auto}.scale-buttons button{min-width:46px}.scale-buttons button[aria-pressed="true"]{background:#375a7c;border:2px solid #c0dfff;font-weight:700}.scale-buttons button[aria-pressed="true"]::before{content:'✓ '}.visible-range{font-size:14px;color:#c6d2e3}.legend{display:flex;gap:18px;align-items:center;font-size:12px;margin:0 0 12px;color:#c6d2e3}.key{display:inline-flex;align-items:center;gap:6px}.legend svg{width:24px;height:12px;fill:none;stroke:#d4dbe5;stroke-width:1.5}
+.timeline-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;margin-bottom:12px}.scale-buttons{display:flex;gap:4px;margin-left:auto}.scale-buttons button{min-width:46px}.scale-buttons button[aria-pressed="true"]{background:#375a7c;border:2px solid #c0dfff;font-weight:700}.scale-buttons button[aria-pressed="true"]::before{content:'✓ '}.visible-range{font-size:14px;color:#c6d2e3}.legend{display:flex;flex-wrap:wrap;gap:18px;align-items:center;font-size:12px;margin:0 0 12px;color:#c6d2e3}.key{display:inline-flex;align-items:center;gap:6px}.legend svg{width:24px;height:12px;fill:none;stroke:#d4dbe5;stroke-width:1.5}
 .timeline-scroll{overflow-x:auto;scrollbar-color:#829abb #1d2533}.chart{position:relative;--name-width:160px;--column-gap:12px;--axis-width:392px;min-width:calc(var(--name-width) + var(--column-gap) + var(--axis-width))}.row{display:grid;grid-template-columns:var(--name-width) minmax(var(--axis-width),1fr);gap:var(--column-gap);min-height:62px}.row.header{min-height:36px;border-bottom:1px solid #46516a;font-size:12px;color:#c6d2e3}.name,.name-header{position:sticky;left:0;z-index:2;background:#1d2533;box-shadow:8px 0 #1d2533}.name{display:flex;align-items:center;min-width:0}.task-button{width:100%;min-height:44px;gap:5px;font-size:14px;flex-wrap:wrap}.task-name{font-weight:700}.duration{font-size:12px;color:#c6d2e3}.critical-mark{font-size:11px}.track{position:relative;min-width:0}.dates{display:flex}.dates>span{flex-shrink:0;text-align:center;overflow-wrap:anywhere;border-left:1px solid #46516a;padding:4px 0}.dates .weekday{display:block;font-size:.92em;color:#bbc7d8}.dates .weekend{background:#303849}.bar{position:absolute;top:16px;left:var(--start);width:var(--span);height:28px;background:#345f91;border:1px solid #a4c7f9;border-radius:4px}.bar.critical{background:#68482b;border:2px solid #ffd08a}
 .connections{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}.connections path{fill:none;stroke:#d4dbe5;stroke-width:2}.connections marker path{fill:#d4dbe5;stroke:none}.connections #edge-b{stroke:#ffd08a;stroke-width:3}
 dialog{max-width:550px;width:calc(100% - 32px);background:#1d2533;color:#eef2f8;border:1px solid #829abb;border-radius:12px;padding:24px}dialog::backdrop{background:#000a}.facts{margin:16px 0}.facts>div{display:grid;grid-template-columns:5em minmax(0,1fr);gap:12px;margin:8px 0}.facts dt{color:#bbc7d8}.facts dd{margin:0}summary{cursor:pointer;min-height:32px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{text-align:left;padding:8px;border-bottom:1px solid #46516a}
 @media(max-width:650px){main{margin:0;padding:12px}}
 @container(max-width:540px){.card{padding:12px}.chart{--name-width:136px;--column-gap:8px}.task-button{font-size:13px}.dates{font-size:11px}.summary{gap:6px}.legend{gap:12px}.head{align-items:flex-start;flex-wrap:wrap}}
-</style>
-<main>
+.sample-picker{display:flex;gap:8px;align-items:center;font-size:12px;color:#bbc7d8;margin-bottom:14px}select{font:inherit;background:#1d2533;color:#eef2f8;border:1px solid #829abb;padding:6px;max-width:100%;min-width:0}#alerts{display:flex;gap:16px;flex-wrap:wrap}#alerts button{font-size:14px}.bar{min-width:2px}.bar.point{width:9px!important;min-width:9px;height:9px;top:25px;transform:translateX(-4px) rotate(45deg);border-radius:0}.unavailable{position:absolute;top:18px;font-size:13px;color:#bbc7d8}.row-warning{font-size:11px}.due-marker{position:absolute;top:38px;bottom:0;border-left:1px dashed #e9d2bc;pointer-events:none}.due-marker>span{position:absolute;top:-19px;right:3px;color:#e9d2bc;font-size:11px;white-space:nowrap}.connections .critical-edge{stroke:#ffd08a;stroke-width:3}#details-body ul{padding-left:20px}#details-body li{margin:6px 0}a{color:#a6d3ff}.head{position:sticky;top:-24px;background:#1d2533;padding:8px 0;z-index:3}.head h2{flex:1}#back[hidden],[hidden]{display:none!important}.text200 body{font-size:32px}.text200 button,.text200 .task-button,.text200 .summary,.text200 .visible-range{font-size:28px}.text200 h1{font-size:44px}.text200 h2{font-size:36px}.text200 h3{font-size:30px}.text200 .hint,.text200 .legend,.text200 .duration,.text200 .dates,.text200 .row-warning,.text200 .sample-picker,.text200 #alerts button{font-size:24px}.text200 .chart{--name-width:250px}.text200 .row{min-height:110px}.text200 .row.header{min-height:80px}.text200 .bar{top:40px}.text200 .bar.point{top:49px}.text200 dialog{max-width:740px}.text200 .due-marker{top:80px}.text200 .due-marker>span{font-size:22px;top:-34px}
+.due-key{width:20px;border-top:1px dashed #e9d2bc}</style>
+<main><label class="sample-picker">試作データ <select id="sample" aria-label="試作データ"></select></label>
 <div class="title-row"><h1><button id="release-details" class="plain-action" aria-label="リリースAの計算根拠">リリースA</button></h1><span class="hint">試作</span></div>
-<div class="summary"><span>見込み <strong>11/5</strong> <span class="warn">1日超過</span></span><span>期日 11/4</span></div>
+<div id="summary" class="summary"></div><div id="alerts"></div>
 <section class="card" aria-label="作業の日程と依存関係">
 <div class="timeline-toolbar"><span id="visible-range" class="visible-range" role="status"></span><div class="scale-buttons" role="group" aria-label="時間軸の表示単位"><button type="button" data-scale="day" aria-pressed="true">日</button><button type="button" data-scale="week" aria-pressed="false">週</button><button type="button" data-scale="month" aria-pressed="false">月</button></div></div>
-<div class="legend"><span class="key"><span class="critical-mark" aria-hidden="true">◆</span>クリティカル</span><span class="key"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M1 6 H22 M17 1 L22 6 L17 11"/></svg>依存</span></div>
+<div class="legend"><span class="key"><span class="critical-mark" aria-hidden="true">◆</span>クリティカル</span><span class="key"><svg viewBox="0 0 24 12" aria-hidden="true"><path d="M1 6 H22 M17 1 L22 6 L17 11"/></svg>依存</span><span id="due-legend" class="key"><span class="due-key" aria-hidden="true"></span>期日</span></div>
 <div class="timeline-scroll" tabindex="0" role="region" aria-label="ガントの時間軸。狭い画面では左右にスクロールできます">
 <div class="chart" id="chart" data-scale="day">
 <div class="row header"><span class="name-header"></span><div id="dates" class="dates"></div></div>
-<div class="row"><div class="name"><button class="plain-action task-button" data-task="bar-b" aria-label="実装Bの詳細。3日、クリティカル"><span class="critical-mark" aria-hidden="true">◆</span><span class="task-name">実装B</span><span class="duration">3日</span></button></div><div class="track"><span id="bar-b" class="bar critical" role="img"></span></div></div>
-<div class="row"><div class="name"><button class="plain-action task-button" data-task="bar-a" aria-label="実装Aの詳細。2日"><span class="task-name">実装A</span><span class="duration">2日</span></button></div><div class="track"><span id="bar-a" class="bar" role="img"></span></div></div>
-<div class="row"><div class="name"><button id="reason" class="plain-action task-button" data-task="bar-target" aria-label="結合確認の詳細。1日、クリティカル、前提2件"><span class="critical-mark" aria-hidden="true">◆</span><span class="task-name">結合確認</span><span class="duration">1日</span></button></div><div class="track"><span id="bar-target" class="bar critical" role="img"></span></div></div>
-<svg id="connections" class="connections" role="img" aria-label="実装Aと実装Bの両方が完了した後に結合確認を開始。クリティカルパスは実装Bから結合確認"><defs><marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs><path id="edge-b" marker-end="url(#arrow)"/><path id="edge-a" marker-end="url(#arrow)"/></svg>
+<div id="rows"></div><div id="due-marker" class="due-marker" aria-hidden="true"></div><svg id="connections" class="connections" role="img"></svg>
 </div>
 </div>
 </section>
-<dialog id="details" aria-labelledby="details-title"><div class="head"><h2 id="details-title"></h2><button id="close">閉じる</button></div><div id="details-body"></div></dialog>
+<dialog id="details" aria-labelledby="details-title"><div class="head"><button id="back" hidden>戻る</button><h2 id="details-title" tabindex="-1"></h2><button id="close">閉じる</button></div><div id="details-body"></div></dialog>
 </main>
-<script>
-const dialog = document.querySelector('#details');
-let opener;
-function openDetails(key, button) {
-  opener = button;
-  const title = document.querySelector('#details-title');
-  const body = document.querySelector('#details-body');
-  if (key === 'release') {
-    title.textContent = 'リリースA';
-    body.innerHTML = '<dl class="facts"><div><dt>基準日</dt><dd>2026/11/2</dd></div><div><dt>取得時点</dt><dd>11/2 09:00</dd></div></dl><p>余裕は、リリースの完了見込みを遅らせずに開始を延ばせる日数。</p><p class="hint">架空データの操作試作。</p>';
-  } else {
-    const task = tasks.find(item => item.id === key);
-    title.textContent = task.name;
-    const firstDay = monthDay(parseDate(task.start)), lastDay = monthDay(addDays(parseDate(task.end), -1));
-    const period = firstDay === lastDay ? firstDay : firstDay + '–' + lastDay;
-    body.innerHTML = '<dl class="facts"><div><dt>期間</dt><dd>'+period+'</dd></div><div><dt>作業量</dt><dd>'+task.duration+'日</dd></div><div><dt>余裕</dt><dd>'+(key === 'bar-a' ? 1 : 0)+'日</dd></div></dl>';
-    if (key === 'bar-target') {
-      body.innerHTML += '<h3>開始条件</h3><p>前提の子2件が完了後に開始。</p><details id="parent" open><summary>#200 機能A · Closed</summary><table><tr><th>前提</th><th>完了見込み</th></tr><tr><td>#201 実装A</td><td>11/3</td></tr><tr><td>#202 実装B</td><td>11/4</td></tr></table></details><dl class="facts"><div><dt>既存分類</dt><dd>着手可能</dd></div></dl>';
-    } else {
-      body.innerHTML += '<dl class="facts"><div><dt>前提</dt><dd>なし</dd></div><div><dt>後続</dt><dd>結合確認</dd></div></dl>';
-    }
-  }
-  dialog.showModal();
-}
-document.querySelector('#release-details').onclick = event => openDetails('release', event.currentTarget);
-for (const button of document.querySelectorAll('[data-task]')) {
-  button.onclick = () => openDetails(button.dataset.task, button);
-}
-document.querySelector('#close').onclick = () => dialog.close();
-dialog.addEventListener('close', () => opener.focus());
-dialog.addEventListener('keydown', event => {
-  if (event.key !== 'Tab') return;
-  const controls = dialog.querySelectorAll('button, summary');
-  const first = controls[0], last = controls[controls.length - 1];
-  if (!event.shiftKey && document.activeElement === last) {
-    event.preventDefault(); first.focus();
-  } else if (event.shiftKey && document.activeElement === first) {
-    event.preventDefault(); last.focus();
-  }
-});
-// Capture variants keep the same content and interactions at a bounded layout width.
-const width = Number(new URLSearchParams(location.search).get('width'));
-if (width >= 320 && width <= 800) document.querySelector('main').style.width = width + 'px';
-const chart = document.querySelector('#chart');
-const dayMs = 24 * 60 * 60 * 1000;
-const parseDate = (value) => new Date(value + 'T00:00:00Z');
-const addDays = (date, count) => new Date(date.getTime() + count * dayMs);
-const monthDay = (date) => (date.getUTCMonth() + 1) + '/' + date.getUTCDate();
-// Fixed sample dates. Switching the axis never recalculates the schedule.
-const tasks = [
-  { id:'bar-b', name:'#202 実装B', start:'2026-11-02', end:'2026-11-05', duration:3 },
-  { id:'bar-a', name:'#201 実装A', start:'2026-11-02', end:'2026-11-04', duration:2 },
-  { id:'bar-target', name:'#210 結合確認', start:'2026-11-05', end:'2026-11-06', duration:1 }
-];
-function setScale(scale) {
-  const first = parseDate(tasks[0].start);
-  let start = addDays(first, -((first.getUTCDay() + 6) % 7));
-  let end = addDays(start, scale === 'day' ? 7 : 28);
-  if (scale === 'month') {
-    start = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth(), 1));
-    end = new Date(Date.UTC(first.getUTCFullYear(), first.getUTCMonth() + 3, 1));
-  }
-  const span = end - start;
-  const dates = document.querySelector('#dates');
-  dates.replaceChildren();
-  for (let tick = start; tick < end;) {
-    const next = scale === 'month'
-      ? new Date(Date.UTC(tick.getUTCFullYear(), tick.getUTCMonth() + 1, 1))
-      : addDays(tick, scale === 'week' ? 7 : 1);
-    const label = document.createElement('span');
-    label.style.width = ((next - tick) / span * 100) + '%';
-    label.textContent = scale === 'month'
-      ? tick.getUTCFullYear() + '年' + (tick.getUTCMonth() + 1) + '月'
-      : scale === 'week'
-        ? (tick.getUTCMonth() === start.getUTCMonth() && addDays(next, -1).getUTCMonth() === start.getUTCMonth()
-          ? tick.getUTCDate() + '–' + addDays(next, -1).getUTCDate()
-          : monthDay(tick) + '–' + monthDay(addDays(next, -1)))
-        : (tick.getUTCMonth() === start.getUTCMonth() ? tick.getUTCDate() : monthDay(tick)) + '日';
-    if (scale === 'day') {
-      const weekday = document.createElement('span');
-      weekday.className = 'weekday';
-      weekday.textContent = '日月火水木金土'[tick.getUTCDay()];
-      label.append(weekday);
-    }
-    if (scale === 'day' && [0, 6].includes(tick.getUTCDay())) label.className = 'weekend';
-    dates.append(label);
-    tick = next;
-  }
-  chart.dataset.scale = scale;
-  chart.style.setProperty('--axis-width', ({day:392, week:504, month:504})[scale] + 'px');
-  for (const task of tasks) {
-    const bar = document.getElementById(task.id);
-    const taskStart = parseDate(task.start), taskEnd = parseDate(task.end);
-    bar.style.setProperty('--start', ((taskStart - start) / span * 100) + '%');
-    bar.style.setProperty('--span', ((taskEnd - taskStart) / span * 100) + '%');
-    const description = task.name + '、' + monthDay(taskStart) + 'から' + monthDay(addDays(taskEnd, -1)) + '、' + task.duration + '日';
-    bar.setAttribute('aria-label', description);
-    bar.title = description;
-  }
-  for (const button of document.querySelectorAll('[data-scale]')) {
-    if (button.tagName === 'BUTTON') button.setAttribute('aria-pressed', String(button.dataset.scale === scale));
-  }
-  const range = document.querySelector('#visible-range');
-  range.hidden = scale === 'month';
-  range.textContent = start.getUTCFullYear() + '年' + (start.getUTCMonth() + 1) + '月';
-  document.querySelector('.timeline-scroll').scrollLeft = 0;
-  drawDependencies();
-}
-function drawDependencies() {
-  const origin = chart.getBoundingClientRect();
-  const box = (id) => {
-    const r = document.getElementById(id).getBoundingClientRect();
-    return {left:r.left-origin.left,right:r.right-origin.left,top:r.top-origin.top,y:r.top-origin.top+r.height/2};
-  };
-  const a=box('bar-a'), b=box('bar-b'), target=box('bar-target');
-  document.querySelector('#edge-b').setAttribute('d', 'M '+b.right+' '+b.y+' H '+(target.left+12)+' V '+(target.top-16)+' H '+(target.left-14)+' V '+(target.y-7)+' H '+target.left);
-  const aTurn = a.right + Math.min(12, (target.left-a.right)/2);
-  document.querySelector('#edge-a').setAttribute('d', 'M '+a.right+' '+a.y+' H '+aTurn+' V '+(target.y+7)+' H '+target.left);
-}
-new ResizeObserver(drawDependencies).observe(chart);
-for (const button of document.querySelectorAll('.scale-buttons button')) {
-  button.addEventListener('click', () => setScale(button.dataset.scale));
-}
-setScale('day');
-</script>
+<script type="module" src="./milestone-gantt.mjs"></script>
 </html>
