@@ -13,6 +13,8 @@
 | `dist/github-planning.mjs` | GitHubの計画情報の検証と集計 |
 | `dist/github-planning-view.mjs` | GitHubの計画情報の表示 |
 | `dist/release.mjs` | リリースタブの表示判断 |
+| `dist/milestone-schedule.mjs` | Milestoneの日程、依存関係、余裕、担当重複の純粋な計算 |
+| `dist/milestone-schedule-math.mjs` | 日程計算で使う十進演算と平日の座標変換 |
 | `server/worker.mjs` | クラウドAPIと認証境界 |
 | `server/cloud-db.mjs` | クラウドの保存境界 |
 | `dist/cloud-workspace.mjs` | 画面側のクラウド保存確認と移行 |
@@ -100,7 +102,9 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 
 リリースタブの現行実装は、期日からの割当のはみ出しと、未完了作業のEstimate合計が最大の「最長の流れ」を表示する。
 完了予定日と、期日に間に合うかの判定は出さない。
-[採用済みのガントチャート要件](milestone-gantt.md)にある日程計算、クリティカルパス、作業進捗率の初期設定・取得・更新、担当重複の警告は未実装である。
+[日程計算の内部契約](milestone-gantt-calculation.md)に従う純粋関数は、日程、クリティカルパス、作業進捗率から求める残量、担当重複を計算する。
+受入例と取得不足などの境界は `tests/milestone-schedule.test.mjs` で検証する。
+GitHub取得と画面への接続、作業進捗率の初期設定・更新は未実装である。
 別repositoryの前提は現行実装では開閉と`仕様`ラベルだけを取得し、Projectの計画情報と配下の子Issueを取得する拡張は未実装である。
 開始条件の表示は、[公開デモの観察と小さな操作試作](milestone-gantt-ui.md)で検討している。
 画面全体の構成と、利用者が表示を読み取れるかの確認は残っている。
