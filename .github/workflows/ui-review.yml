@@ -1,51 +1,41 @@
 name: UI review
 
 on:
-  pull_request:
+  pull_request_target:
+    branches: [main]
     types: [opened, reopened, synchronize, edited, ready_for_review, converted_to_draft]
+  workflow_dispatch:
+    inputs:
+      pull_number:
+        description: 検査するPR番号
+        required: true
+        type: number
 
 permissions:
   contents: read
   pull-requests: read
+  checks: write
 
 concurrency:
-  group: ui-review-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  group: ui-review-${{ github.event.pull_request.number || inputs.pull_number }}
+  cancel-in-progress: false
 
 jobs:
   ui-review:
-    name: UI review gate
+    name: Run trusted UI review
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      # github.shaはmainの版。PRのコードはcheckout・import・実行しない。
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          ref: ${{ github.event.pull_request.head.sha }}
+          ref: ${{ github.sha }}
           persist-credentials: false
-      - name: Read the current PR and all changed files
+      - name: Check the PR using main's rules
         uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
         with:
           script: |
-            const fs = require('node:fs');
-            const pull_number = context.payload.pull_request.number;
-            const { data: pr } = await github.rest.pulls.get({ ...context.repo, pull_number });
-            if (pr.head.sha !== context.payload.pull_request.head.sha) {
-              core.setFailed('PRの版が変わったため、最新の実行で確認する');
-              return;
-            }
-            const changed = await github.paginate(github.rest.pulls.listFiles, {
-              ...context.repo, pull_number, per_page: 100
-            });
-            if (changed.length !== pr.changed_files) {
-              core.setFailed('変更ファイル一覧が不足している');
-              return;
-            }
-            const files = [...new Set(changed.flatMap(file => [file.filename, file.previous_filename].filter(Boolean)))];
-            fs.writeFileSync('ui-review-input.json', JSON.stringify({
-              body: pr.body, files, headSha: pr.head.sha,
-              repository: `${context.repo.owner}/${context.repo.repo}`
-            }));
-      - name: Test the gate
-        run: node --test tests/check-ui-review.test.mjs
-      - name: Check the PR record
-        run: node scripts/check-ui-review.mjs ui-review-input.json
+            const { runUiReview } = await import(`${process.env.GITHUB_WORKSPACE}/scripts/run-ui-review.mjs`);
+            await runUiReview({ github, context, core,
+              pullNumber: Number(context.payload.pull_request?.number ?? context.payload.inputs?.pull_number) });

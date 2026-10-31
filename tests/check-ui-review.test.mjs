@@ -1,8 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, mkdirSync, writeFileSync, rmSync, readFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { readFileSync } from 'node:fs';
 import { checkUiReview, isUiPath, readQuestions } from '../scripts/check-ui-review.mjs';
 
 const questions = readQuestions(readFileSync(new URL('../docs/ui-review-questions.md', import.meta.url), 'utf8'));
@@ -32,12 +30,11 @@ UI変更: あり
 ![後の一覧](${image(after)})
 `;
 
-function fixture(t) {
-  const root = mkdtempSync(join(tmpdir(), 'ui-review-gate-'));
-  mkdirSync(join(root, 'docs/screens/127'), { recursive: true });
-  for (const file of [before, after]) writeFileSync(join(root, file), 'existence fixture; JPEG contents are checked separately');
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-  return (overrides = {}) => checkUiReview({ body, files: ['dist/app.mjs'], headSha: sha, repository: 'Wakua/github-progress-board', root, questions, ...overrides });
+function fixture() {
+  const headImages = { [before]: 'b'.repeat(40), [after]: 'c'.repeat(40) };
+  const imageBlobs = Object.fromEntries(Object.entries(headImages).map(([path, blob]) => [`${sha}/${path}`, blob]));
+  return (overrides = {}) => checkUiReview({ body, files: ['dist/app.mjs', before, after], headSha: sha, repository: 'Wakua/github-progress-board',
+    changedImages: [before, after], headImages, imageBlobs, questions, ...overrides });
 }
 
 test('3項目・固定の問い・実在画像と具体的操作・前後画像がそろえば通る', t => {
@@ -46,13 +43,13 @@ test('3項目・固定の問い・実在画像と具体的操作・前後画像�
 
 test('UI以外の変更も対象外の理由を残す', t => {
   const check = fixture(t);
-  assert.deepEqual(check({ files: ['dist/gantt-calculation.mjs'], body: '## UIレビュー\nUI変更: なし\n対象外の理由: DOMを使わない純粋計算のみ' }), []);
+  assert.deepEqual(check({ files: ['scripts/check-ui-review.mjs'], body: '## UIレビュー\nUI変更: なし\n対象外の理由: CIの検査コードのみ' }), []);
   assert.match(check({ files: ['docs/ui-ux-review.md'], body: '## UIレビュー\nUI変更: なし' }).join('\n'), /対象外の理由/);
 });
 
 test('画面や試作、画像を変更したPRは対象外にできない', t => {
   const check = fixture(t);
-  for (const file of ['dist/app.mjs', 'dist/new-view.mjs', 'dist/bugs/filter-panel.mjs', 'dist/style.css', 'docs/prototypes/new.html', after]) {
+  for (const file of ['dist/app.mjs', 'dist/new-view.mjs', 'dist/bugs/filter-panel.mjs', 'dist/bugs/tag-roles.mjs', 'dist/workspace.mjs', 'dist/new-module.mjs', 'server.mjs', 'server/new-api.mjs', 'dist/style.css', 'docs/prototypes/new.html', after]) {
     assert.equal(isUiPath(file), true);
     assert.match(check({ files: [file], body: '## UIレビュー\nUI変更: なし\n対象外の理由: 文書のみ' }).join('\n'), /UI変更: あり/);
   }
@@ -84,7 +81,7 @@ test('必須の問いの省略・重複・別項目への混入を拒否する',
 test('画像ファイル名か起点・操作・結果を伴う操作手順を要求する', t => {
   const check = fixture(t);
   for (const evidence of ['確認済み', '画像: screenshot.jpg', '画像: docs/screens/127/after-02-missing.jpg', '操作: 詳細を確認した', '操作: 一覧 → → 成功', '操作: 起点 → 操作 → 結果']) {
-    assert.match(check({ body: body.replace(`画像: ${after}。重複を削り、担当と期限は残した`, evidence) }).join('\n'), /情報量: 実在する画像/);
+    assert.match(check({ body: body.replace(`画像: ${after}。重複を削り、担当と期限は残した`, evidence) }).join('\n'), /情報量: 今回の変更/);
   }
 });
 
@@ -111,9 +108,46 @@ test('古い対象版や重複した宣言を拒否する', t => {
 
 test('コメントとコード例の表は提出記録に数えない', t => {
   const check = fixture(t);
-  for (const hidden of [`<!--\n${body}\n-->`, `\x60\x60\x60markdown\n${body}\n\x60\x60\x60`, `~~~markdown\n${body}\n~~~`]) {
+  for (const hidden of [`<!--\n${body}\n-->`, `\x60\x60\x60markdown\n${body}\n\x60\x60\x60`, `~~~markdown\n${body}\n~~~`, `\x60\x60\x60\n${body}`, `~~~\n${body}`, `\x60\x60\x60\x60\n${body}\n\x60\x60\x60`, `~~~\n${body}\n\x60\x60\x60`]) {
     assert.notEqual(check({ body: hidden }).length, 0);
   }
+});
+
+test('同じ文字種の長い閉じ枠の後にある記録は読める', () => {
+  assert.deepEqual(fixture()({ body: `~~~text\n例\n~~~~\n${body}` }), []);
+});
+
+test('昔の画像と曖昧な操作を組み合わせても、今回の画像がなければ拒否する', () => {
+  const old = body.replaceAll(`画像: ${after}`, '操作: 一覧 → 開く → 成功');
+  assert.match(fixture()({ body: old, changedImages: [] }).join('\n'), /今回追加・更新/);
+});
+
+test('架空SHA・URL側とhead側の画像の不一致を拒否する', () => {
+  const check = fixture();
+  assert.match(check({ body: body.replaceAll(`/${sha}/`, `/${'f'.repeat(40)}/`) }).join('\n'), /blobを一致/);
+  assert.match(check({ imageBlobs: { [`${sha}/${before}`]: 'b'.repeat(40), [`${sha}/${after}`]: 'd'.repeat(40) } }).join('\n'), /変更後: 画像/);
+});
+
+test('以前のコミットのURLでもheadとblobが一致し、今回の変更なら通る', () => {
+  const previous = 'e'.repeat(40);
+  assert.deepEqual(fixture()({ body: body.replaceAll(`/${sha}/`, `/${previous}/`),
+    imageBlobs: { [`${previous}/${before}`]: 'b'.repeat(40), [`${previous}/${after}`]: 'c'.repeat(40) } }), []);
+});
+
+test('新規画面は変更前なしの理由を必須とし、変更後画像は省略できない', () => {
+  const check = fixture();
+  const newScreen = body.replace(`![前の一覧](${image(before)})`, '変更前なし: 理由: 新設画面で、対応する既存画面がない');
+  assert.deepEqual(check({ body: newScreen, changedImages: [after] }), []);
+  for (const reason of ['', '理由: なし', '理由: TODO']) {
+    assert.match(check({ body: newScreen.replace('理由: 新設画面で、対応する既存画面がない', reason) }).join('\n'), /変更前: 折りたたみ外/);
+  }
+  assert.match(check({ body: newScreen.replace(`![後の一覧](${image(after)})`, '変更後なし: 理由: 新規画面') }).join('\n'), /変更後: 折りたたみ外/);
+});
+
+test('有効画像と無効画像の混在、変更前後の取り違えを拒否する', () => {
+  const check = fixture();
+  assert.match(check({ body: body + `\n![無効](${image(after).replace(sha, 'f'.repeat(40))})` }).join('\n'), /blobを一致/);
+  assert.match(check({ body: body.replace(image(before), image(after)) }).join('\n'), /変更前: 画像/);
 });
 
 test('リンクだけ、片方の画像だけ、折りたたみ内だけでは通らない', t => {
