@@ -11,6 +11,8 @@
 | `dist/engine.mjs` | 一つのプロジェクトの表示判断と集計 |
 | `dist/github-snapshot.mjs` | snapshotの検証、REST adapter、古さの表示 |
 | `dist/github-planning.mjs` | GitHubの計画情報の検証と集計 |
+| `dist/github-schedule-data.mjs`・`dist/github-schedule-input.mjs` | ガント取得情報の検証と計算入力への変換 |
+| `scripts/github-schedule-fetch.mjs` | 外部の前提・集約配下・祖先に必要な情報の追加取得 |
 | `dist/github-planning-view.mjs` | GitHubの計画情報の表示 |
 | `dist/release.mjs` | リリースタブの表示判断 |
 | `dist/milestone-schedule.mjs` | Milestoneの日程、依存関係、余裕、担当重複の純粋な計算 |
@@ -41,6 +43,8 @@ Issue・PRの基本項目の見積・期限はnullを保持する。
 
 任意の`planning`に親子Issue、Milestone、Projectの「担当」「Iteration」「Estimate」「Status」「優先度」、依存関係（blocked by）、紐づく開いたPR、`仕様` ラベルを保持する。
 planningを含まない既存snapshotも読み込める。
+任意の `planning.schedule` にガント計算用の取得情報を保持する。
+形式・旧snapshotとの互換性・取得経路の違いは[ガント情報の取得と保存](github-integration.md#ガント情報の取得と保存)を参照する。
 Issue本文、コメント、CI、レビュー、完了条件は取得しない。
 
 ## 検証手順
@@ -107,8 +111,9 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 完了予定日と、期日に間に合うかの判定は出さない。
 [日程計算の内部契約](milestone-gantt-calculation.md)に従う純粋関数は、日程、クリティカルパス、作業進捗率から求める残量、担当重複を計算する。
 受入例と取得不足などの境界は `tests/milestone-schedule.test.mjs` で検証する。
-GitHub取得と画面への接続、作業進捗率の初期設定・更新は未実装である。
-別repositoryの前提は現行実装では開閉と`仕様`ラベルだけを取得し、Projectの計画情報と配下の子Issueを取得する拡張は未実装である。
+ローカルのGitHub取得は、作業進捗率、別repositoryの前提、集約Issueの配下と祖先の前提を取得し、検証済みsnapshotから計算入力へ変換する。
+旧snapshot、取得制限、再取得失敗時の保持は `tests/github-schedule-input.test.mjs`・`tests/github-schedule-fetch.test.mjs` で検証する。
+画面への接続と、作業進捗率の初期設定・更新は後続の作業で扱う。
 開始条件の表示は、[公開デモの観察と小さな操作試作](milestone-gantt-ui.md)で検討している。
 画面全体の構成と、利用者が表示を読み取れるかの確認は残っている。
 

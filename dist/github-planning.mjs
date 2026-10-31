@@ -1,3 +1,4 @@
+import { validateScheduleData } from './github-schedule-data.mjs';
 // Read-only GitHub planning metadata; manual plans never enter this model.
 const fail = () => { throw new Error('GitHubの計画情報が不完全または不整合です。'); };
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -22,7 +23,7 @@ const WORK_KEYS = ['blockedBy', 'pullRequests', 'spec'];
 export const URGENT_PRIORITY = '緊急';
 export const isUrgent = task => task.projects.some(p => p.priority === URGENT_PRIORITY);
 export function validatePlanning(planning, snapshot) {
-  keys(planning, ['sources', 'issues', 'milestones']);
+  keys(planning, ['sources', 'issues', 'milestones'], ['schedule']);
   keys(planning.sources, ['hierarchy', 'milestones']);
   keys(planning.sources.hierarchy, ['complete', 'url']);
   if (planning.sources.hierarchy.complete !== true || planning.sources.hierarchy.url !== 'https://api.github.com/graphql') fail();
@@ -121,6 +122,7 @@ export function validatePlanning(planning, snapshot) {
     if (m.parent?.url.toLowerCase().startsWith(snapshot.repositoryUrl.toLowerCase() + '/issues/')) childCounts.set(m.parent.number, (childCounts.get(m.parent.number) || 0) + 1);
   }
   for (const m of metadata.values()) if (m.childCount < (childCounts.get(m.number) || 0)) fail();
+  if (Object.hasOwn(planning, 'schedule')) validateScheduleData(planning.schedule, snapshot);
   return planning;
 }
 

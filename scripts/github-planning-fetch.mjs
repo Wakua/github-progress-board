@@ -17,9 +17,9 @@ export function planningQuery(repositoryUrl, cursor = null) {
           nodes { project { id title url }
             fieldValues(first:100) { totalCount pageInfo { hasNextPage }
               nodes { __typename
-                ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { name } } }
-                ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2Field { name } } }
-                ... on ProjectV2ItemFieldIterationValue { iterationId title startDate duration field { ... on ProjectV2IterationField { name } } }
+                ... on ProjectV2ItemFieldSingleSelectValue { name field { ... on ProjectV2SingleSelectField { id name } } }
+                ... on ProjectV2ItemFieldNumberValue { number field { ... on ProjectV2Field { id name } } }
+                ... on ProjectV2ItemFieldIterationValue { iterationId title startDate duration field { ... on ProjectV2IterationField { id name } } }
               }
             }
           }
