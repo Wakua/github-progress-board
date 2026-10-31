@@ -11,6 +11,11 @@ const task = key => result.tasks.find(item => item.key === key);
 const source = key => input.issues.find(item => item.key === key);
 const title = key => source(key)?.title || key;
 const taskLink = key => `<button class="plain-action" data-follow="${escape(key)}">${escape(title(key))}</button>`;
+function progressMarkup(key) {
+  const value = source(key).planning.workProgressPercent.value;
+  if (value === null) return '<span class="task-progress" aria-label="作業進捗率 未入力">未入力</span>';
+  return `<span class="task-progress"><span class="progress-track" role="progressbar" aria-label="${escape(title(key))}の作業進捗率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><span style="width:${value}%"></span></span><span aria-hidden="true">${value}%</span></span>`;
+}
 function load() {
   const due = milestone.dueDate ? `期日 ${milestone.dueDate.replaceAll('-', '/')}` : '期日未設定';
   $('#release-details').textContent = input.milestones.find(item => item.key === milestone.key).title;
@@ -27,7 +32,7 @@ function load() {
   $('#rows').innerHTML = ordered.map(item => {
     const critical = milestone.criticalTaskKeys.includes(item.key);
     const warning = item.iterationOverflow ? '期間外' : '';
-    return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button></div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : '日程未算出'}</span>`}</div></div>`;
+    return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button>${progressMarkup(item.key)}</div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : '日程未算出'}</span>`}</div></div>`;
   }).join('');
   for (const button of chart.querySelectorAll('[data-task]')) button.onclick = () => openDetails(button.dataset.task, button);
   $('.legend').hidden = !ordered.length;
