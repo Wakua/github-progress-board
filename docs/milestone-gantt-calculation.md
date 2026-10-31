@@ -1,9 +1,9 @@
-# マイルストーンの日程計算の仕様案
+# マイルストーンの日程計算
 
 計算処理、GitHub情報の取得、画面を担当する開発者向けに、[ガントチャートの要件](milestone-gantt.md)を関数の入出力と計算手順へ具体化する。
 この文書で、取得する情報、計算できない範囲、画面へ渡す結果を照合できる。
-対象は日程計算の内部契約の提案であり、snapshotの保存形式、GitHubへの更新、画面構成は定めない。
-実装前の仕様案として扱い、採用済みの動作・数値・条件は要件の参照先を正本とする。
+対象は日程計算の内部契約であり、snapshotの保存形式、GitHubへの更新、画面構成は定めない。
+動作・数値・条件は要件の参照先を正本とする。
 対応する作業は [Issue #124](https://github.com/Wakua/github-progress-board/issues/124) で管理する。
 
 ## 要件との対応
@@ -18,9 +18,10 @@
 | Projectの出典、取得範囲 | [正本と更新の範囲](milestone-gantt.md#正本と更新の範囲) |
 | 情報不足、循環 | [情報不足と不整合](milestone-gantt.md#情報不足と不整合) |
 
-## 関数の境界案
+## 関数の境界
 
 `calculateMilestoneSchedule(input)` は、同じ入力に同じ結果を返す純粋関数とする。
+`dist/milestone-schedule.mjs` から名前付きexportとして呼び出す。
 基準日は引数から受け取り、DOM、通信、現在時刻の取得、保存を行わない。
 入力も変更しない。
 
@@ -33,7 +34,7 @@ GitHubの作業分類と既存の集計値は計算結果で書き換えない�
 この入力は関数間の内部データであり、snapshotへ同じ形を保存する提案ではない。
 既存の `githubPlan`、`githubProgress`、`githubWorkCategory` の返却形式を変更する前提も置かない。
 
-## 入力案
+## 入力
 
 ### 識別子と取得結果
 
@@ -127,7 +128,7 @@ Issueの表示名など、日程を決めない表示情報は画面側がキー
 親子関係をたどる途中の不足は、継承する前提が不明な原因になる。
 必要な取得範囲を満たしたかは、一覧の空・非空だけで判断しない。
 
-## 作業グラフへの変換案
+## 作業グラフへの変換
 
 ### 対象と集約Issueの展開
 
@@ -172,7 +173,7 @@ Estimateなどの不足は、それが残量や開始条件に必要な未完了
 例えばClosedの親を前提としていても、どの未完了の子が計算を待たせるかを示せる。
 元の作業分類の理由と、日程計算の理由は別々に参照する。
 
-## 平日座標の計算案
+## 平日座標の計算
 
 ### 座標と日付
 
@@ -192,7 +193,7 @@ Iterationの開始条件は同じ座標へ変換する。
 
 ### 数値の比較
 
-計算途中の丸めでクリティカルパスや重複を変えないため、内部では入力数値の十進表現を有限小数として扱う案とする。
+計算途中の丸めでクリティカルパスや重複を変えないため、内部では入力数値の十進表現を有限小数として扱う。
 進捗率による残量を含めて表現できる桁にそろえ、整数の係数で加減算と比較を行う。
 整数の係数にはJavaScript標準の `BigInt` を使い、新しい数値計算ライブラリは前提にしない。
 
@@ -200,7 +201,7 @@ Iterationの開始条件は同じ座標へ変換する。
 公開する座標値をJavaScriptの数値へ変換する場合も、クリティカルか、超過か、重複するかは変換前に確定する。
 画面の日数表示は[表示の丸め規則](milestone-gantt.md#クリティカルパスと余裕)に従う。
 
-## 日程とクリティカルパスの計算案
+## 日程とクリティカルパスの計算
 
 ### 順方向と逆方向
 
@@ -244,7 +245,7 @@ Iterationの開始条件による空き期間は残し、その期間を前提�
 複数の経路と分岐・合流を失わず、経路数による出力の増大を避ける。
 クリティカルな前提がなくても、Iterationの開始条件によって完了日を決める作業は経路の始点になり得る。
 
-## 不足と循環の伝播案
+## 不足と循環の伝播
 
 入力の構造違反と、取得できなかった情報を分ける。
 キー重複や取得完了を示す件数の不一致は入力契約違反として返す。
@@ -264,7 +265,7 @@ Iterationの開始条件による空き期間は残し、その期間を前提�
 無関係なMilestoneは独立して計算する。
 期日未設定は作業日程を止める原因にはしない。
 
-## 担当重複の計算案
+## 担当重複の計算
 
 最早日程が確定した作業を、出典Projectと担当でまとめる。
 重複を確認する範囲は[担当の重複の要件](milestone-gantt.md#担当の重複)に従い、対象外のProjectの担当名を同じ人だと推定しない。
@@ -279,31 +280,65 @@ Iterationの開始条件による空き期間は残し、その期間を前提�
 担当不明、日程未確定、対象外Projectは検査できない範囲として別に返し、警告なしを重複なしの保証にしない。
 検査結果から日程を変更しない。
 
-## 出力案
+## 出力
 
-| 結果 | 最小限の内容 |
-| --- | --- |
-| 計算の根拠 | 基準日、平日へ調整した計算開始日、取得日時、選択Project |
-| 作業 | Issueキー、出典Project、完了判定と根拠、残量、最早日程または診断ID |
-| Milestone | キー、計算状態、対象作業、完了座標、元の期日、期日差の符号と値 |
-| Milestoneごとの作業 | 最遅日程、余裕、クリティカルか。未確定の場合は値を持たず原因IDを持つ |
-| 依存辺 | 前提・後続のキー、元の関係と集約展開の根拠ID、Milestoneごとのクリティカル判定 |
-| 重複 | 担当、作業キー、開始・完了座標、検査できなかった範囲 |
-| 診断と根拠 | 対象キー、項目、原因、影響先へたどる参照、入力の親子・blocked byへの参照 |
-
-Milestoneの内部計算状態は、`calculated`、`incomplete`、`empty`、`completed`、`excluded` を提案する。
+Milestoneの内部計算状態は、`calculated`、`incomplete`、`empty`、`completed`、`excluded` とする。
 対象一覧の取得が不完全な場合は、空に見えても `empty` にせず `incomplete` にする。
 `completed` は配下の作業が完了した場合であり、実際の完了日時や人間の受入完了を表さない。
 その場合は残量を返し、将来の完了日を新たに推定しない。
 閉じたMilestoneの `excluded` と、作業未登録の `empty` は区別する。
-これらは関数内の分類案であり、画面の名称や既存の作業分類を置き換えない。
+これらは関数内の分類であり、画面の名称や既存の作業分類を置き換えない。
+
+### 返却フィールド
+
+最上位の `status` は入力契約が有効なら `calculated`、契約違反なら `invalid` とする。
+個々のMilestoneを計算できたかは `milestones[].state` で判断する。
+契約違反時は `diagnostics` に原因を返し、作業やMilestoneの結果を空配列にする。
+入力契約の検査は入力全体に適用し、計画値の不足・不正による制限は対象とその後続へ適用する。
+
+| フィールド | 内容 |
+| --- | --- |
+| `baseDate`, `calculationStartDate`, `fetchedAt`, `selectedProjectId` | 入力の基準日、平日へ調整した原点、取得日時、担当重複を調べるProject |
+| `tasks` | 展開した末端作業。`key`、`sourceProjectId`、adapter由来の `completion`、`remainingPoints`、`durationDays`、`durationDisplay`、`earliestStart`、`earliestFinish`、`iterationOverflow`、診断の参照を持つ |
+| `milestones` | `key`、`state`、`targetTaskKeys`、前提を含む `taskKeys`、`remainingPoints`、`finish`、`dueDate`、`dueDifference`、作業別の `tasks`、`criticalTaskKeys`、`criticalEdgeIds`、`diagnosticIds` を持つ |
+| `milestones[].tasks` | `key`、`latestStart`、`latestFinish`、`slackDays`、`slackDisplay`、`critical`、`diagnosticIds` を持つ。Milestoneが未確定なら逆方向日程とクリティカル判定は `null` |
+| `edges` | `id`、`from`、`to`、`evidence`、Milestoneキーから真偽値または未確定の `null` を引く `criticalByMilestone` を持つ |
+| `edges[].evidence` | `relationId`、前提側で展開した `prerequisiteAggregates`、後続側で継承した `successorAggregates` のキーを持つ |
+| `relations` | `id`、元のblocked byの `prerequisiteKey`、`successorKey` を持つ |
+| `hierarchy` | 参照したIssueの `key`、`parent`、`children`。計算対象外の兄弟のキーが含まれていても、その作業の日程を追加したことにはならない |
+| `cycles` | 循環する `taskKeys` と `diagnosticId`。影響を受ける後続は各作業の診断参照から追う |
+| `overlaps` | `sourceProjectId`、`owner`、同時に重なる `taskKeys`、区間の `start` と `finish` |
+| `overlapUnchecked` | `key` と `reasons`。出典不足、対象外Project、担当不明、日程未確定をそれぞれ `source-unavailable`、`outside-project`、`owner-unknown`、`schedule-unknown` とする |
+| `diagnostics` | `id`、`kind`（`contract` または `data`）、対象の `key`、`field`、原因の `code`、追加情報の `details` |
+
+作業の `diagnosticIds` は影響する原因、`directDiagnosticIds` はその作業で検出した原因を示す。
+`viaEdgeIds` は原因を受け取った直前の依存辺であり、前提側の作業へたどれる。
+IDは結果内で参照する不透明な文字列として扱い、画面やadapterは文字列を分解しない。
+IssueとMilestoneのキーは大文字小文字を同一視し、末尾のスラッシュを除いて返す。
+
+日付位置は `{ coordinate, date, fraction, boundary }` を持つ。
+`boundary` は平日の開始を `start`、終了を `end`、途中を `within` とし、`fraction` はその日の位置を0〜1で表す。
+正の期間の完了が整数境界なら `fraction: 1`、期間0の点なら開始と同じ位置を返す。
+完了済み作業の最早・最遅日程は `null` とし、過去の実績日時を推定しない。
+計算値がnumberまたは `YYYY-MM-DD` の日付で表現できる範囲を超えた場合は、`schedule` の `out-of-range` 診断を返し、後続の日程も確定しない。
+
+`dueDifference` は `{ days, relation, display }` を持つ。
+`days` は期日までの平日座標から計算上の完了を引いた符号付きの値で、`relation` は正なら `early`、0なら `on-time`、負なら `late` とする。
+`display` は絶対量を要件の丸め規則で表した文字列であり、符号やクリティカル判定へ再利用しない。
+期日が未設定または不正なら `dueDifference` は `null` とし、不正な期日は診断に残す。
+`iterationOverflow` は終了日を超える場合の `{ days, display }`、超えない場合は `null` とする。
+
+Milestoneの `remainingPoints` は前提を含む未完了作業を一度ずつ足した値とする。
+対象または前提が未確定なら `null`、全作業完了なら0を返す。
+既存のリリース集計の値としては使わない。
+数値の公開値はJavaScriptのnumberであり、判定は変換前の整数係数で確定する。
 
 ## 受入例との対応
 
 採用済みの条件と期待値は[要件の受入条件](milestone-gantt.md#受入条件)を使う。
 次の表は、その例で照合する計算結果を示す。
 
-| 要件の受入例 | この仕様案で照合する結果 |
+| 要件の受入例 | 照合する結果 |
 | --- | --- |
 | 直列のA・Bと独立したC | 最早・最遅日程、Cの余裕、クリティカルな作業と辺 |
 | 期日に余裕がある／期日を超える | 同じ日程・余裕を保持し、期日差の符号と値だけを変える |
@@ -339,12 +374,12 @@ Milestoneの内部計算状態は、`calculated`、`incomplete`、`empty`、`com
 | 原因を示す経路 | Closedの親の配下に未完了の子がある場合、元の親、展開経路、待つ子、その日程または不足原因をキーでたどれる |
 | 入力順と非破壊 | Issueや辺の配列順を変えても計算値は変わらず、呼出し前後で入力が変化しない |
 
-## 実装と検証の範囲案
+## 実装と検証の範囲
 
-計算処理は新しい純粋関数のモジュールと専用テストへ分ける。
+計算処理は `dist/milestone-schedule.mjs`、十進演算と平日の座標変換は `dist/milestone-schedule-math.mjs` に置く。
 現行の `release.mjs` にある「最長の流れ」の関数は流用せず、画面への接続は別の作業で行う。
 取得側はこの内部入力へのadapterを、画面側は出力を使う表示と操作を担当する。
 
-実装時は受入例と上の境界を専用テストで検証する。
+受入例と上の境界は `tests/milestone-schedule.test.mjs` で検証する。
 時刻の固定、入力順の変更、元入力の比較も含め、ブラウザや実GitHubへの接続なしで再現できるようにする。
 取得・保存・画面を含む確認は、各担当の検証と[リポジトリの検証手順](development.md#検証手順)へ接続する。
