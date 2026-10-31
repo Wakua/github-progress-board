@@ -97,18 +97,20 @@ UI変更の情報量と判断の手掛かりは対象外にできない。
 ## CIによる検査
 
 `UI review gate`がPRの作成・更新・本文編集・Ready化で記録を検査する。
-Draftは「作業中・未判定」（neutral）とし、Ready化で必須検査を行う。
+Draftは「作業中・未判定」（pending）とし、Ready化で必須検査を行う。
 Readyで欠落・要修正・未確認が見つかった場合は失敗とし、担当者はDraftへ戻して修正する。
 マージ前には最新の本文とheadで成功していることを確かめる。
-同じPR・headでは一つのチェックを更新し、本文修正前の失敗を別チェックとして残さない。
-旧形式の重複は、再検査中のチェックへ統合する。
+同じheadのcommit statusへ、検査開始時はpending、終了時は現在の判定を記録する。
+必須判定には最新の結果が使われ、本文修正前の失敗は履歴として残る。
+旧方式のcheck runは、pendingを記録した後に、所有を確認できるものだけ`UI review gate (legacy)`へ改名して判定対象から外す。
 記録の不備による失敗は`UI review gate`へ記録する。
 実行ジョブは結果を書き込めた場合に成功とし、通信・権限などで書き込めなかった場合に失敗する。
 
 [ui-review.yml](../.github/workflows/ui-review.yml)は`pull_request_target`で起動し、mainの版だけをcheckoutする。
 その版の[実行コード](../scripts/run-ui-review.mjs)、[検査コード](../scripts/check-ui-review.mjs)、必須の問いを使う。
 PR側のコードは実行せず、本文・変更ファイル・画像のGit treeをAPIで読む。
-検査結果にはmainの版と対象のheadを記し、headのチェックとして登録する。
+検査結果をheadのcommit statusへ登録し、詳細へのリンクを付ける。
+リンク先の実行概要には、指摘とmainの版、対象のheadを記す。
 検査自体を変更したPRにも、マージ済みの規則を適用する。
 
 CIは宣言、対象版、指摘表、問いのID、判定、根拠の書式、[画像の掲載条件](screenshots.md#prへの貼り方)を確認する。
@@ -129,8 +131,10 @@ CI成功をUIレビュー全体の合格に読み替えない。
 導入PRでは回帰テストと差分を確認し、この未確認範囲を添えてマージ承認を求める。
 必須チェックを先に設定した場合の一時解除も、対象PRと再設定の手順を示して承認を得る。
 承認後に導入PRをマージし、mainの保護設定で`UI review gate`を必須チェックにする。
-続けて検証用Draft PRで未判定、Ready化後の欠落による失敗、修正後の成功を確認し、保護設定と実行結果を導入PRへ記録する。
+続けて検証用Draft PRで未判定、Ready化後の欠落による失敗を確認する。
+同じheadの本文を修正し、結果が成功し、マージ状態もBLOCKEDからCLEANへ戻ることを確認する。
+保護設定と実行結果を導入PRへ記録する。
 この確認まで初回導入を完了としない。
 
 既存PRの再検査にはmainの`UI review`を手動起動し、PR番号を指定する。
-GitHubの[必須チェック](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)、[pull_request_target](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target)、[Checks API](https://docs.github.com/en/rest/checks/runs#create-a-check-run)に従う。
+GitHubの[必須チェック](https://docs.github.com/en/repositories/configuring-branches-and-merges-in-your-repository/managing-protected-branches/about-protected-branches#require-status-checks-before-merging)、[pull_request_target](https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows#pull_request_target)、[Commit statuses API](https://docs.github.com/en/rest/commits/statuses#create-a-commit-status)に従う。
