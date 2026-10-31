@@ -89,7 +89,7 @@ B1・B2・G1・F1の観察記録と画像を再確認し、既存試作の日→
 2026-10-31にCodexがChromeで架空のサンプルを操作した。
 通常幅800×700、狭い幅320×720、幅800で文字200%を確認した。
 これは担当者による実操作であり、実利用者の行動観察ではない。
-対象版と必須の問いI1〜O2の判定は、この変更のPR本文「UIレビュー」を正本とする。
+対象版と必須の問いI1〜O2の判定は、[PR #138のUIレビュー](https://github.com/Wakua/github-progress-board/pull/138)を正本とする。
 [操作で取得した表示と検証記録](verification/127-gantt-ui.json)を参照できる。
 固定3作業の旧版のレビューは[PR #130](https://github.com/Wakua/github-progress-board/pull/130)に残る。
 
