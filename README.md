@@ -45,6 +45,7 @@ npm run check
 | 文書 | 内容 |
 | --- | --- |
 | [進捗管理の仕様](docs/specification.md) | 作業の分類、集計、期限、保存とGitHub snapshotの規則 |
+| [マイルストーンのガントチャート](docs/milestone-gantt.md) | 依存関係、クリティカルパス、進捗率と日程計算の要件 |
 | [操作の説明](docs/usage.md) | 画面の構成と詳しい操作 |
 | [GitHub snapshotの取得](docs/github-integration.md) | 自動取得の設定、JSONでの再取得と取込 |
 | [利用場面](docs/use-cases.md) | ツールが助ける場面と画面の対応 |
