@@ -25,7 +25,8 @@ UI変更: あり
 function fixture(overrides = {}) {
   const changed = overrides.changed ?? [{ filename: 'docs/development.md', status: 'modified' }];
   const pr = { body: noUi, head: { sha: head }, base: { ref: 'main', sha: base }, draft: false, state: 'open', changed_files: changed.length, ...overrides.pr };
-  const calls = { created: [], updated: [], failures: [], commits: [], trees: [], listed: 0 };
+  const calls = { created: [], updated: [], commits: [], trees: [], listed: 0 };
+  const checks = structuredClone(overrides.checks ?? []);
   let reads = 0;
   const tree = {
     root: [{ path: 'docs', type: 'tree', sha: 'docs' }],
@@ -37,8 +38,21 @@ function fixture(overrides = {}) {
     rest: {
       pulls: { get: async () => ({ data: ++reads > 1 && overrides.current ? { ...pr, ...overrides.current } : pr }), listFiles: () => {} },
       checks: {
-        create: async value => { calls.created.push(value); return { data: { id: 1 } }; },
-        update: async value => { calls.updated.push(value); }
+        listForRef: () => {},
+        create: async value => {
+          calls.created.push(value);
+          const check = { ...value, id: 100 + checks.length, app: { id: 15368 } };
+          checks.push(check);
+          return { data: check };
+        },
+        update: async value => {
+          calls.updated.push(value);
+          const check = checks.find(check => check.id === value.check_run_id);
+          if (!check) throw new Error('unknown check');
+          Object.assign(check, value);
+          if (value.status === 'in_progress') check.conclusion = null;
+          return { data: check };
+        }
       },
       git: {
         getCommit: async ({ commit_sha }) => {
@@ -49,12 +63,15 @@ function fixture(overrides = {}) {
         getTree: async ({ tree_sha }) => { calls.trees.push(tree_sha); return { data: { tree: tree[tree_sha], truncated: false } }; }
       }
     },
-    paginate: async () => { calls.listed++; return changed; }
+    paginate: async method => {
+      if (method === github.rest.checks.listForRef) return checks;
+      calls.listed++;
+      return changed;
+    }
   };
   const context = { repo: { owner: 'Wakua', repo: 'github-progress-board' }, eventName: 'pull_request_target',
     ref: 'refs/heads/main', sha: base, runId: 42, payload: { pull_request: { head: { sha: head } } }, ...overrides.context };
-  const core = { setFailed: value => calls.failures.push(value) };
-  return { github, context, calls, tree, run: () => runUiReview({ github, context, core, pullNumber: 131 }) };
+  return { github, context, calls, tree, pr, checks, run: () => runUiReview({ github, context, pullNumber: 131 }) };
 }
 
 test('mainの検査結果をPRのhead SHAに記録する', async () => {
@@ -71,8 +88,9 @@ test('headが検査コード・問い・workflowを変更していても、欠�
     { filename: 'docs/ui-review-questions.md', status: 'modified' },
     { filename: '.github/workflows/ui-review.yml', status: 'modified' }
   ] });
-  assert.equal((await f.run()).conclusion, 'failure');
-  assert.match(f.calls.failures[0], /UIレビュー/);
+  const result = await f.run();
+  assert.equal(result.conclusion, 'failure');
+  assert.match(result.problems.join('\n'), /UIレビュー/);
   assert.deepEqual(f.calls.commits, []);
 });
 
@@ -80,7 +98,6 @@ test('Draftは未判定とし、Ready化すると同じ欠落を失敗にする'
   const draft = fixture({ pr: { draft: true, body: '' } });
   assert.equal((await draft.run()).conclusion, 'neutral');
   assert.equal(draft.calls.listed, 0);
-  assert.deepEqual(draft.calls.failures, []);
   const ready = fixture({ pr: { draft: false, body: '' } });
   assert.equal((await ready.run()).conclusion, 'failure');
 });
@@ -122,15 +139,22 @@ test('変更ファイルの取得漏れとAPI障害を成功にしない', async
   const short = fixture({ pr: { changed_files: 2 } });
   assert.equal((await short.run()).conclusion, 'failure');
   const down = fixture();
-  down.github.paginate = async () => { throw new Error('API unavailable'); };
+  down.github.paginate = async method => {
+    if (method === down.github.rest.checks.listForRef) return [];
+    throw new Error('API unavailable');
+  };
   assert.equal((await down.run()).conclusion, 'failure');
+  const checksDown = fixture();
+  checksDown.github.paginate = async () => { throw new Error('checks unavailable'); };
+  await assert.rejects(checksDown.run, /checks unavailable/);
 });
 
 test('検査中の本文・head・base・Draft・完了状態の変化を成功にしない', async () => {
   for (const current of [{ body: '' }, { head: { sha: base } }, { base: { ref: 'main', sha: head } }, { draft: true }, { state: 'closed' }]) {
     const f = fixture({ current });
-    assert.equal((await f.run()).conclusion, 'failure');
-    assert.match(f.calls.failures[0], /検査中/);
+    const result = await f.run();
+    assert.equal(result.conclusion, 'failure');
+    assert.match(result.problems.join('\n'), /検査中/);
   }
 });
 
@@ -145,6 +169,49 @@ test('古いイベントやmain以外からの起動は合格記録を作らな�
 test('mainからの手動再実行にも同じ検査を適用する', async () => {
   const f = fixture({ context: { eventName: 'workflow_dispatch', payload: {} } });
   assert.equal((await f.run()).conclusion, 'success');
+});
+
+test('同じheadの本文を直せば、結果の登録を完了してfailureからsuccessへ更新する', async () => {
+  const f = fixture({ pr: { body: '' } });
+  assert.equal((await f.run()).conclusion, 'failure');
+  f.pr.body = noUi;
+  assert.equal((await f.run()).conclusion, 'success');
+  assert.deepEqual(f.calls.updated.filter(check => check.status === 'completed').map(check => check.conclusion), ['failure', 'success']);
+  assert.equal(f.checks.length, 1);
+  assert.deepEqual(f.checks.map(check => check.conclusion), ['success']);
+  assert.deepEqual(f.calls.created.map(check => check.head_sha), [head]);
+});
+
+test('旧版の重複は保留中の正本へ統合し、修正後に失敗を残さない', async () => {
+  const legacy = id => ({ id, name: 'UI review gate', app: { id: 15368 }, conclusion: 'failure',
+    output: { summary: `検査コード: ${base}\n対象版: ${head}` } });
+  const f = fixture({ checks: [legacy(1), legacy(2)] });
+  assert.equal((await f.run()).conclusion, 'success');
+  assert.equal(f.calls.created.length, 0);
+  assert.deepEqual(f.checks.map(check => check.conclusion), ['success', 'neutral']);
+  assert.equal(f.calls.updated[0].status, 'in_progress');
+  assert.equal(f.calls.updated[0].check_run_id, 1);
+  f.pr.body = '';
+  assert.equal((await f.run()).conclusion, 'failure');
+  assert.equal(f.checks.find(check => check.id === 1).conclusion, 'failure');
+});
+
+test('別アプリ・別PR・由来不明のチェックを書き換えない', async () => {
+  const checks = [
+    { id: 1, name: 'UI review gate', app: { id: 1 }, external_id: 'ui-review:131', conclusion: 'failure' },
+    { id: 2, name: 'UI review gate', app: { id: 15368 }, external_id: 'ui-review:132', conclusion: 'failure' },
+    { id: 3, name: 'UI review gate', app: { id: 15368 }, conclusion: 'failure' }
+  ];
+  const f = fixture({ checks });
+  assert.equal((await f.run()).conclusion, 'success');
+  assert.deepEqual(f.checks.slice(0, 3), checks);
+  assert.equal(f.calls.created.length, 1);
+});
+
+test('チェックの書込み自体が失敗した場合は実行ジョブを失敗にする', async () => {
+  const f = fixture();
+  f.github.rest.checks.update = async () => { throw new Error('checks write unavailable'); };
+  await assert.rejects(f.run, /checks write unavailable/);
 });
 
 test('画像treeの取得漏れと権限不足は呼出元に返す', async () => {
