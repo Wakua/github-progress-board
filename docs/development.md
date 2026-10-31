@@ -14,7 +14,9 @@
 | `dist/github-schedule-data.mjs`・`dist/github-schedule-input.mjs` | ガント取得情報の検証と計算入力への変換 |
 | `scripts/github-schedule-fetch.mjs` | 外部の前提・集約配下・祖先に必要な情報の追加取得 |
 | `dist/github-planning-view.mjs` | GitHubの計画情報の表示 |
-| `dist/release.mjs` | リリースタブの表示判断 |
+| `dist/release-gantt-model.mjs`・`dist/release-gantt.mjs` | 取得結果と日程計算をリリースタブへ接続 |
+| `dist/gantt-chart.mjs`・`dist/gantt-axis.mjs` | ガントの時間軸、詳細、依存の追跡 |
+| `dist/release.mjs` | リリースの割当と要対応の集計 |
 | `dist/milestone-schedule.mjs` | Milestoneの日程、依存関係、余裕、担当重複の純粋な計算 |
 | `dist/milestone-schedule-math.mjs` | 日程計算で使う十進演算と平日の座標変換 |
 | `server/worker.mjs` | クラウドAPIと認証境界 |
@@ -102,20 +104,14 @@ PLAYWRIGHT_MODULE=/path/to/playwright/index.mjs CHROMIUM_PATH=/path/to/chromium 
 ## 実装状況
 
 ローカル機能は、[操作説明](usage.md)にある登録・編集と、[進捗管理の仕様](specification.md)にある表示・保存に対応する。
-要対応・リリースのタブは試作として扱う。
 要対応タブの狭い画面は、[理由による絞り込みの観察](attention-filter-observation.md#操作結果)で確認した。
-リリースタブの狭い画面と、複数のProjectに登録したIssueの表示は未確認である。
-リリースの変更前後の画面は `docs/screens/6/` にある。
+リリースタブは、[採用した表示・操作](milestone-gantt-ui.md#表示と操作の契約)で、取得済みsnapshotから日程と警告を表示する。
+通常幅・狭い幅、依存追跡、取得失敗と再取得の確認範囲は[組込み検証記録](verification/128-gantt-integration.json)を参照する。
 
-リリースタブの現行実装は、期日からの割当のはみ出しと、未完了作業のEstimate合計が最大の「最長の流れ」を表示する。
-完了予定日と、期日に間に合うかの判定は出さない。
 [日程計算の内部契約](milestone-gantt-calculation.md)に従う純粋関数は、日程、クリティカルパス、作業進捗率から求める残量、担当重複を計算する。
-受入例と取得不足などの境界は `tests/milestone-schedule.test.mjs` で検証する。
-ローカルのGitHub取得は、作業進捗率、別repositoryの前提、集約Issueの配下と祖先の前提を取得し、検証済みsnapshotから計算入力へ変換する。
-旧snapshot、取得制限、再取得失敗時の保持は `tests/github-schedule-input.test.mjs`・`tests/github-schedule-fetch.test.mjs` で検証する。
-画面への接続と、作業進捗率の初期設定・更新は後続の作業で扱う。
-開始条件の表示は、[公開デモの観察と小さな操作試作](milestone-gantt-ui.md)で検討している。
-画面全体の構成と、利用者が表示を読み取れるかの確認は残っている。
+計算は `tests/milestone-schedule.test.mjs`、取得・変換は `tests/github-schedule-input.test.mjs`・`tests/github-schedule-fetch.test.mjs`、画面への入力は `tests/release-gantt.test.mjs` で検証する。
+作業進捗率の実書込み後の再取得、利用者の独力操作、製品全体の受入は未確認である。
+進捗率の未入力を0%として計算せず、不足する項目として表示する。
 
 担当別の負荷の上限は、手動計画とGitHubの計画の画面で確認した。
 変更前後の画面は `docs/screens/18/` にある。

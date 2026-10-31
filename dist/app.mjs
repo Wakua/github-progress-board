@@ -1,6 +1,6 @@
 import { githubPlan } from './github-planning.mjs';
 import { renderGithubWork, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems, githubMineItems, githubUrgentSummary } from './github-planning-view.mjs';
-import { releaseSummaries, releasePanelMarkup } from './release.mjs';
+import { createReleaseGantt } from './release-gantt.mjs';
 import { attentionPanelMarkup, attentionCount, attentionReasons, manualEndedOn, MINE_GROUPS } from './attention.mjs';
 import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
 import { STORAGE_KEY, createWorkspaceStore, registerProject, selectProject, updateProject, findProject, addGoal, addTask, setTaskCriteria, projectSummary, importSnapshots, addDecision, setApprovalLimit } from './workspace.mjs';
@@ -322,6 +322,7 @@ function renderAttention(project) {
   if (!view.model) return '<p class="empty-message">GitHubの計画情報は未取得です。取得すると、手が要る作業を表示します。</p>';
   return attentionPanelMarkup(view.model, attentionReasonFilters.get(project.id));
 }
+const releaseGantt = createReleaseGantt($('#release-panel'));
 function renderViewTabs(project) {
   const hasRelease = !!githubPlan(project.githubSnapshot);
   $('#tab-release').hidden = !hasRelease;
@@ -334,7 +335,7 @@ function renderViewTabs(project) {
   $('#iterations-panel').hidden = viewTab !== 'iterations';
   $('#attention-panel').hidden = viewTab !== 'attention';
   $('#release-panel').hidden = viewTab !== 'release';
-  if (hasRelease) $('#release-panel').innerHTML = releasePanelMarkup(releaseSummaries(project.githubSnapshot));
+  releaseGantt.update(hasRelease ? project.githubSnapshot : null, project.id, viewTab === 'release', () => localGithubMarkup(project));
   $('#approval-queue').hidden = viewTab === 'attention';
   $('#my-work-panel').innerHTML = renderMyWork(project);
   const attention = attentionView(project);
@@ -1130,3 +1131,9 @@ setInterval(() => document.querySelectorAll('.snapshot-age[data-fetched-at]').fo
   const age = snapshotAge({ fetchedAt: element.dataset.fetchedAt });
   element.textContent = age.label; element.classList.toggle('stale', age.stale);
 }), 60000);
+
+// Recalculate when the Tokyo date changes, also after a sleeping tab becomes visible.
+let ganttDate = todayInTokyo();
+function refreshGanttDate() { const next = todayInTokyo(); if (next !== ganttDate) { ganttDate = next; if (state && viewTab === 'release') render(); } }
+setInterval(refreshGanttDate, 60000);
+document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') refreshGanttDate(); });
