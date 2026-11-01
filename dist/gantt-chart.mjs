@@ -1,4 +1,11 @@
-import { axisFor, calendarPosition, positionText, dueText, diagnosticText, parseDate, monthDay, addDays } from './gantt-axis.mjs';
+import { axisFor, calendarPosition, positionText, dueText, diagnosticText, diagnosticReason, parseDate, monthDay, addDays } from './gantt-axis.mjs';
+import { validWorkProgress } from './milestone-schedule.mjs';
+
+function progressDisplay(read) {
+  if (validWorkProgress(read)) return { value: read.value, label: read.value + '%' };
+  const reason = read.problem ?? (read.value === null ? 'missing-value' : 'invalid-value');
+  return { value: null, label: diagnosticReason(reason) };
+}
 export function mountGanttChart(root, input, result, milestone, options = {}) {
 const $ = selector => root.querySelector(selector.startsWith('#') ? '[data-gantt="'+selector.slice(1)+'"]' : selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
@@ -13,9 +20,10 @@ const source = key => input.issues.find(item => item.key === key);
 const title = key => source(key)?.title || key;
 const taskLink = key => `<button class="plain-action" data-follow="${escape(key)}">${escape(title(key))}</button>`;
 function progressMarkup(key) {
-  const value = source(key).planning.workProgressPercent.value;
-  if (value === null) return '<span class="task-progress" aria-label="作業進捗率 未入力">未入力</span>';
-  return `<span class="task-progress"><span class="progress-track" role="progressbar" aria-label="${escape(title(key))}の作業進捗率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><span style="width:${value}%"></span></span><span aria-hidden="true">${value}%</span></span>`;
+  const { value, label } = progressDisplay(source(key).planning.workProgressPercent);
+  const name = escape(title(key)) + 'の作業進捗率';
+  if (value === null) return `<span class="task-progress"><span class="sr-only">${name}：</span>${label}</span>`;
+  return `<span class="task-progress"><span class="progress-track" role="progressbar" aria-label="${name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><span style="width:${label}"></span></span><span aria-hidden="true">${label}</span></span>`;
 }
 function load() {
   const due = milestone.dueDate ? `期日 ${milestone.dueDate.replaceAll('-', '/')}` : '期日未設定';
@@ -104,7 +112,9 @@ function showDetails(key) {
       body = `<p>${original?.state.value === 'closed' ? 'Closed' : 'Open'}・集約Issue</p><ul>${(original?.children.keys || []).map(k => `<li>${taskLink(k)}</li>`).join('')}</ul>`;
     } else {
       const reverse = milestone.tasks.find(t => t.key === key);
-      body = `<dl class="facts">${fact('期間', item.completion.value === 'done' ? '完了済み（実績日不明）' : `${positionText(item.earliestStart)} →<br>${positionText(item.earliestFinish)}`)}${fact('残り', item.durationDisplay ?? '未算出')}${fact('作業進捗率', (original.planning.workProgressPercent.value === null ? '未入力' : `${original.planning.workProgressPercent.value}%${original.planning.workProgressPercent.value === 100 && item.completion.value !== 'done' ? '・未完了' : ''}`)+`（見積 ${original.planning.estimatePoints.value === null ? '未入力' : `${original.planning.estimatePoints.value}pt`}）`)}${fact('担当', escape(original.planning.owner.value ?? '不明'))}${fact('余裕', reverse?.slackDisplay ?? '未算出')}${fact('既存分類', escape(original.category))}</dl>`;
+      const progress = progressDisplay(original.planning.workProgressPercent);
+      const progressText = progress.label + (progress.value === 100 && item.completion.value !== 'done' ? '・未完了' : '');
+      body = `<dl class="facts">${fact('期間', item.completion.value === 'done' ? '完了済み（実績日不明）' : `${positionText(item.earliestStart)} →<br>${positionText(item.earliestFinish)}`)}${fact('残り', item.durationDisplay ?? '未算出')}${fact('作業進捗率', progressText+`（見積 ${original.planning.estimatePoints.value === null ? '未入力' : `${original.planning.estimatePoints.value}pt`}）`)}${fact('担当', escape(original.planning.owner.value ?? '不明'))}${fact('余裕', reverse?.slackDisplay ?? '未算出')}${fact('既存分類', escape(original.category))}</dl>`;
       if (item.iterationOverflow) body += `<p class="warn">Iteration終了 ${original.planning.iteration.value.endDate} を${item.iterationOverflow.display}超過</p>`;
       if (item.diagnosticIds.length) body += `<h3>計算できない理由</h3>${diagnosticsHtml(item.diagnosticIds)}`;
       const incoming = result.edges.filter(edge => edge.to === key);

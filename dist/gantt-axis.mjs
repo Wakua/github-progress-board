@@ -34,4 +34,5 @@ export function axisFor(result, milestone, scale) {
 export const dueText = difference => !difference ? '期日差 未算出' : difference.relation === 'on-time' ? '期日どおり' : `${difference.display}${difference.relation === 'late' ? '超過' : '余裕'}`;
 const fields = { workProgressPercent: '作業進捗率', estimatePoints: '見積', iteration: 'Iteration', sourceProjectId: '出典Project', source: '出典Project', completion: '完了判定', owner: '担当', children: '子Issue', blockedBy: '前提', schedule: '日程', dueDate: '期日', dependencies: '依存関係', parent: '親Issue' };
 const codes = { 'missing-value': '未入力', 'not-fetched': '未取得', forbidden: '取得権限なし', failed: '取得失敗', 'invalid-value': '不正な値', 'invalid-date': '不正な日付', 'dependency-cycle': '循環', 'out-of-range': '表示可能な範囲外', unselected: '未指定', unavailable: '取得不能', 'not-member': '所属なし', 'incomplete-list': '取得不足', 'unknown-completion': '未確定', 'missing-reference': '参照先未取得' };
-export const diagnosticText = diagnostic => `${fields[diagnostic.field] || diagnostic.field}：${codes[diagnostic.code] || diagnostic.code}`;
+export const diagnosticReason = code => codes[code] || code;
+export const diagnosticText = diagnostic => `${fields[diagnostic.field] || diagnostic.field}：${diagnosticReason(diagnostic.code)}`;
