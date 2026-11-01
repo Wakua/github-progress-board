@@ -37,7 +37,7 @@ try {
   await page.evaluate(([key, data]) => localStorage.setItem(key, JSON.stringify(data)), [STORAGE_KEY, mixedWarnings()]);
   await page.reload();
   await page.getByRole('tab', { name: 'リリース', exact: true }).click();
-  const selectRelease = name => page.getByLabel('表示するリリース').selectOption({label:name});
+  const selectRelease = name => page.getByRole('button',{name:name + 'の詳細',exact:true}).click();
   await selectRelease('リリースA');
   await page.getByLabel('計算に使うProject').selectOption('sample-project');
 

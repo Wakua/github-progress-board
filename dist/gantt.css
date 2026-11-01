@@ -54,3 +54,17 @@
 
 .gantt .gantt-relations .plain-action::after, .gantt .relation-evidence .plain-action::after { display:none; }
 .gantt .gantt-relations .plain-action, .gantt .relation-evidence .plain-action { text-decoration:underline; text-underline-offset:3px; }
+
+.release-list { margin:16px 0 22px; }
+.release-list section + section { margin-top:16px; }
+.release-list h3 { font-size:16px; margin-bottom:5px; }
+.release-list ul { list-style:none; padding:0; margin:0; }
+.release-list li { display:flex; align-items:center; flex-wrap:wrap; gap:4px 12px; padding:5px 0; border-bottom:1px solid var(--line); }
+.release-list .empty-message { margin:0; }
+.release-choose { display:inline-flex; align-items:center; gap:8px; padding:6px 2px; border:0; background:none; color:var(--blue); font-weight:650; text-align:left; overflow-wrap:anywhere; }
+.release-choose::before { content:'›'; font-size:18px; line-height:1; }
+.release-choose[aria-pressed="true"] { color:var(--ink); }
+.release-choose[aria-pressed="true"]::before { transform:rotate(90deg); }
+.release-choose:hover, .release-facts a { text-decoration:underline; text-underline-offset:3px; }
+.release-facts { font-size:13px; color:var(--muted); }
+.release-facts a { color:var(--blue); }
