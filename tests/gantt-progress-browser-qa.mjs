@@ -49,60 +49,57 @@ try {
     assert.equal(await page.getByLabel('計算に使うProject').inputValue(),'sample-project');
     const card = page.getByRole('region', { name: 'リリースA', exact: true });
     const goal = card.locator('.goal-heading').filter({hasText:'#200 機能A'});
-    const meter = goal.locator('.goal-work-progress .progress-track');
-    assert.equal(await meter.count(),example.bar ? 1 : 0);
-    if (!example.bar) assert.ok((await goal.innerText()).includes(example.label));
+    assert.match(await goal.innerText(), /0\/2/);
+    assert.doesNotMatch(await goal.innerText(), /%|✓/);
     await goal.getByRole('button').press('Enter');
     const opener = card.getByRole('button', { name: /^#201 .*の詳細/ });
-    const row = card.locator('.row').filter({ has: page.getByRole('button', { name: /^#201 .*の詳細/ }) });
-    const progress = row.locator('.task-progress');
-    const rowText = await progress.innerText();
-    const rowAX = await progress.ariaSnapshot();
+    const row = opener.locator('../..');
+    assert.equal(await row.getByRole('progressbar').count(), 0);
+    assert.doesNotMatch(await row.innerText(), /%/);
+    if (example.capture) await card.screenshot({ path: path.join(artifacts, example.id + '-list.jpg'), quality: 65 });
+    await opener.press('Enter');
+    const dialog = card.locator('dialog[open]');
+    const fact = dialog.locator('dt').filter({ hasText: /^作業進捗率$/ }).locator('..');
+    const value = fact.locator('dd');
+    const detail = await value.innerText();
+    const detailAX = await fact.ariaSnapshot();
     const cdp = await context.newCDPSession(page);
     const { nodes } = await cdp.send('Accessibility.getFullAXTree');
     const axBar = nodes.find(node => node.role?.value === 'progressbar' && node.name?.value === '#201 実装Aの作業進捗率');
     const range = axBar?.properties.filter(property => ['valuemin', 'valuemax'].includes(property.name))
       .map(property => [property.name, property.value.value]);
     await cdp.detach();
-    const bars = await progress.getByRole('progressbar').evaluateAll(nodes => nodes.map(node => ({
+    const bars = await value.getByRole('progressbar').evaluateAll(nodes => nodes.map(node => ({
       value: node.getAttribute('aria-valuenow'), width: node.firstElementChild.style.width,
     })));
-    if (example.capture) await card.screenshot({ path: path.join(artifacts, example.id + '-list.jpg'), quality: 65 });
-    await opener.press('Enter');
-    const dialog = card.locator('dialog[open]');
-    const fact = dialog.locator('dt').filter({ hasText: /^作業進捗率$/ }).locator('..');
-    const detail = await fact.locator('dd').innerText();
-    const detailAX = await fact.ariaSnapshot();
     if (example.capture) await dialog.screenshot({ path: path.join(artifacts, example.id + '-detail.jpg'), quality: 65 });
+    if (example.capture || example.id === 'forbidden') {
+      await page.setViewportSize({ width: 320, height: 720 });
+      const fontSize = await value.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
+      await page.addStyleTag({ content: `.gantt dialog dd { font-size: ${fontSize * 2}px; }` });
+      assert.ok(await value.evaluate(el => el.scrollWidth <= el.clientWidth + 1 &&
+        el.getBoundingClientRect().right <= innerWidth));
+    }
     await dialog.getByRole('button', { name: '閉じる' }).press('Escape');
     await page.waitForFunction(() => document.activeElement?.matches('[data-task]'));
     assert.ok(await opener.evaluate(node => node === document.activeElement));
-    if (example.capture || example.id === 'forbidden') {
-      await page.setViewportSize({ width: 320, height: 720 });
-      const fontSize = await progress.evaluate(el => parseFloat(getComputedStyle(el).fontSize));
-      await page.addStyleTag({ content: `.gantt .task-progress { font-size: ${fontSize * 2}px; }` });
-      assert.ok(await progress.evaluate(el => el.scrollWidth <= el.clientWidth &&
-        el.getBoundingClientRect().right <= innerWidth));
-    }
-    results.push({ id: example.id, rowText, rowAX, bars, axValue: axBar?.value?.value, range, detail, detailAX });
+    results.push({ id: example.id, bars, axValue: axBar?.value?.value, range, detail, detailAX });
     await context.close();
   }
   await writeFile(path.join(artifacts, 'results.json'), JSON.stringify(results, null, 2));
   for (const [i, example] of cases.entries()) {
     const actual = results[i];
-    assert.ok(actual.rowText.endsWith(example.label), example.id + ': ' + actual.rowText);
     const expectedDetail = example.label + (example.value === 100 ? '・未完了' : '') + '（見積 2pt）';
     assert.equal(actual.detail, expectedDetail);
     assert.ok(actual.detailAX.includes(expectedDetail));
     assert.deepEqual(actual.bars, example.bar ? [{ value: String(example.value), width: example.label }] : []);
     if (example.bar) {
-      assert.match(actual.rowAX, /progressbar "#201 実装Aの作業進捗率"/);
+      assert.match(actual.detailAX, /progressbar "#201 実装Aの作業進捗率"/);
       assert.equal(actual.axValue, example.value);
       assert.deepEqual(Object.fromEntries(actual.range), { valuemin: 0, valuemax: 100 });
     }
     else {
-      assert.doesNotMatch(actual.rowAX, /progressbar/);
-      assert.ok(actual.rowAX.includes('#201 実装Aの作業進捗率') && actual.rowAX.includes(example.label));
+      assert.doesNotMatch(actual.detailAX, /progressbar/);
     }
   }
   const workspace = workspaceFor(cases.find(example => example.id === 'legacy'));

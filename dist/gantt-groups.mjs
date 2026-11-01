@@ -1,5 +1,4 @@
-import { validWorkProgress } from './milestone-schedule.mjs';
-import { calendarPosition, diagnosticReason } from './gantt-axis.mjs';
+import { calendarPosition } from './gantt-axis.mjs';
 
 // Keep the calculated task set. Ancestors are headings, never extra schedule rows.
 export function groupGanttTasks(tasks, issues) {
@@ -53,14 +52,15 @@ export function releaseGoalGroups(milestone, tasks, issues) {
   return goals;
 }
 
-// Membership is resolved by releaseGoalGroups before either rollup.
+// Only leaf tasks in this release count toward the parent.
 function leafTasks(entry) {
   return entry.task ? [entry.task] : entry.children.flatMap(leafTasks);
 }
 
 export function goalSchedule(group) {
   let earliestStart = null, earliestFinish = null, scheduled = 0;
-  const remaining = leafTasks(group).filter(task => task.completion.value !== 'done');
+  const leaves = leafTasks(group);
+  const remaining = leaves.filter(task => task.completion.value !== 'done');
   let firstUnscheduled = null;
   for (const task of remaining) {
     if (!task.earliestStart || !task.earliestFinish) {
@@ -71,24 +71,5 @@ export function goalSchedule(group) {
     if (!earliestStart || calendarPosition(task.earliestStart) < calendarPosition(earliestStart)) earliestStart = task.earliestStart;
     if (!earliestFinish || calendarPosition(task.earliestFinish) > calendarPosition(earliestFinish)) earliestFinish = task.earliestFinish;
   }
-  return {earliestStart, earliestFinish, scheduled, remaining:remaining.length, firstUnscheduled};
-}
-
-export function goalProgress(group, sources) {
-  const leaves = leafTasks(group).map(task => sources.get(task.key));
-  let total = 0, weighted = 0;
-  const gaps = new Set();
-  for (const issue of leaves) {
-    const {estimatePoints: estimate, workProgressPercent: progress} = issue.planning;
-    if (estimate.problem || !Number.isFinite(estimate.value) || estimate.value <= 0)
-      gaps.add('見積' + diagnosticReason(estimate.problem ?? (estimate.value === null ? 'missing-value' : 'invalid-value')));
-    if (!validWorkProgress(progress))
-      gaps.add('進捗' + diagnosticReason(progress.problem ?? (progress.value === null ? 'missing-value' : 'invalid-value')));
-    if (!gaps.size) {
-      total += estimate.value;
-      weighted += estimate.value * progress.value;
-    }
-  }
-  const percent = !gaps.size && total > 0 ? weighted / total : null;
-  return {count:leaves.length, percent, gaps:[...gaps]};
+  return {earliestStart, earliestFinish, scheduled, total:leaves.length, remaining:remaining.length, firstUnscheduled};
 }

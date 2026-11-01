@@ -103,13 +103,16 @@ try {
   const active = mixed.planning.schedule.issues.find(i => i.key.endsWith('/201')).projects[0];
   close(202);
   await start(mixed);
-  assert.ok(await goal(200).isVisible()); // #201 has 100% recorded but remains open.
+  assert.match(await toggle(200).locator('..').innerText(), /1\/2/); // #201 has 100% recorded but remains open.
+  assert.doesNotMatch(await toggle(200).locator('..').innerText(), /✓/);
+  assert.ok(await goal(200).isVisible());
   assert.doesNotMatch(await goal(200).getAttribute('aria-label'),/一部算出/);
   active.workProgressPercent.value = null;
   await start(mixed);
   assert.match(await group.innerText(),/#201 作業進捗率：未入力/);
   close(201);
   await start(mixed);
+  assert.match(await toggle(200).locator('..').innerText(), /✓\s*2\/2/);
   assert.match(await group.innerText(),/残作業なし/);
   assert.equal(await goal(200).count(),0);
   await card.getByRole('button',{name:'#200 親内の前提 1件',exact:true}).click();
