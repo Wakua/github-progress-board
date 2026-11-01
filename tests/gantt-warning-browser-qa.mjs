@@ -37,10 +37,13 @@ try {
   await page.evaluate(([key, data]) => localStorage.setItem(key, JSON.stringify(data)), [STORAGE_KEY, mixedWarnings()]);
   await page.reload();
   await page.getByRole('tab', { name: 'リリース', exact: true }).click();
+  const selectRelease = name => page.getByLabel('表示するリリース').selectOption({label:name});
+  await selectRelease('リリースA');
   await page.getByLabel('計算に使うProject').selectOption('sample-project');
 
   const results = [];
   for (const name of ['リリースA', 'リリースB']) {
+    await selectRelease(name);
     const card = page.getByRole('region', { name, exact: true });
     const warning = card.locator('[data-panel="diagnostics"]');
     const label = await warning.innerText();
@@ -61,11 +64,13 @@ try {
   assert.deepEqual(results.map(item => item.label), ['情報不足 1件', '循環・情報不足 1件']);
 
   await page.setViewportSize({ width: 320, height: 720 });
+  await selectRelease('リリースA');
   const normalSize = await page.getByRole('button', { name: '情報不足 1件', exact: true })
     .evaluate(el => parseFloat(getComputedStyle(el).fontSize));
   const enlargedSize = normalSize * 2;
   await page.addStyleTag({ content: `.gantt [data-panel] { font-size: ${enlargedSize}px !important; }` });
-  for (const label of ['情報不足 1件', '循環・情報不足 1件']) {
+  for (const {name,label} of results) {
+    await selectRelease(name);
     const warning = page.getByRole('button', { name: label, exact: true });
     const fits = await warning.evaluate((el, size) => {
       const rect = el.getBoundingClientRect();

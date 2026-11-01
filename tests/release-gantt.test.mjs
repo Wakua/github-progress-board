@@ -1,6 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { releaseGanttModel, ganttProjects } from '../dist/release-gantt-model.mjs';
+import { releaseGoalGroups, goalProgress, goalSchedule } from '../dist/gantt-groups.mjs';
+import { releaseDependencies, projectDependencies } from '../dist/gantt-dependencies.mjs';
 import { ganttSnapshot } from './gantt-fixture.mjs';
 import { scheduleSnapshot, repo, external, url } from './github-schedule-fixture.mjs';
 const options={selectedProjectId:'sample-project',baseDate:'2026-11-02'};
@@ -60,4 +62,79 @@ test('古いsnapshotを0%で補わず、Projectの削除と空の取得を扱う
   assert.ok(m.result.diagnostics.some(d=>d.field==='workProgressPercent'));
   assert.equal(ganttProjects(ganttSnapshot('empty')).length,0);
   assert.equal(releaseGanttModel(null),null);
+});
+
+test('同じ親をリリースごとに集計し、対象外の前提を分母に含めない', () => {
+  const model = releaseGanttModel(ganttSnapshot('goals'), options);
+  const sources = new Map(model.input.issues.map(issue => [issue.key, issue]));
+  function summaries(milestone) {
+    const groups = releaseGoalGroups(milestone, model.result.tasks, model.input.issues);
+    return new Map(groups.filter(group => group.key !== 'other-work')
+      .map(group => [group.key.split('/').at(-1), goalProgress(group, sources)]));
+  }
+  const [a,b] = model.result.milestones.map(summaries);
+  assert.deepEqual(a.get('200'),{count:2, percent:88, gaps:[]});
+  assert.deepEqual(b.get('200'),{count:1, percent:null, gaps:['進捗未入力']});
+  assert.equal(a.get('300').percent,0);
+  assert.equal(a.size,2);
+});
+
+test('全件Openでも7件の加重進捗を算出し、不足・不正があれば部分集計しない', () => {
+  const read = value => ({value,problem:null});
+  const sources = new Map(Array.from({length:7}, (_,n) => [n,{
+    planning:{estimatePoints:read(n === 0 ? 4 : 1),workProgressPercent:read(n === 6 ? 80 : 100)},
+  }]));
+  const group = {children:[...sources.keys()].map(key => ({key,task:{key}}))};
+  assert.equal(goalProgress(group,sources).percent,98);
+  const planning = sources.get(6).planning;
+  planning.workProgressPercent = read(101);
+  assert.deepEqual(goalProgress(group,sources).gaps,['進捗不正な値']);
+  planning.workProgressPercent = {value:null,problem:'not-fetched'};
+  assert.deepEqual(goalProgress(group,sources).gaps,['進捗未取得']);
+  planning.estimatePoints = read(null);
+  assert.equal(goalProgress(group,sources).percent,null);
+});
+
+test('親の期間は所属する子の最早開始と最遅終了に限り、日程不明の子を数える', () => {
+  const snapshot = ganttSnapshot('goals');
+  const input = snapshot.planning.schedule.issues;
+  const work = n => input.find(i => i.key.endsWith('/'+n)).projects[0];
+  function range(release, parent) {
+    const model = releaseGanttModel(snapshot,options);
+    const groups = releaseGoalGroups(model.result.milestones[release], model.result.tasks, model.input.issues);
+    return goalSchedule(groups.find(group => group.key.endsWith('/'+parent)));
+  }
+  assert.equal(range(0,200).earliestFinish.coordinate,0.6);
+  assert.equal(range(0,300).earliestFinish.coordinate,2);
+  assert.equal(range(1,200).earliestStart,null); // Outside prerequisite #201 has dates.
+  work(401).workProgressPercent.value = 0;
+  assert.equal(range(0,200).earliestFinish.coordinate,0.6);
+  assert.equal(range(1,200).earliestFinish.coordinate,2);
+  work(202).workProgressPercent.value = null;
+  const partial = range(0,200);
+  assert.deepEqual([partial.scheduled,partial.count,partial.earliestStart.coordinate,partial.earliestFinish.coordinate],[1,2,0,0]);
+});
+
+test('閉じた親ペアに末端の根拠をまとめ、別リリースの同じ親には投影しない', () => {
+  const model=releaseGanttModel(ganttSnapshot('dependencies'),options);
+  const [a,b]=model.result.milestones;
+  const id=n=>model.input.issues.find(i=>i.key.endsWith('/'+n)).key;
+  function pairs(m) {
+    const groups=releaseGoalGroups(m,model.result.tasks,model.input.issues);
+    const {edges}=releaseDependencies(model.input,model.result,m,groups);
+    return projectDependencies(edges,groups,new Set(groups.map(g=>g.key)));
+  }
+  const cross=pairs(a).find(p=>p.from===id(200) && p.to===id(300));
+  assert.deepEqual(cross.edges.map(e=>[e.from,e.to]),[[id(201),id(301)],[id(202),id(301)]]);
+  assert.ok(pairs(a).find(p=>p.internal && p.from===id(200)));
+  assert.ok(pairs(b).find(p=>p.from===id(201) && p.to===id(200)));
+});
+
+test('計算辺が作られない登録済みの前提も保存し、他のリリースだけの関係を除く', () => {
+  const model=releaseGanttModel(ganttSnapshot('dependencies'),options);
+  const milestone=model.result.milestones[1];
+  const groups=releaseGoalGroups(milestone,model.result.tasks,model.input.issues);
+  const {edges}=releaseDependencies(model.input,{edges:[],relations:[]},milestone,groups);
+  assert.ok(edges.some(e=>e.from.endsWith('/201') && e.to.endsWith('/401')));
+  assert.ok(!edges.some(e=>e.from.endsWith('/202') && e.to.endsWith('/301')));
 });
