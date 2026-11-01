@@ -45,8 +45,14 @@ try {
     await page.evaluate(([key, data]) => localStorage.setItem(key, JSON.stringify(data)), [STORAGE_KEY, workspaceFor(example)]);
     await page.reload();
     await page.getByRole('tab', { name: 'リリース', exact: true }).click();
-    await page.getByLabel('計算に使うProject').selectOption('sample-project');
+    await page.getByLabel('表示するリリース').selectOption({label:'リリースA'});
+    assert.equal(await page.getByLabel('計算に使うProject').inputValue(),'sample-project');
     const card = page.getByRole('region', { name: 'リリースA', exact: true });
+    const goal = card.locator('.goal-heading').filter({hasText:'#200 機能A'});
+    const meter = goal.locator('.goal-work-progress .progress-track');
+    assert.equal(await meter.count(),example.bar ? 1 : 0);
+    if (!example.bar) assert.ok((await goal.innerText()).includes(example.label));
+    await goal.getByRole('button').press('Enter');
     const opener = card.getByRole('button', { name: /^#201 .*の詳細/ });
     const row = card.locator('.row').filter({ has: page.getByRole('button', { name: /^#201 .*の詳細/ }) });
     const progress = row.locator('.task-progress');
@@ -99,7 +105,21 @@ try {
       assert.ok(actual.rowAX.includes('#201 実装Aの作業進捗率') && actual.rowAX.includes(example.label));
     }
   }
-  console.log('作業進捗率の一覧・詳細・アクセシビリティを10条件で確認した。');
+  const workspace = workspaceFor(cases.find(example => example.id === 'legacy'));
+  const project = workspace.projects[0].githubSnapshot.planning.issues[0].projects[0];
+  workspace.projects[0].githubSnapshot.planning.issues[0].projects.push({...project,id:'second-project',title:'別のProject',url:'https://github.com/users/example/projects/2'});
+  const page = await browser.newPage();
+  await page.route(/\/api\//,route => route.fulfill({status:503}));
+  await page.goto(process.env.QA_BASE_URL || 'http://127.0.0.1:4340/');
+  await page.evaluate(([key,data]) => localStorage.setItem(key,JSON.stringify(data)),[STORAGE_KEY,workspace]);
+  await page.reload();
+  await page.getByRole('tab',{name:'リリース',exact:true}).click();
+  await page.getByLabel('表示するリリース').selectOption({label:'リリースA'});
+  assert.equal(await page.getByLabel('計算に使うProject').inputValue(),'');
+  assert.equal(await page.locator('.goal-heading').count(),0);
+  await page.getByLabel('計算に使うProject').selectOption('sample-project');
+  await page.locator('.goal-heading').first().waitFor();
+  console.log('進捗10条件と、1件・複数候補の出典選択を確認した。');
 } finally {
   await browser.close();
 }

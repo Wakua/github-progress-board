@@ -1,4 +1,5 @@
 import { axisFor, calendarPosition, positionText, dueText, diagnosticText, diagnosticReason, parseDate, monthDay, addDays } from './gantt-axis.mjs';
+import { goalProgress } from './gantt-groups.mjs';
 import { validWorkProgress } from './milestone-schedule.mjs';
 
 function progressDisplay(read) {
@@ -16,7 +17,8 @@ const unchecked = result.overlapUnchecked.filter(item => milestone.taskKeys.incl
 const dialog = $('#details'), chart = $('#chart');
 const fold = options.fold;
 const task = key => result.tasks.find(item => item.key === key);
-const source = key => input.issues.find(item => item.key === key);
+const sources = new Map(input.issues.map(issue => [issue.key, issue]));
+const source = key => sources.get(key);
 const title = key => source(key)?.title || key;
 const taskLink = key => `<button class="plain-action" data-follow="${escape(key)}">${escape(title(key))}</button>`;
 function progressMarkup(key) {
@@ -50,10 +52,25 @@ function load() {
       if (entry.task) return taskRow(entry.task);
       const id = options.arrowId + '-group-' + groupIndex++;
       const expanded = !fold.parents.has(entry.key);
-      return `<div class="parent-heading" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}">${escape(title(entry.key))}</button></div><div role="group" id="${id}" aria-labelledby="${id}-toggle" style="--level:${Math.min(depth+1,4)}"${expanded ? '' : ' hidden'}>${renderEntries(entry.children, depth+1)}</div>`;
+      let metrics = '', parentLink = '';
+      const goal = depth === 0 && entry.key !== 'other-work';
+      if (goal) {
+        const { count, percent, gaps } = goalProgress(entry, sources);
+        const percentText = percent === null ? '' : Number(percent.toFixed(1)) + '%';
+        const progress = percent === null ? escape(gaps.join('・')) :
+          '作業進捗 ' + percentText + '<span class="progress-track" aria-hidden="true"><span style="width:'+percentText+'"></span></span>';
+        metrics = '<span>'+count+'件</span> <span class="goal-work-progress">'+progress+'</span>';
+        if (source(entry.key) && !source(entry.key).external)
+          parentLink = '<a class="goal-issue" href="'+escape(entry.key)+'" target="_blank" rel="noopener noreferrer">子Issueの追加はGitHubで ↗</a>';
+      }
+      return `<div class="parent-heading ${goal?'goal-heading':entry.key==='other-work'?'other-heading':''}" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}" ${goal ? `aria-describedby="${id}-metrics"` : ''}>${escape(entry.title ?? title(entry.key))}</button>${goal ? `<span class="goal-metrics" id="${id}-metrics">${metrics}</span>` : ''}</div><div role="group" id="${id}" aria-labelledby="${id}-toggle" style="--level:${Math.min(depth+1,4)}"${expanded ? '' : ' hidden'}>${parentLink}${renderEntries(entry.children, depth+1)}</div>`;
     }).join('');
   }
   $('#rows').innerHTML = renderEntries(options.groups, 0);
+  function updateOverview() {
+    root.classList.toggle('goals-only', options.groups.every(entry => fold.parents.has(entry.key)));
+  }
+  updateOverview();
   for (const button of chart.querySelectorAll('[data-parent]')) button.onclick = () => {
     const key = button.dataset.parent;
     const group = document.getElementById(button.getAttribute('aria-controls'));
@@ -61,6 +78,7 @@ function load() {
     if (group.hidden) fold.parents.add(key);
     else fold.parents.delete(key);
     button.setAttribute('aria-expanded', String(!group.hidden));
+    updateOverview();
     drawDependencies();
   };
   for (const button of chart.querySelectorAll('[data-task]')) button.onclick = () => openDetails(button.dataset.task, button);
@@ -88,7 +106,7 @@ function showDetails(key) {
   let heading, body;
   if (key === 'release') {
     heading = input.milestones.find(item => item.key === milestone.key).title;
-    body = `<dl class="facts">${fact('基準日', input.baseDate)}${fact('取得時点', input.fetchedAt)}${fact('完了見込み', positionText(milestone.finish))}${fact('期日差', dueText(milestone.dueDifference))}</dl><p>日程は登録済みの前提が終わり次第、着手する計算。</p><p>余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。</p>`;
+    body = `<dl class="facts">${fact('基準日', input.baseDate)}${fact('取得時点', input.fetchedAt)}${fact('完了見込み', positionText(milestone.finish))}${fact('期日差', dueText(milestone.dueDifference))}</dl><p>目標の作業進捗は、このリリースの末端作業の見積で作業進捗率を加重した割合。見積や進捗率が不足すると未算出。Issueの完了・本人の受入は別に確認する。</p><p>日程は登録済みの前提が終わり次第、着手する計算。</p><p>余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。</p>`;
     const summary = options.releaseSummary;
     if (summary) {
       body += '<dl class="facts">'+fact('残りの期間', summary.iterations+'期間')+fact('未完了Estimate', summary.remainingPoints+'pt')+'</dl>';

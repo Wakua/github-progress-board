@@ -21,3 +21,21 @@
   background: #1d2533; font-weight: 600;
 }
 .gantt [role="group"][aria-labelledby] .name { padding-inline-start: calc(12px + var(--level) * 14px); box-sizing: border-box; }
+
+.gantt-source + .gantt-source { margin-top: 8px; }
+.gantt .goal-heading { display:flex; align-items:center; justify-content:space-between; gap:8px; width:min(100%, calc(100cqw - 40px)); position:sticky; left:0; }
+.gantt .goal-heading .fold-button { max-width:none; position:static; min-width:0; }
+.gantt .goal-metrics { display:flex; justify-content:flex-end; align-items:center; flex-wrap:wrap; gap:4px 12px; font-size:14px; color:#c8d7e5; font-variant-numeric:tabular-nums; }
+.gantt .goal-work-progress { display:inline-flex; align-items:center; flex-wrap:wrap; gap:6px; }
+.gantt .goal-issue { display:inline-block; margin:6px 12px; font-size:13px; }
+.gantt.goals-only :is(.timeline-toolbar,.legend,.row.header,.due-marker,.connections) { display:none; }
+.gantt.goals-only .chart { min-width:0; }
+.gantt.goals-only .goal-heading { width:100%; }
+
+.gantt .other-heading { border:0; margin-top:8px; }
+.gantt .other-heading .fold-button { font-size:13px; font-weight:400; color:#c6d2e3; }
+
+@container (max-width:380px) {
+  .gantt .goal-heading { flex-wrap:wrap; gap:0 8px; padding-bottom:4px; }
+  .gantt .goal-metrics { margin-left:auto; }
+}

@@ -1,6 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { releaseGanttModel, ganttProjects } from '../dist/release-gantt-model.mjs';
+import { releaseGoalGroups, goalProgress } from '../dist/gantt-groups.mjs';
 import { ganttSnapshot } from './gantt-fixture.mjs';
 import { scheduleSnapshot, repo, external, url } from './github-schedule-fixture.mjs';
 const options={selectedProjectId:'sample-project',baseDate:'2026-11-02'};
@@ -60,4 +61,35 @@ test('古いsnapshotを0%で補わず、Projectの削除と空の取得を扱う
   assert.ok(m.result.diagnostics.some(d=>d.field==='workProgressPercent'));
   assert.equal(ganttProjects(ganttSnapshot('empty')).length,0);
   assert.equal(releaseGanttModel(null),null);
+});
+
+test('同じ親をリリースごとに集計し、対象外の前提を分母に含めない', () => {
+  const model = releaseGanttModel(ganttSnapshot('goals'), options);
+  const sources = new Map(model.input.issues.map(issue => [issue.key, issue]));
+  function summaries(milestone) {
+    const groups = releaseGoalGroups(milestone, model.result.tasks, model.input.issues);
+    return new Map(groups.filter(group => group.key !== 'other-work')
+      .map(group => [group.key.split('/').at(-1), goalProgress(group, sources)]));
+  }
+  const [a,b] = model.result.milestones.map(summaries);
+  assert.deepEqual(a.get('200'),{count:2, percent:88, gaps:[]});
+  assert.deepEqual(b.get('200'),{count:1, percent:null, gaps:['進捗未入力']});
+  assert.equal(a.get('300').percent,0);
+  assert.equal(a.size,2);
+});
+
+test('全件Openでも7件の加重進捗を算出し、不足・不正があれば部分集計しない', () => {
+  const read = value => ({value,problem:null});
+  const sources = new Map(Array.from({length:7}, (_,n) => [n,{
+    planning:{estimatePoints:read(n === 0 ? 4 : 1),workProgressPercent:read(n === 6 ? 80 : 100)},
+  }]));
+  const group = {children:[...sources.keys()].map(key => ({key,task:{key}}))};
+  assert.equal(goalProgress(group,sources).percent,98);
+  const planning = sources.get(6).planning;
+  planning.workProgressPercent = read(101);
+  assert.deepEqual(goalProgress(group,sources).gaps,['進捗不正な値']);
+  planning.workProgressPercent = {value:null,problem:'not-fetched'};
+  assert.deepEqual(goalProgress(group,sources).gaps,['進捗未取得']);
+  planning.estimatePoints = read(null);
+  assert.equal(goalProgress(group,sources).percent,null);
 });
