@@ -66,7 +66,7 @@ try {
   }
   await page.getByRole('button',{name:'リリースBの詳細',exact:true}).click();
   assert.equal(await goal(200).count(),0);
-  assert.ok(await card.getByText('日程未算出',{exact:true}).first().isVisible());
+  assert.ok(await card.getByText('#401 作業進捗率：未入力',{exact:true}).first().isVisible());
 
   const sample=ganttSnapshot('goals');
   const planning = n => sample.planning.schedule.issues.find(i=>i.key.endsWith('/'+n)).projects[0];
@@ -90,6 +90,32 @@ try {
     same(await bounds(goal(200)),await bounds(child(201)));
     same(await bounds(goal(300)),await bounds(child(301)));
   }
+  const mixed = ganttSnapshot('dependencies');
+  const close = n => {
+    const item = mixed.items.find(i => i.number === n);
+    item.state = 'closed'; item.closedAt = item.updatedAt;
+    mixed.planning.schedule.issues.find(i=>i.key === item.url).state.value = 'closed';
+    for (const issue of mixed.planning.issues) {
+      for (const link of issue.blockedBy) if (link.url === item.url) link.state = 'closed';
+    }
+  };
+  const group = toggle(200).locator('../..');
+  const active = mixed.planning.schedule.issues.find(i => i.key.endsWith('/201')).projects[0];
+  close(202);
+  await start(mixed);
+  assert.ok(await goal(200).isVisible()); // #201 has 100% recorded but remains open.
+  assert.doesNotMatch(await goal(200).getAttribute('aria-label'),/一部算出/);
+  active.workProgressPercent.value = null;
+  await start(mixed);
+  assert.match(await group.innerText(),/#201 作業進捗率：未入力/);
+  close(201);
+  await start(mixed);
+  assert.match(await group.innerText(),/残作業なし/);
+  assert.equal(await goal(200).count(),0);
+  await card.getByRole('button',{name:'#200 親内の前提 1件',exact:true}).click();
+  assert.match(await card.locator('dialog[open]').innerText(),/前提完了/);
+  assert.doesNotMatch(await card.locator('dialog[open]').innerText(),/日程未算出|日程情報なし|未入力/);
+  await page.keyboard.press('Escape');
   console.log('閉じた2目標、中間親、部分算出・未算出、0日・単日・端数の端点を子と同じ軸で確認した。');
 } finally {
   await browser.close();

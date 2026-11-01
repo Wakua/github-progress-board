@@ -163,7 +163,7 @@ test('親の期間は所属する子の最早開始と最遅終了に限り、�
   assert.equal(range(1,200).earliestFinish.coordinate,2);
   work(202).workProgressPercent.value = null;
   const partial = range(0,200);
-  assert.deepEqual([partial.scheduled,partial.count,partial.earliestStart.coordinate,partial.earliestFinish.coordinate],[1,2,0,0]);
+  assert.deepEqual([partial.scheduled,partial.remaining,partial.earliestStart.coordinate,partial.earliestFinish.coordinate],[1,2,0,0]);
 });
 
 test('閉じた親ペアに末端の根拠をまとめ、別リリースの同じ親には投影しない', () => {

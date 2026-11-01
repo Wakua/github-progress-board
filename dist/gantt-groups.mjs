@@ -60,14 +60,18 @@ function leafTasks(entry) {
 
 export function goalSchedule(group) {
   let earliestStart = null, earliestFinish = null, scheduled = 0;
-  const leaves = leafTasks(group);
-  for (const task of leaves) {
-    if (!task.earliestStart || !task.earliestFinish) continue;
+  const remaining = leafTasks(group).filter(task => task.completion.value !== 'done');
+  let firstUnscheduled = null;
+  for (const task of remaining) {
+    if (!task.earliestStart || !task.earliestFinish) {
+      firstUnscheduled ??= task.key;
+      continue;
+    }
     scheduled++;
     if (!earliestStart || calendarPosition(task.earliestStart) < calendarPosition(earliestStart)) earliestStart = task.earliestStart;
     if (!earliestFinish || calendarPosition(task.earliestFinish) > calendarPosition(earliestFinish)) earliestFinish = task.earliestFinish;
   }
-  return {earliestStart, earliestFinish, scheduled, count:leaves.length};
+  return {earliestStart, earliestFinish, scheduled, remaining:remaining.length, firstUnscheduled};
 }
 
 export function goalProgress(group, sources) {
