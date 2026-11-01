@@ -3,12 +3,15 @@ import { goalSchedule } from './gantt-groups.mjs';
 import { releaseDependencies, projectDependencies } from './gantt-dependencies.mjs';
 import { validWorkProgress } from './milestone-schedule.mjs';
 import { incompleteForecast } from './gantt-forecast-judgment.mjs';
+import { goalTaskCounts } from './release-task-counts.mjs';
 
-function completionCount({total, remaining}) {
-  const done = total - remaining;
-  const complete = total > 0 && remaining === 0;
+function completionCount({total, remaining}, counts) {
+  const done = counts ? counts.done.length : total - remaining;
+  const complete = total > 0 && done === total;
   const label = complete ? total+'件すべて完了' : total+'件中'+done+'件完了';
-  return '<span aria-hidden="true"'+(complete ? ' class="goal-complete"' : '')+'>'+(complete ? '✓ ' : '')+done+'/'+total+'</span><span class="sr-only">'+label+'</span>';
+  const other = [['cancelled','取り下げ'],['ended','終了']].filter(([key]) => counts?.[key].length)
+    .map(([key,text]) => '<span>'+text+' '+counts[key].length+'件</span>').join('');
+  return '<span aria-hidden="true"'+(complete ? ' class="goal-complete"' : '')+'>'+(complete ? '✓ ' : '')+done+'/'+total+'</span><span class="sr-only">'+label+'</span>'+other;
 }
 function progressDisplay(read) {
   if (validWorkProgress(read)) return { value: read.value, label: read.value + '%' };
@@ -88,7 +91,13 @@ function load() {
   $('#summary').innerHTML = `<span>${milestone.finish ? `見込み <strong>${monthDay(parseDate(milestone.finish.date))}</strong>${milestone.dueDate ? ` <span class="warn">${dueText(milestone.dueDifference)}</span>` : ''}` : ({ incomplete:forecast?.label, empty:'作業未登録', completed:'全作業完了' })[milestone.state]}</span><span>${due}</span>`;
   if (forecast) {
     const facts = [...forecast.causes, forecast.allocation].filter(Boolean);
-    if (facts.length) $('#summary').insertAdjacentHTML('afterend', '<p class="forecast-evidence">' + facts.map(escape).join(' ／ ') + '</p>');
+    const evidence = facts.length ? '<p class="forecast-evidence">' + facts.map(escape).join(' ／ ') + '</p>' : '';
+    if (options.allAcceptancePending) {
+      $('#summary').innerHTML = '<span>受入待ち</span><span>'+due+'</span>';
+      $('#summary').insertAdjacentHTML('afterend', '<details class="forecast-details"><summary>日程の内訳</summary><p>'+escape(forecast.label)+'</p>'+evidence+'</details>');
+    } else if (evidence) {
+      $('#summary').insertAdjacentHTML('afterend', evidence);
+    }
   }
   const diagnostics = milestone.diagnosticIds;
   const hasCycle = result.cycles.some(cycle => diagnostics.includes(cycle.diagnosticId));
@@ -123,7 +132,8 @@ function load() {
       const expanded = !fold.parents.has(entry.key);
       const goal = depth === 0 && entry.key !== 'other-work';
       const range = goal || insideGoal ? goalSchedule(entry) : null;
-      const metrics = range ? completionCount(range) : '';
+      const counts = options.tasksByKey ? goalTaskCounts(entry, options.tasksByKey) : null;
+      const metrics = range ? completionCount(range, counts) : '';
       const parentLink = goal && source(entry.key) && !source(entry.key).external
         ? '<a class="goal-issue" href="'+escape(entry.key)+'" target="_blank" rel="noopener noreferrer">子Issueの追加はGitHubで ↗</a>' : '';
       const heading = `<div class="parent-heading ${goal?'goal-heading':entry.key==='other-work'?'other-heading':''}" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}" ${range ? `aria-describedby="${id}-metrics"` : ''}>${escape(entry.title ?? title(entry.key))}</button>${range ? `<span class="goal-metrics" id="${id}-metrics">${metrics}</span>` : ''}</div>`;
@@ -187,7 +197,7 @@ function showDetails(key) {
   let heading, body;
   if (key === 'release') {
     heading = input.milestones.find(item => item.key === milestone.key).title;
-    body = `<dl class="facts">${fact('基準日', input.baseDate)}${fact('取得時点', input.fetchedAt)}${fact('完了見込み', positionText(milestone.finish))}${fact('期日差', dueText(milestone.dueDifference))}</dl><p>親の件数は、このリリースに属する末端作業のうち完了した件数と総数。</p><p>日程は登録済みの前提が終わり次第、着手する計算。</p><p>余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。</p>`;
+    body = `<dl class="facts">${fact('基準日', input.baseDate)}${fact('取得時点', input.fetchedAt)}${fact('完了見込み', positionText(milestone.finish))}${fact('期日差', dueText(milestone.dueDifference))}</dl><p>親の件数は、このリリースに属する末端作業のうち完了した件数と総数。取り下げ・終了理由が不明な作業は、完了に含めず別に示す。</p><p>日程は登録済みの前提が終わり次第、着手する計算。</p><p>余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。</p>`;
     const summary = options.releaseSummary;
     if (summary) {
       body += '<dl class="facts">'+fact('残りの期間', summary.iterations+'期間')+fact('未完了Estimate', summary.remainingPoints+'pt')+'</dl>';

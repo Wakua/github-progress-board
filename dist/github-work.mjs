@@ -34,11 +34,13 @@ export const blockerRef = (blocker, repositoryUrl) => {
 };
 const blockerName = (blocker, repositoryUrl) => `${blockerRef(blocker, repositoryUrl)} ${blocker.title}`;
 
+export function githubTaskDone(task) {
+  return task.item.state === 'closed' || (task.projects.length > 0 && task.projects.every(p => p.status === 'Done'));
+}
 export function githubWorkCategory(plan, task, repositoryUrl, today = todayInTokyo()) {
-  if (task.item.state === 'closed') return { group: 'done', reasons: [] };
+  if (githubTaskDone(task)) return { group: 'done', reasons: [] };
   const statuses = [...new Set(task.projects.map(p => p.status))];
   const status = statuses.length === 1 ? statuses[0] : null;
-  if (status === 'Done') return { group: 'done', reasons: [] };
   const blockedBy = task.blockedBy || [], pullRequests = task.pullRequests || [];
   const open = blockedBy.filter(b => b.state === 'open');
   const byUrl = new Map(plan.issues.filter(i => i.item).map(i => [i.item.url.toLowerCase(), i]));

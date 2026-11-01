@@ -4,12 +4,27 @@ import { mountGanttChart } from './gantt-chart.mjs';
 import { ganttTemplate } from './gantt-template.mjs';
 import { githubPlan, milestoneSources } from './github-planning.mjs';
 import { releaseLifecycle } from './release-lifecycle.mjs';
+import { releaseTaskCounts } from './release-task-counts.mjs';
 import { itemButton } from './github-planning-view.mjs';
 import { releaseSummaries } from './release.mjs';
 import { todayInTokyo } from './engine.mjs';
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
 
-function releaseList(milestones, selectedUrl) {
+function taskCountsMarkup(release, expanded) {
+  const counts = releaseTaskCounts(release.tasks);
+  const labels = [['done','完了'],['cancelled','取り下げ'],['ended','終了'],['open','未完了']];
+  const parts = labels.filter(([key]) => counts[key].length)
+    .map(([key,label]) => '<span>'+label+' '+counts[key].length+'件</span>');
+  if (counts.pending.length) {
+    const rows = counts.pending.map(task => '<li>'+itemButton(task)+'</li>').join('');
+    parts.push('<details data-pending-release="'+esc(release.url)+'"'+(expanded.has(release.url) ? ' open' : '')+'><summary>受入待ち '+counts.pending.length+'件</summary><ul>'+rows+'</ul></details>');
+  }
+  if (!release.tasks.length) parts.push('<span>作業0件</span>');
+  if (counts.pendingUnfetched) parts.push('<span class="muted">受入待ち未取得</span>');
+  return '<div class="release-task-counts" aria-label="作業の内訳">'+parts.join('')+'</div>';
+}
+
+function releaseList(milestones, selectedUrl, expanded) {
   const groups = [[], []];
   for (const m of milestones) {
     const { accepted, label, published } = releaseLifecycle(m);
@@ -19,6 +34,7 @@ function releaseList(milestones, selectedUrl) {
       <button type="button" class="release-choose" data-release="${esc(m.url)}" aria-pressed="${m.url === selectedUrl}" aria-label="${esc(m.title)}の詳細">${esc(m.title)}</button>
       <span class="badge ${accepted ? 'done' : 'review'}">${esc(label)}</span>
       <span class="release-facts">${due}${version ? ' · ' + version : ''}</span>
+      ${taskCountsMarkup(m, expanded)}
     </li>`);
   }
   return `<div class="release-list">${groups.map((rows, index) => {
@@ -46,12 +62,19 @@ export function createReleaseGantt(root) {
 
     root.innerHTML = '<div data-local-github>' + (typeof status === 'function' ? status() : status) + '</div>';
     if (!snapshot?.planning) { root.insertAdjacentHTML('beforeend','<p class="empty-message">GitHubの計画情報は未取得です。</p>'); return; }
-    const milestones = snapshot.planning.milestones;
+    const plan = githubPlan(snapshot);
+    const milestones = plan.releases;
     if (!milestones.length) { root.insertAdjacentHTML('beforeend','<p class="empty-message">リリース（Milestone）がありません。</p>'); return; }
     const selected = milestones.find(m => m.url === selection.release);
     if (!selected) selection.release = '';
-    root.insertAdjacentHTML('beforeend', releaseList(milestones, selection.release));
+    selection.expandedPending ??= new Set();
+    root.insertAdjacentHTML('beforeend', releaseList(milestones, selection.release, selection.expandedPending));
     const list = root.querySelector('.release-list');
+    for (const details of list.querySelectorAll('details[data-pending-release]')) details.ontoggle = () => {
+      if (!details.isConnected) return;
+      if (details.open) selection.expandedPending.add(details.dataset.pendingRelease);
+      else selection.expandedPending.delete(details.dataset.pendingRelease);
+    };
     list.onclick = event => {
       const button = event.target.closest('button[data-release]');
       if (!button || button.dataset.release === selection.release) return;
@@ -94,7 +117,7 @@ export function createReleaseGantt(root) {
     for (const group of groups) {
       if (!fold.known.has(group.key)) { fold.known.add(group.key); fold.parents.add(group.key); }
     }
-    controller = mountGanttChart(card,model.input,model.result,milestone,{ arrowId:'gantt-arrow-'+selected.number, releaseSummary:summary, groups, fold,
+    controller = mountGanttChart(card,model.input,model.result,milestone,{ arrowId:'gantt-arrow-'+selected.number, releaseSummary:summary, groups, fold, allAcceptancePending:releaseTaskCounts(selected.tasks).allPending, tasksByKey:new Map(selected.tasks.map(task => [task.item.url.toLowerCase(),task])),
       scale:selection.scales[milestone.key] || 'day', onScale:scale=>{selection.scales[milestone.key]=scale;},
       onSourceProject:(key,id)=>{ selection.sourceProjectIds[key] = id || null; draw(); } });
     mountedRelease = selected.url;

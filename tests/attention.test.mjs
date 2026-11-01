@@ -90,6 +90,9 @@ test('理由を一つ選び、承認待ち・要対応・あなたの担当を�
     const html = attentionPanelMarkup(data, reason);
     assert.deepEqual(visibleNames(html), expected, reason);
     assert.equal(attentionCount(data), 4, '全体の件数を保つ');
+    for (const label of ['すべて 4件', '承認待ち 1件', '期限切れ 1件', '担当なし 1件', '待ち 1件', '担当 1件']) {
+      assert.ok(html.includes(`>${label}</button>`), label);
+    }
     assert.match(html, new RegExp('data-attention-reason="' + (reason ?? '') + '" aria-pressed="true"'));
     assert.equal((html.match(/data-attention-reason="[^"]*" aria-pressed="true"/g) || []).length, 1);
   }
@@ -99,11 +102,15 @@ test('理由を一つ選び、承認待ち・要対応・あなたの担当を�
 test('理由の選択肢は絞り込み前の一覧から作り、同じ理由を重ねず、無くなった理由はすべてに戻す', () => {
   const data = model({ approvals: null, owners: [], me: null, mine: [], items: [
     { endedOn: '2026-10-02', reasons: ['期限超過（3日）', '前提が期限超過：a', '前提が期限超過：b'], nameHtml: '<button>#6</button>' },
-    { endedOn: null, reasons: ['判断待ち：方式を決める'], nameHtml: '<button>#9</button>' },
+    { endedOn: null, reasons: ['判断待ち：方式を決める', '前提が期限超過：c'], nameHtml: '<button>#9</button>' },
   ] });
   const html = attentionPanelMarkup(data, '前提が期限切れ');
-  assert.deepEqual(visibleNames(html), ['#6']);
+  assert.deepEqual(visibleNames(html), ['#6', '#9']);
   assert.equal(attentionCount(data), 2);
+  assert.match(html, />すべて 2件<\/button>/);
+  assert.match(html, />前提が期限切れ 2件<\/button>/);
+  assert.match(html, />期限切れ 1件<\/button>/);
+  assert.match(html, />判断待ち 1件<\/button>/);
   assert.equal((html.match(/data-attention-reason="前提が期限切れ"/g) || []).length, 1);
   assert.match(html, /data-attention-reason="判断待ち"/);
   assert.ok(!html.includes('data-attention-reason="承認待ち"'));
@@ -126,6 +133,7 @@ test('理由が一種類だけならボタンを表示せず、以前の選択�
     const html = attentionPanelMarkup(data, selected);
     assert.deepEqual(visibleNames(html), ['#5', '#6']);
     assert.ok(!html.includes('data-attention-reason'));
+    assert.match(html, />待ち 2件<\/p>/);
     assert.equal(attentionCount(data), 2);
   }
 });
