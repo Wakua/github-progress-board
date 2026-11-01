@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node server.mjs",
+    "test:browser:gantt-collapse": "node tests/gantt-collapse-browser-qa.mjs",
     "test": "node --test tests/*.test.mjs",
     "check:ui-review": "node scripts/check-ui-review.mjs",
     "test:browser": "node tests/browser-qa.mjs && node tests/snapshot-browser-qa.mjs && node tests/local-github-browser-qa.mjs && node tests/iteration-browser-qa.mjs && node tests/planning-browser-qa.mjs && node tests/gantt-warning-browser-qa.mjs",

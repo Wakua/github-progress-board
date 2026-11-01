@@ -1,4 +1,5 @@
 import { axisFor, calendarPosition, positionText, dueText, diagnosticText, parseDate, monthDay, addDays } from './gantt-axis.mjs';
+import { groupGanttTasks } from './gantt-groups.mjs';
 export function mountGanttChart(root, input, result, milestone, options = {}) {
 const $ = selector => root.querySelector(selector.startsWith('#') ? '[data-gantt="'+selector.slice(1)+'"]' : selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
@@ -7,6 +8,7 @@ let scale = options.scale || 'day', opener, history = [];
 const overlaps = result.overlaps.filter(item => item.taskKeys.some(key => milestone.taskKeys.includes(key)));
 const unchecked = result.overlapUnchecked.filter(item => milestone.taskKeys.includes(item.key));
 const dialog = $('#details'), chart = $('#chart');
+const fold = options.fold;
 const task = key => result.tasks.find(item => item.key === key);
 const source = key => input.issues.find(item => item.key === key);
 const title = key => source(key)?.title || key;
@@ -18,8 +20,9 @@ function progressMarkup(key) {
 }
 function load() {
   const due = milestone.dueDate ? `期日 ${milestone.dueDate.replaceAll('-', '/')}` : '期日未設定';
-  $('#release-details').textContent = input.milestones.find(item => item.key === milestone.key).title;
-  $('#release-details').setAttribute('aria-label', $('#release-details').textContent + 'の計算根拠');
+  const releaseName = input.milestones.find(item => item.key === milestone.key).title;
+  $('#release-name').textContent = releaseName;
+  $('#release-details').setAttribute('aria-label', releaseName + 'の計算根拠');
   $('#summary').innerHTML = `<span>${milestone.finish ? `見込み <strong>${monthDay(parseDate(milestone.finish.date))}</strong>${milestone.dueDate ? ` <span class="warn">${dueText(milestone.dueDifference)}</span>` : ''}` : ({ incomplete:'見込み未算出・クリティカル未確定', empty:'作業未登録', completed:'全作業完了' })[milestone.state]}</span><span>${due}</span>`;
   const diagnostics = milestone.diagnosticIds;
   const hasCycle = result.cycles.some(cycle => diagnostics.includes(cycle.diagnosticId));
@@ -30,14 +33,42 @@ function load() {
   ].join('');
   for (const button of $('#alerts').querySelectorAll('button')) button.onclick = () => openDetails(button.dataset.panel, button);
   const ordered = input.issues.map(item => task(item.key)).filter(item => item && milestone.taskKeys.includes(item.key));
-  $('#rows').innerHTML = ordered.map(item => {
+  const taskRow = item => {
     const critical = milestone.criticalTaskKeys.includes(item.key);
     const warning = item.iterationOverflow ? '期間外' : '';
     return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button>${progressMarkup(item.key)}</div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : '日程未算出'}</span>`}</div></div>`;
-  }).join('');
+  };
+  let groupIndex = 0;
+  function renderEntries(entries, depth) {
+    return entries.map(entry => {
+      if (entry.task) return taskRow(entry.task);
+      const id = options.arrowId + '-group-' + groupIndex++;
+      const expanded = !fold.parents.has(entry.key);
+      return `<div class="parent-heading" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}">${escape(title(entry.key))}</button></div><div role="group" id="${id}" aria-labelledby="${id}-toggle" style="--level:${Math.min(depth+1,4)}"${expanded ? '' : ' hidden'}>${renderEntries(entry.children, depth+1)}</div>`;
+    }).join('');
+  }
+  $('#rows').innerHTML = renderEntries(groupGanttTasks(ordered, input.issues), 0);
+  for (const button of chart.querySelectorAll('[data-parent]')) button.onclick = () => {
+    const key = button.dataset.parent;
+    const group = document.getElementById(button.getAttribute('aria-controls'));
+    group.hidden = !group.hidden;
+    if (group.hidden) fold.parents.add(key);
+    else fold.parents.delete(key);
+    button.setAttribute('aria-expanded', String(!group.hidden));
+    drawDependencies();
+  };
   for (const button of chart.querySelectorAll('[data-task]')) button.onclick = () => openDetails(button.dataset.task, button);
   $('.legend').hidden = !ordered.length;
-  $('.card').hidden = ordered.length === 0;
+  const releaseToggle = $('#release-toggle'), schedule = $('.card');
+  schedule.id = options.arrowId + '-schedule';
+  releaseToggle.setAttribute('aria-controls', schedule.id);
+  releaseToggle.disabled = !ordered.length;
+  function displayRelease() {
+    schedule.hidden = !ordered.length || fold.collapsed;
+    releaseToggle.setAttribute('aria-expanded', String(!schedule.hidden));
+  }
+  releaseToggle.onclick = () => { fold.collapsed = !fold.collapsed; displayRelease(); drawDependencies(); };
+  displayRelease();
   setScale(scale);
 }
 function openDetails(key, button) {
@@ -154,9 +185,13 @@ function setScale(nextScale) {
   drawDependencies();
 }
 function drawDependencies() {
-  const origin = chart.getBoundingClientRect(), bars = new Map([...chart.querySelectorAll('[data-bar]')].map(bar => [bar.dataset.bar, bar.getBoundingClientRect()]));
+  if ($('.card').hidden) return;
+  const origin = chart.getBoundingClientRect();
+  const visible = new Set([...chart.querySelectorAll('[data-task]')].filter(button => !button.closest('[hidden]')).map(button => button.dataset.task));
+  const edges = result.edges.filter(edge => visible.has(edge.from) && visible.has(edge.to));
+  const bars = new Map([...chart.querySelectorAll('[data-bar]')].filter(bar => visible.has(bar.dataset.bar)).map(bar => [bar.dataset.bar, bar.getBoundingClientRect()]));
   $('#due-marker').style.top = `${$('#dates').getBoundingClientRect().bottom - origin.top}px`;
-  const paths = result.edges.filter(edge => bars.has(edge.from) && bars.has(edge.to)).map(edge => {
+  const paths = edges.filter(edge => bars.has(edge.from) && bars.has(edge.to)).map(edge => {
     const from = bars.get(edge.from), to = bars.get(edge.to);
     const x1 = from.right-origin.left, y1 = from.top-origin.top+from.height/2, x2 = to.left-origin.left, y2 = to.top-origin.top+to.height/2;
     const critical = edge.criticalByMilestone[milestone.key];
@@ -168,7 +203,7 @@ function drawDependencies() {
     return `<path d="${d}" class="${critical ? 'critical-edge' : ''}" marker-end="url(#${options.arrowId})"/>`;
   }).join('');
   $('#connections').innerHTML = `<defs><marker id="${options.arrowId}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs>`+paths;
-  $('#connections').setAttribute('aria-label', result.edges.filter(e => milestone.taskKeys.includes(e.to)).map(e => `${title(e.from)} → ${title(e.to)}${e.criticalByMilestone[milestone.key] ? '（クリティカル）' : ''}`).join('、') || '依存なし');
+  $('#connections').setAttribute('aria-label', edges.map(e => `${title(e.from)} → ${title(e.to)}${e.criticalByMilestone[milestone.key] ? '（クリティカル）' : ''}`).join('、') || '表示中の作業間の依存なし');
 }
 const observer = new ResizeObserver(drawDependencies); observer.observe(chart);
 for (const button of root.querySelectorAll('.scale-buttons button')) button.onclick = () => setScale(button.dataset.scale);
@@ -176,9 +211,19 @@ load();
 
 return {
   redraw: drawDependencies,
-  capture: () => ({ scale, history: dialog.open ? [...history] : [], scroll: $('.timeline-scroll').scrollLeft, opener: opener?.dataset.task || opener?.dataset.panel || (opener ? 'release' : null) }),
+  capture: () => ({
+    scale, history: dialog.open ? [...history] : [], scroll: $('.timeline-scroll').scrollLeft,
+    opener: opener?.dataset.task || opener?.dataset.panel || (opener ? 'release' : null),
+    focusedFold: root.contains(document.activeElement) ? document.activeElement.dataset.parent ||
+      (document.activeElement === $('#release-toggle') ? 'release' : null) : null,
+  }),
   restore: saved => {
     $('.timeline-scroll').scrollLeft = saved.scroll;
+    if (saved.focusedFold) {
+      const button = saved.focusedFold === 'release' ? $('#release-toggle') :
+        [...root.querySelectorAll('[data-parent]')].find(el => el.dataset.parent === saved.focusedFold);
+      if (button && !button.closest('[hidden]')) button.focus({preventScroll:true});
+    }
     if (saved.history.length) {
       const valid = saved.history.filter(key => ['release','overlaps','diagnostics','unchecked'].includes(key) || source(key));
       if (valid.length) { history = []; for(const key of valid) showDetails(key); dialog.showModal();
