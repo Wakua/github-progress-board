@@ -46,3 +46,11 @@
 @container (min-width:540px) {
   .gantt .chart { --name-width:clamp(235px, 34cqw, 420px); }
 }
+
+.gantt .gantt-relations { display:flex; align-items:center; flex-wrap:wrap; gap:2px 12px; margin-bottom:10px; font-size:13px; color:#cfdeed; }
+.gantt .gantt-relations .plain-action { font-size:13px; padding:2px 0; color:#a6d3ff; }
+.gantt .connections path[data-pair] { pointer-events:stroke; cursor:pointer; }
+.gantt .connections [data-pair]:hover { stroke:#8dccff; stroke-width:4; }
+
+.gantt .gantt-relations .plain-action::after, .gantt .relation-evidence .plain-action::after { display:none; }
+.gantt .gantt-relations .plain-action, .gantt .relation-evidence .plain-action { text-decoration:underline; text-underline-offset:3px; }

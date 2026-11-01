@@ -22,7 +22,7 @@ function collapseInput() {
   Object.assign(input.milestones[1], { title: 'リリースB', state: 'open', dueDate: '2026-11-15', tasks: links([401]) });
   return input;
 }
-function releaseGoalsInput() {
+function releaseGoalsInput(dependencies) {
   const input = collapseInput();
   const issue = n => input.issues.find(i => i.key.endsWith('/' + n));
   const goal = issue(200), crossRelease = issue(401);
@@ -38,10 +38,14 @@ function releaseGoalsInput() {
   issue(201).planning.workProgressPercent.value = 100;
   issue(202).planning.workProgressPercent.value = 80;
   issue(301).planning.workProgressPercent.value = 0;
+  if (dependencies) {
+    issue(202).blockedBy = {keys:[issue(201).key], totalCount:1, complete:true, problem:null};
+    issue(301).blockedBy = {keys:[issue(201).key,issue(202).key], totalCount:2, complete:true, problem:null};
+  }
   return input;
 }
 export function ganttSnapshot(name = 'basic', progress = null, fetchedAt = '2026-10-31T00:00:00Z') {
-  const input = name === 'goals' ? releaseGoalsInput() : name === 'collapse' ? collapseInput() : structuredClone(samples[name].input);
+  const input = ['goals','dependencies'].includes(name) ? releaseGoalsInput(name === 'dependencies') : name === 'collapse' ? collapseInput() : structuredClone(samples[name].input);
   const updatedAt = '2026-10-30T00:00:00Z';
   if (progress !== null) for(const i of input.issues) if(i.planning.workProgressPercent.value !== null) i.planning.workProgressPercent.value = progress;
   const toProject = i => {

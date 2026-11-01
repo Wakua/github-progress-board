@@ -73,7 +73,7 @@ try {
   await state(parent,false);
   assert.deepEqual((await visibleTasks(a)).sort(),[210,301]);
   assert.equal(await b.count(),0);
-  assert.equal((await lines()).length,0);
+  assert.equal((await lines()).length,1);
   await shot('parent-closed');
 
   const nested = button(a,'#305 メール通知'), outer = button(a,'#300 通知');
@@ -94,7 +94,7 @@ try {
     await a.locator('[data-scale="'+scale+'"][aria-pressed]').click();
     await state(parent,false);
     assert.deepEqual(await facts(a),initialA);
-    assert.equal((await lines()).length,0);
+    assert.equal((await lines()).length,1);
   }
   await release.press('Enter');
   await state(release,false);

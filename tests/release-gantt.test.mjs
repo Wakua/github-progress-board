@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { releaseGanttModel, ganttProjects } from '../dist/release-gantt-model.mjs';
 import { releaseGoalGroups, goalProgress, goalSchedule } from '../dist/gantt-groups.mjs';
+import { releaseDependencies, projectDependencies } from '../dist/gantt-dependencies.mjs';
 import { ganttSnapshot } from './gantt-fixture.mjs';
 import { scheduleSnapshot, repo, external, url } from './github-schedule-fixture.mjs';
 const options={selectedProjectId:'sample-project',baseDate:'2026-11-02'};
@@ -112,4 +113,28 @@ test('親の期間は所属する子の最早開始と最遅終了に限り、�
   work(202).workProgressPercent.value = null;
   const partial = range(0,200);
   assert.deepEqual([partial.scheduled,partial.count,partial.earliestStart.coordinate,partial.earliestFinish.coordinate],[1,2,0,0]);
+});
+
+test('閉じた親ペアに末端の根拠をまとめ、別リリースの同じ親には投影しない', () => {
+  const model=releaseGanttModel(ganttSnapshot('dependencies'),options);
+  const [a,b]=model.result.milestones;
+  const id=n=>model.input.issues.find(i=>i.key.endsWith('/'+n)).key;
+  function pairs(m) {
+    const groups=releaseGoalGroups(m,model.result.tasks,model.input.issues);
+    const {edges}=releaseDependencies(model.input,model.result,m,groups);
+    return projectDependencies(edges,groups,new Set(groups.map(g=>g.key)));
+  }
+  const cross=pairs(a).find(p=>p.from===id(200) && p.to===id(300));
+  assert.deepEqual(cross.edges.map(e=>[e.from,e.to]),[[id(201),id(301)],[id(202),id(301)]]);
+  assert.ok(pairs(a).find(p=>p.internal && p.from===id(200)));
+  assert.ok(pairs(b).find(p=>p.from===id(201) && p.to===id(200)));
+});
+
+test('計算辺が作られない登録済みの前提も保存し、他のリリースだけの関係を除く', () => {
+  const model=releaseGanttModel(ganttSnapshot('dependencies'),options);
+  const milestone=model.result.milestones[1];
+  const groups=releaseGoalGroups(milestone,model.result.tasks,model.input.issues);
+  const {edges}=releaseDependencies(model.input,{edges:[],relations:[]},milestone,groups);
+  assert.ok(edges.some(e=>e.from.endsWith('/201') && e.to.endsWith('/401')));
+  assert.ok(!edges.some(e=>e.from.endsWith('/202') && e.to.endsWith('/301')));
 });
