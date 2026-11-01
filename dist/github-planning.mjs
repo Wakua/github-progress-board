@@ -126,6 +126,13 @@ export function validatePlanning(planning, snapshot) {
   return planning;
 }
 
+// 表示だけで先頭の接頭語を一度外す。タイトルが空になる場合は原題を残す。
+export function issueTitle(title) {
+  const name = title.replace(/^\[Hub\]\s*/, '');
+  return name.trim() ? name : title;
+}
+export const snapshotItemTitle = item => item.kind === 'issue' ? issueTitle(item.title) : item.title;
+
 // An explicit assignment starts a new subtree. Match parent URLs, since Issue
 // numbers and Milestone numbers are only unique within one repository.
 export function milestoneSources(repositoryUrl, issues) {
@@ -161,7 +168,9 @@ export function githubPlan(snapshot) {
   const sources = milestoneSources(snapshot.repositoryUrl, snapshot.planning.issues);
   const issues = snapshot.planning.issues.map(m => {
     const source = sources.get(m.number);
-    return { ...m, item: records.get(m.number), releaseNumber: source?.milestoneNumber ?? null, milestoneSourceNumber: source?.number ?? null };
+    const record = records.get(m.number);
+    const references = m.blockedBy ? { blockedBy: m.blockedBy.map(b => ({ ...b, title: issueTitle(b.title) })) } : {};
+    return { ...m, ...references, item: { ...record, title: issueTitle(record.title) }, releaseNumber: source?.milestoneNumber ?? null, milestoneSourceNumber: source?.number ?? null };
   }).sort((a, b) => a.number - b.number);
   const byNumber = new Map(issues.map(i => [i.number, i]));
   const rootFor = issue => {

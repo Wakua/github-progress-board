@@ -108,6 +108,9 @@ private browsingの終了やブラウザデータの削除で失われる。
 
   親を持たない単独Issueも作業に含め、親が別repositoryの場合は目標を推定しない。
   参照できない子Issueがある集約用Issueは、その不足を詳細に表示する。
+- GitHubのIssue名は、親・子・単独を問わず、先頭の「[Hub]」と直後の空白を一度外して表示する。
+  外すと空欄になる場合は原題を表示する。
+  PR名とGitHubに保存した原題を保持し、親子関係は子Issueの有無で判定する。
 - 「自分の作業」はProjectの「担当」で絞り、GitHubの作業を[自分の作業と要対応](#自分の作業と要対応)と同じまとまりに分ける。
   - 要対応：Project未登録・Status未設定・Statusが Todo/In Progress/Done 以外・Projectごとに異なる、`仕様` ラベル付きで開いている（仕様待ち）、Iterationの最終日が過ぎた、開いた前提のIterationの最終日が過ぎた、In Progress なのに担当がいない、In Progress なのに開いた前提がある。
   - 確認待ち：紐づく開いたPRがReady（承認待ちのPR）。

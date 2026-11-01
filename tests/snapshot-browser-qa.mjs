@@ -89,7 +89,7 @@ try {
   await page.reload(); await openManage(); await page.locator('#github-snapshot').waitFor();
   const alpha = fixture(), beta = fixture('https://github.com/qa-fixture/beta');
   alpha.items[0].title = '<img src=x onerror="window.qaInjected=true"> QA Alpha Issue';
-  beta.items[0].title = 'QA Beta Issue'; beta.items[1].title = 'QA Beta PR';
+  beta.items[0].title = '[Hub] QA Beta Issue'; beta.items[1].title = '[Hub] QA Beta PR';
   await stage(bundle([alpha, beta]));
   assert.equal(await page.locator('#snapshot-target-0').inputValue(), 'alpha');
   assert.equal(await page.locator('#snapshot-target-1').inputValue(), 'beta');
@@ -97,6 +97,14 @@ try {
   await accept();
   let imported = await workspace();
   assert.deepEqual(imported.projects.map(project => project.data), baseline.projects.map(project => project.data));
+  await switchTo('beta');
+  const betaIssue = page.locator('#github-snapshot [data-id="issue:7"]');
+  assert.match(await betaIssue.innerText(), /QA Beta Issue/);
+  assert.doesNotMatch(await betaIssue.innerText(), /\[Hub\]/);
+  assert.match(await page.locator('#github-snapshot [data-id="pull_request:8"]').textContent(), /\[Hub\] QA Beta PR/);
+  await betaIssue.click();
+  assert.equal(await page.locator('#drawer-title').innerText(), 'Issue #7 QA Beta Issue');
+  assert.equal(imported.projects[1].githubSnapshot.items[0].title, '[Hub] QA Beta Issue');
   for (let count = 0; count < 12; count++) {
     const id = count % 2 ? 'beta' : 'alpha'; await switchTo(id);
     await page.locator('[data-action="github-item"][data-id="issue:7"]').click();

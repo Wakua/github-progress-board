@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { buildSnapshot, validateSnapshot, attachSnapshot } from '../dist/github-snapshot.mjs';
-import { githubPlan, githubProgress, githubModules } from '../dist/github-planning.mjs';
-import { renderGithubWork, renderGithubPeriods, githubItemPlanning, githubProgressMarkup, githubStateProgressMarkup } from '../dist/github-planning-view.mjs';
+import { githubPlan, githubProgress, githubModules, snapshotItemTitle } from '../dist/github-planning.mjs';
+import { renderGithubWork, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubProgressMarkup, githubStateProgressMarkup } from '../dist/github-planning-view.mjs';
 import { githubProgressStates } from '../dist/github-work.mjs';
 import { buildPlanning } from '../scripts/github-planning-fetch.mjs';
 import { createGithubRefresher } from '../scripts/local-github-refresh.mjs';
@@ -386,4 +386,44 @@ test('モジュールと目標の行に帯を出し、リリースと期間の�
   assert.equal([...html.matchAll(/class="state-bar"/g)].length >= 2, true, 'モジュールと目標の行');
   assert.ok(html.includes('class="state-summary"') && html.includes('リリース（Milestone）'));
   assert.ok(html.includes('github-progress-track'), 'リリースと期間の行');
+});
+
+test('親・子・孫・単独Issueは一覧と詳細で先頭の[Hub]を一度外し、snapshotの原題を保つ', () => {
+  const d = inputs();
+  const names = ['QA目標', 'QA中間の親', 'QA孫作業', 'QA子作業', 'QA単独作業'];
+  for (const [index, name] of names.entries()) d.issuePages[0][index].title = '[Hub] ' + name;
+  const value = snapshot(d), original = structuredClone(value);
+  for (const html of [renderGithubPeriods(value), renderGithubWork(value), githubGoalTree(value), githubItemPlanning(value, 1), githubItemPlanning(value, 3)])
+    assert.ok(!html.includes('[Hub] '));
+  const tree = githubGoalTree(value);
+  for (const [index, name] of names.entries()) assert.ok(tree.includes('#' + (index + 1) + ' ' + name));
+  assert.match(githubItemPlanning(value, 3), /目標：QA目標/);
+  assert.deepEqual(value, original);
+});
+
+test('前提の表示名だけを整え、同番号の別repositoryの前提も原題とリンクを保つ', () => {
+  const value = snapshot(inputs());
+  const target = value.planning.issues.find(i => i.number === 3);
+  const ref = url => ({ number: 1, url, title: '[Hub] QA前提', state: 'open', spec: false });
+  target.blockedBy = [ref(repo + '/issues/1'), ref('https://github.com/another/board/issues/1')];
+  const blockers = githubPlan(value).tasks.find(i => i.number === 3).blockedBy;
+  assert.deepEqual(blockers.map(b => b.title), ['QA前提', 'QA前提']);
+  assert.deepEqual(blockers.map(b => b.url), target.blockedBy.map(b => b.url));
+  assert.doesNotMatch(githubItemPlanning(value, 3), /\[Hub\] QA前提/);
+  assert.equal(target.blockedBy[0].title, '[Hub] QA前提');
+});
+
+test('親子情報がなくてもIssueの先頭だけを除く。空欄になる場合とPR名は原題を保つ', () => {
+  const issue = title => snapshotItemTitle({kind:'issue',title});
+  assert.equal(issue('[Hub] 作業'), '作業');
+  assert.equal(issue('[Hub]子作業'), '子作業');
+  assert.equal(issue('[Hub]　　子作業'), '子作業');
+  assert.equal(issue('[Hub]'), '[Hub]');
+  assert.equal(issue('[Hub]　'), '[Hub]　');
+  assert.equal(issue(' [Hub] 子作業'), ' [Hub] 子作業');
+  assert.equal(issue('[Hub] [Hub] 作業'), '[Hub] 作業');
+  assert.equal(issue('途中 [Hub] 作業'), '途中 [Hub] 作業');
+  assert.equal(issue('[Hub]  '), '[Hub]  ');
+  assert.equal(issue('[hub] 作業'), '[hub] 作業');
+  assert.equal(snapshotItemTitle({kind:'pull_request',title:'[Hub] QA変更'}), '[Hub] QA変更');
 });
