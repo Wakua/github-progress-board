@@ -1,5 +1,5 @@
 import { axisFor, calendarPosition, positionText, dueText, diagnosticText, diagnosticReason, parseDate, monthDay, addDays } from './gantt-axis.mjs';
-import { goalProgress } from './gantt-groups.mjs';
+import { goalProgress, goalSchedule } from './gantt-groups.mjs';
 import { validWorkProgress } from './milestone-schedule.mjs';
 
 function progressDisplay(read) {
@@ -16,6 +16,7 @@ const overlaps = result.overlaps.filter(item => item.taskKeys.some(key => milest
 const unchecked = result.overlapUnchecked.filter(item => milestone.taskKeys.includes(item.key));
 const dialog = $('#details'), chart = $('#chart');
 const fold = options.fold;
+const goalSchedules = new Map();
 const task = key => result.tasks.find(item => item.key === key);
 const sources = new Map(input.issues.map(issue => [issue.key, issue]));
 const source = key => sources.get(key);
@@ -47,7 +48,16 @@ function load() {
     return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button>${progressMarkup(item.key)}</div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : '日程未算出'}</span>`}</div></div>`;
   };
   let groupIndex = 0;
-  function renderEntries(entries, depth) {
+  function scheduleTrack(key, range) {
+    const { earliestStart, earliestFinish, scheduled, count } = range;
+    if (!scheduled) return '<div class="track"><span class="unavailable">日程未算出</span></div>';
+    const point = calendarPosition(earliestStart) === calendarPosition(earliestFinish);
+    const partial = scheduled < count;
+    const first = monthDay(parseDate(earliestStart.date)), last = monthDay(parseDate(earliestFinish.date));
+    const label = (partial ? '一部 '+scheduled+'/'+count+'件 · ' : '') + (first === last && earliestStart.date === earliestFinish.date ? first : first+'–'+last);
+    return `<div class="track"><span data-goal-bar="${escape(key)}" class="bar goal-bar${point ? ' point' : ''}${partial ? ' partial' : ''}" role="img"></span><span class="goal-period">${label}</span></div>`;
+  }
+  function renderEntries(entries, depth, insideGoal = false) {
     return entries.map(entry => {
       if (entry.task) return taskRow(entry.task);
       const id = options.arrowId + '-group-' + groupIndex++;
@@ -63,7 +73,14 @@ function load() {
         if (source(entry.key) && !source(entry.key).external)
           parentLink = '<a class="goal-issue" href="'+escape(entry.key)+'" target="_blank" rel="noopener noreferrer">子Issueの追加はGitHubで ↗</a>';
       }
-      return `<div class="parent-heading ${goal?'goal-heading':entry.key==='other-work'?'other-heading':''}" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}" ${goal ? `aria-describedby="${id}-metrics"` : ''}>${escape(entry.title ?? title(entry.key))}</button>${goal ? `<span class="goal-metrics" id="${id}-metrics">${metrics}</span>` : ''}</div><div role="group" id="${id}" aria-labelledby="${id}-toggle" style="--level:${Math.min(depth+1,4)}"${expanded ? '' : ' hidden'}>${parentLink}${renderEntries(entry.children, depth+1)}</div>`;
+      const heading = `<div class="parent-heading ${goal?'goal-heading':entry.key==='other-work'?'other-heading':''}" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}" ${goal ? `aria-describedby="${id}-metrics"` : ''}>${escape(entry.title ?? title(entry.key))}</button>${goal ? `<span class="goal-metrics" id="${id}-metrics">${metrics}</span>` : ''}</div>`;
+      let row = heading;
+      if (goal || insideGoal) {
+        const range = goalSchedule(entry);
+        goalSchedules.set(entry.key, range);
+        row = `<div class="row gantt-goal-row">${heading}${scheduleTrack(entry.key,range)}</div>`;
+      }
+      return `${row}<div role="group" id="${id}" aria-labelledby="${id}-toggle" style="--level:${Math.min(depth+1,4)}"${expanded ? '' : ' hidden'}>${parentLink}${renderEntries(entry.children, depth+1, goal || insideGoal)}</div>`;
     }).join('');
   }
   $('#rows').innerHTML = renderEntries(options.groups, 0);
@@ -195,11 +212,15 @@ function setScale(nextScale) {
   }).join('');
   chart.dataset.scale = scale;
   chart.style.setProperty('--axis-width', `${axis.width}px`);
-  for (const bar of chart.querySelectorAll('[data-bar]')) {
-    const item = task(bar.dataset.bar), start = calendarPosition(item.earliestStart), end = calendarPosition(item.earliestFinish);
+  for (const bar of chart.querySelectorAll('[data-bar], [data-goal-bar]')) {
+    const key = bar.dataset.goalBar ?? bar.dataset.bar;
+    const range = goalSchedules.get(key);
+    const item = range ?? task(key);
+    const start = calendarPosition(item.earliestStart), end = calendarPosition(item.earliestFinish);
     bar.style.setProperty('--start', `${percentage(start)}%`);
     bar.style.setProperty('--span', `${(end-start)/span*100}%`);
-    const description = `${title(item.key)}、${positionText(item.earliestStart)}から${positionText(item.earliestFinish)}、${item.durationDisplay}`;
+    const detail = range ? (range.scheduled < range.count ? `、一部算出 ${range.scheduled}/${range.count}件` : '') : `、${item.durationDisplay}`;
+    const description = `${title(key)}、${positionText(item.earliestStart)}から${positionText(item.earliestFinish)}${detail}`;
     bar.setAttribute('aria-label', description); bar.title = description;
   }
   for (const button of root.querySelectorAll('.scale-buttons button')) button.setAttribute('aria-pressed', String(button.dataset.scale === scale));

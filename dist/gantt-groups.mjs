@@ -1,5 +1,5 @@
 import { validWorkProgress } from './milestone-schedule.mjs';
-import { diagnosticReason } from './gantt-axis.mjs';
+import { calendarPosition, diagnosticReason } from './gantt-axis.mjs';
 
 // Keep the calculated task set. Ancestors are headings, never extra schedule rows.
 export function groupGanttTasks(tasks, issues) {
@@ -53,14 +53,25 @@ export function releaseGoalGroups(milestone, tasks, issues) {
   return goals;
 }
 
-// Each entry contains only unique leaves assigned to this release.
-export function goalProgress(group, sources) {
-  const leaves = [];
-  function collect(entry) {
-    if (entry.task) leaves.push(sources.get(entry.key));
-    else entry.children.forEach(collect);
+// Membership is resolved by releaseGoalGroups before either rollup.
+function leafTasks(entry) {
+  return entry.task ? [entry.task] : entry.children.flatMap(leafTasks);
+}
+
+export function goalSchedule(group) {
+  let earliestStart = null, earliestFinish = null, scheduled = 0;
+  const leaves = leafTasks(group);
+  for (const task of leaves) {
+    if (!task.earliestStart || !task.earliestFinish) continue;
+    scheduled++;
+    if (!earliestStart || calendarPosition(task.earliestStart) < calendarPosition(earliestStart)) earliestStart = task.earliestStart;
+    if (!earliestFinish || calendarPosition(task.earliestFinish) > calendarPosition(earliestFinish)) earliestFinish = task.earliestFinish;
   }
-  collect(group);
+  return {earliestStart, earliestFinish, scheduled, count:leaves.length};
+}
+
+export function goalProgress(group, sources) {
+  const leaves = leafTasks(group).map(task => sources.get(task.key));
   let total = 0, weighted = 0;
   const gaps = new Set();
   for (const issue of leaves) {

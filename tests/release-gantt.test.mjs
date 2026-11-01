@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { releaseGanttModel, ganttProjects } from '../dist/release-gantt-model.mjs';
-import { releaseGoalGroups, goalProgress } from '../dist/gantt-groups.mjs';
+import { releaseGoalGroups, goalProgress, goalSchedule } from '../dist/gantt-groups.mjs';
 import { ganttSnapshot } from './gantt-fixture.mjs';
 import { scheduleSnapshot, repo, external, url } from './github-schedule-fixture.mjs';
 const options={selectedProjectId:'sample-project',baseDate:'2026-11-02'};
@@ -92,4 +92,24 @@ test('全件Openでも7件の加重進捗を算出し、不足・不正があれ
   assert.deepEqual(goalProgress(group,sources).gaps,['進捗未取得']);
   planning.estimatePoints = read(null);
   assert.equal(goalProgress(group,sources).percent,null);
+});
+
+test('親の期間は所属する子の最早開始と最遅終了に限り、日程不明の子を数える', () => {
+  const snapshot = ganttSnapshot('goals');
+  const input = snapshot.planning.schedule.issues;
+  const work = n => input.find(i => i.key.endsWith('/'+n)).projects[0];
+  function range(release, parent) {
+    const model = releaseGanttModel(snapshot,options);
+    const groups = releaseGoalGroups(model.result.milestones[release], model.result.tasks, model.input.issues);
+    return goalSchedule(groups.find(group => group.key.endsWith('/'+parent)));
+  }
+  assert.equal(range(0,200).earliestFinish.coordinate,0.6);
+  assert.equal(range(0,300).earliestFinish.coordinate,2);
+  assert.equal(range(1,200).earliestStart,null); // Outside prerequisite #201 has dates.
+  work(401).workProgressPercent.value = 0;
+  assert.equal(range(0,200).earliestFinish.coordinate,0.6);
+  assert.equal(range(1,200).earliestFinish.coordinate,2);
+  work(202).workProgressPercent.value = null;
+  const partial = range(0,200);
+  assert.deepEqual([partial.scheduled,partial.count,partial.earliestStart.coordinate,partial.earliestFinish.coordinate],[1,2,0,0]);
 });
