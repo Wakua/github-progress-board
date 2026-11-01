@@ -1,4 +1,5 @@
 import { releaseGanttModel } from './release-gantt-model.mjs';
+import { groupGanttTasks } from './gantt-groups.mjs';
 import { mountGanttChart } from './gantt-chart.mjs';
 import { ganttTemplate } from './gantt-template.mjs';
 import { releaseSummaries } from './release.mjs';
@@ -30,6 +31,8 @@ export function createReleaseGantt(root) {
     const milestones = model.result.milestones.filter(m=>m.state !== 'excluded');
     if (!milestones.length) root.insertAdjacentHTML('beforeend','<p class="empty-message">開いているリリース（Milestone）がありません。</p>');
     const summaries = releaseSummaries(snapshot,selection.baseDate);
+    const tasks = new Map(model.result.tasks.map(task => [task.key, task]));
+    const ordered = model.input.issues.map(issue => tasks.get(issue.key)).filter(Boolean);
     for (const [index,milestone] of milestones.entries()) {
       const card = document.createElement('section'); card.className = 'gantt'; card.dataset.milestone = milestone.key;
       card.setAttribute('aria-label',model.input.milestones.find(m=>m.key===milestone.key).title);
@@ -37,7 +40,9 @@ export function createReleaseGantt(root) {
       const summary = summaries.find(s=>snapshot.planning.milestones.find(m=>m.number===s.number)?.url.toLowerCase()===milestone.key);
       if (summary?.attention) card.insertAdjacentHTML('beforeend','<button class="text-button" data-view-go="attention">要対応 '+summary.attention+'件'+(summary.overdue?'（期限切れ '+summary.overdue+'件）':'')+' →</button>');
       if (!selection.folds.has(milestone.key)) selection.folds.set(milestone.key, { collapsed:false, parents:new Set() });
-      const controller = mountGanttChart(card,model.input,model.result,milestone,{ arrowId:'gantt-arrow-'+index, releaseSummary:summary, fold:selection.folds.get(milestone.key),
+      const members = new Set(milestone.taskKeys);
+      const groups = groupGanttTasks(ordered.filter(task => members.has(task.key)), model.input.issues);
+      const controller = mountGanttChart(card,model.input,model.result,milestone,{ arrowId:'gantt-arrow-'+index, releaseSummary:summary, groups, fold:selection.folds.get(milestone.key),
         scale:selection.scales[milestone.key] || 'day', onScale:scale=>{selection.scales[milestone.key]=scale;},
         onSourceProject:(key,id)=>{ selection.sourceProjectIds[key] = id || null; draw(); } });
       controllers.set(milestone.key,controller);

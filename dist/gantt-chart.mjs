@@ -1,5 +1,4 @@
 import { axisFor, calendarPosition, positionText, dueText, diagnosticText, parseDate, monthDay, addDays } from './gantt-axis.mjs';
-import { groupGanttTasks } from './gantt-groups.mjs';
 export function mountGanttChart(root, input, result, milestone, options = {}) {
 const $ = selector => root.querySelector(selector.startsWith('#') ? '[data-gantt="'+selector.slice(1)+'"]' : selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
@@ -32,7 +31,6 @@ function load() {
     unchecked.length ? `<button class="plain-action warn" data-panel="unchecked">重複未確認 ${unchecked.length}件</button>` : '',
   ].join('');
   for (const button of $('#alerts').querySelectorAll('button')) button.onclick = () => openDetails(button.dataset.panel, button);
-  const ordered = input.issues.map(item => task(item.key)).filter(item => item && milestone.taskKeys.includes(item.key));
   const taskRow = item => {
     const critical = milestone.criticalTaskKeys.includes(item.key);
     const warning = item.iterationOverflow ? '期間外' : '';
@@ -47,7 +45,7 @@ function load() {
       return `<div class="parent-heading" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}">${escape(title(entry.key))}</button></div><div role="group" id="${id}" aria-labelledby="${id}-toggle" style="--level:${Math.min(depth+1,4)}"${expanded ? '' : ' hidden'}>${renderEntries(entry.children, depth+1)}</div>`;
     }).join('');
   }
-  $('#rows').innerHTML = renderEntries(groupGanttTasks(ordered, input.issues), 0);
+  $('#rows').innerHTML = renderEntries(options.groups, 0);
   for (const button of chart.querySelectorAll('[data-parent]')) button.onclick = () => {
     const key = button.dataset.parent;
     const group = document.getElementById(button.getAttribute('aria-controls'));
@@ -58,13 +56,14 @@ function load() {
     drawDependencies();
   };
   for (const button of chart.querySelectorAll('[data-task]')) button.onclick = () => openDetails(button.dataset.task, button);
-  $('.legend').hidden = !ordered.length;
+  const empty = options.groups.length === 0;
+  $('.legend').hidden = empty;
   const releaseToggle = $('#release-toggle'), schedule = $('.card');
   schedule.id = options.arrowId + '-schedule';
   releaseToggle.setAttribute('aria-controls', schedule.id);
-  releaseToggle.disabled = !ordered.length;
+  releaseToggle.disabled = empty;
   function displayRelease() {
-    schedule.hidden = !ordered.length || fold.collapsed;
+    schedule.hidden = empty || fold.collapsed;
     releaseToggle.setAttribute('aria-expanded', String(!schedule.hidden));
   }
   releaseToggle.onclick = () => { fold.collapsed = !fold.collapsed; displayRelease(); drawDependencies(); };
