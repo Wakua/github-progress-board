@@ -189,6 +189,7 @@ private browsingの終了やブラウザデータの削除で失われる。
   期間ごとの担当別の負荷は、[担当別の負荷](#担当別の負荷)に従う。
   再取得でも担当の絞り込みと一覧の開閉を保持する。
 - Milestoneはリリースとして、名称・期日・割り当てた作業のOpen・Closedと内訳を表示する。
+  自身のMilestoneが未設定なら、同じrepositoryで最も近い祖先Issueの明示したMilestoneを表示・集計に使う。子の明示指定を優先し、集約用Issueを作業件数には加えない。継承元は詳細で示し、GitHubの割当は更新しない。
   Milestoneを目標へ変換しない。
   日程の計算と期日との差は[リリースタブ](#リリースタブ)に従う。
 - 複数Projectに登録したIssueは、各Projectの担当・Status・Estimate・Iterationを保持する。

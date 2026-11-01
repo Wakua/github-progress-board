@@ -1,3 +1,4 @@
+import { milestoneSources } from '../dist/github-planning.mjs';
 import { SCHEDULE_FIELDS } from '../dist/github-schedule-data.mjs';
 
 export const MAX_SCHEDULE_REQUESTS = 100;
@@ -80,7 +81,8 @@ export async function collectSchedule({ repositoryUrl, issuePages, hierarchyPage
     records.set(key(n.url), normalize({ ...n, title: r.title, state: r.state.toUpperCase() }, links(children, n.subIssuesSummary.total)));
   }
   const openMilestones = new Set(planning.milestones.filter(m => m.state === 'open').map(m => m.number));
-  const pending = planning.issues.filter(i => i.childCount === 0 && openMilestones.has(i.milestoneNumber))
+  const sources = milestoneSources(repositoryUrl, planning.issues);
+  const pending = planning.issues.filter(i => i.childCount === 0 && openMilestones.has(sources.get(i.number)?.milestoneNumber))
     .map(i => ({ key: key(`${repositoryUrl}/issues/${i.number}`), expand: true }));
   const visited = new Set();
   let requests = 0;
