@@ -46,7 +46,7 @@ test('別repositoryの同番号の親からMilestoneを継承しない', () => {
   assert.equal(milestoneSources(repo, issues).has(1), false);
 });
 
-test('ガントの親名を整え、末端の原題・日程・依存・Milestoneの継承を保つ', () => {
+test('ガントの親・孫・末端の表示名を整え、原題・日程・依存・Milestoneの継承を保つ', () => {
   const snapshot = ganttSnapshot('inherited');
   const expected = releaseGanttModel(snapshot, options).result;
   for (const item of snapshot.items) {
@@ -59,7 +59,8 @@ test('ガントの親名を整え、末端の原題・日程・依存・Mileston
     const title = number => model.input.issues.find(i => i.key === snapshot.repositoryUrl + '/issues/' + number).title;
     assert.equal(title(200), '#200 予約の変更を受け付ける');
     assert.equal(title(305), '#305 メール通知');
-    assert.equal(title(201), '#201 [Hub] 変更内容を保存する');
+    assert.equal(title(201), '#201 変更内容を保存する');
+    assert.equal(title(301), '#301 予約完了メールを送る');
     assert.deepEqual(model.result.milestones[0].targetTaskKeys, expected.milestones[0].targetTaskKeys);
     if (withSchedule) assert.deepEqual(model.result, expected);
     assert.equal(snapshot.items.find(i => i.number === 200).title, '[Hub] 予約の変更を受け付ける');

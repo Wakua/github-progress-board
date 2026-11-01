@@ -1,6 +1,6 @@
 import { githubScheduleInput } from './github-schedule-input.mjs';
 import { calculateMilestoneSchedule } from './milestone-schedule.mjs';
-import { githubPlan, snapshotTitleOf } from './github-planning.mjs';
+import { githubPlan, issueTitle } from './github-planning.mjs';
 import { githubWorkCategory } from './github-work.mjs';
 import { todayInTokyo } from './engine.mjs';
 
@@ -17,7 +17,6 @@ export function releaseGanttModel(snapshot, { selectedProjectId, sourceProjectId
   const input = githubScheduleInput(snapshot, { selectedProjectId, sourceProjectIds, baseDate });
   const result = calculateMilestoneSchedule(input);
   const plan = githubPlan(snapshot);
-  const titleOf = snapshotTitleOf(snapshot);
   const records = new Map((snapshot.planning.schedule?.issues ?? []).map(i => [i.key,i]));
   const items = new Map(snapshot.items.filter(i => i.kind === 'issue').map(i => [i.url.toLowerCase(), i]));
   const tasks = new Map(plan.tasks.map(t => [t.item.url.toLowerCase(), t]));
@@ -27,7 +26,7 @@ export function releaseGanttModel(snapshot, { selectedProjectId, sourceProjectId
     const metadata = records.get(issue.key), item = items.get(issue.key), task = tasks.get(issue.key);
     const external = !issue.key.startsWith(localPrefix);
     const identity = external ? issue.key.replace('https://github.com/','').replace('/issues/','#') : '#' + issue.key.split('/').at(-1);
-    return { ...issue, title: identity + ' ' + titleOf({ url: issue.key, title: metadata?.title ?? item?.title ?? '未取得' }),
+    return { ...issue, title: identity + ' ' + issueTitle(metadata?.title ?? item?.title ?? '未取得'),
       external, projects: metadata?.projects ?? [], category: task ? groups[githubWorkCategory(plan,task,snapshot.repositoryUrl,baseDate).group] : external ? '対象repository外' : '集約Issue' };
   });
   input.milestones = input.milestones.map(m => ({...m, title: snapshot.planning.milestones.find(p => p.url.toLowerCase() === m.key)?.title ?? m.key}));

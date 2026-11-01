@@ -126,21 +126,12 @@ export function validatePlanning(planning, snapshot) {
   return planning;
 }
 
-// 親Issue(子Issueを持つIssue)のタイトルは、先頭の「[Hub] 」を外して表示する。GitHub上のタイトルは変えない。
-// 親かどうかは子Issueの有無で決め、タイトルでは決めない。外すと空になるときは、元のタイトルを残す。
-function parentTitle(title) {
-  const name = title.replace(/^\[Hub\] /, '');
+// 表示だけで先頭の接頭語を一度外す。タイトルが空になる場合は原題を残す。
+export function issueTitle(title) {
+  const name = title.replace(/^\[Hub\]\s*/, '');
   return name.trim() ? name : title;
 }
-export const planTitle = issue => issue.childCount > 0 ? parentTitle(issue.item.title) : issue.item.title;
-export function snapshotTitleOf(snapshot) {
-  const parents = new Set((snapshot?.planning?.issues ?? []).filter(i => i.childCount > 0)
-    .map(i => snapshot.repositoryUrl.toLowerCase() + '/issues/' + i.number));
-  for (const issue of snapshot?.planning?.schedule?.issues ?? []) {
-    if (issue.children.totalCount > 0) parents.add(issue.key);
-  }
-  return ({ url, title }) => parents.has(url.toLowerCase()) ? parentTitle(title) : title;
-}
+export const snapshotItemTitle = item => item.kind === 'issue' ? issueTitle(item.title) : item.title;
 
 // An explicit assignment starts a new subtree. Match parent URLs, since Issue
 // numbers and Milestone numbers are only unique within one repository.
@@ -175,11 +166,11 @@ export function githubPlan(snapshot) {
   if (!snapshot?.planning) return null;
   const records = new Map(snapshot.items.filter(i => i.kind === 'issue').map(i => [i.number, i]));
   const sources = milestoneSources(snapshot.repositoryUrl, snapshot.planning.issues);
-  const titleOf = snapshotTitleOf(snapshot);
   const issues = snapshot.planning.issues.map(m => {
     const source = sources.get(m.number);
-    const references = m.blockedBy ? { blockedBy: m.blockedBy.map(b => ({ ...b, title: titleOf(b) })) } : {};
-    return { ...m, ...references, item: records.get(m.number), releaseNumber: source?.milestoneNumber ?? null, milestoneSourceNumber: source?.number ?? null };
+    const record = records.get(m.number);
+    const references = m.blockedBy ? { blockedBy: m.blockedBy.map(b => ({ ...b, title: issueTitle(b.title) })) } : {};
+    return { ...m, ...references, item: { ...record, title: issueTitle(record.title) }, releaseNumber: source?.milestoneNumber ?? null, milestoneSourceNumber: source?.number ?? null };
   }).sort((a, b) => a.number - b.number);
   const byNumber = new Map(issues.map(i => [i.number, i]));
   const rootFor = issue => {
