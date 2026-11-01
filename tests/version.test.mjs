@@ -5,7 +5,7 @@ import { readFileSync } from 'node:fs';
 const read = path => JSON.parse(readFileSync(new URL(path, import.meta.url), 'utf8'));
 const pkg = read('../package.json'), lock = read('../package-lock.json');
 
-test('版は 0.<Milestone>.<修正> の形で、package.jsonとpackage-lock.jsonで一致する', () => {
+test('0.x.y形式のアプリの版がpackage.jsonとpackage-lock.jsonで一致する', () => {
   assert.match(pkg.version, /^0\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$/);
   assert.equal(lock.version, pkg.version);
   assert.equal(lock.packages[''].version, pkg.version);
