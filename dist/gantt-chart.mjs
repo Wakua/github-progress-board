@@ -2,6 +2,7 @@ import { axisFor, calendarPosition, positionText, dueText, diagnosticText, diagn
 import { goalProgress, goalSchedule } from './gantt-groups.mjs';
 import { releaseDependencies, projectDependencies } from './gantt-dependencies.mjs';
 import { validWorkProgress } from './milestone-schedule.mjs';
+import { incompleteForecast } from './gantt-forecast-judgment.mjs';
 
 function progressDisplay(read) {
   if (validWorkProgress(read)) return { value: read.value, label: read.value + '%' };
@@ -38,6 +39,12 @@ function shortName(key) {
   if (!issue) return key.replace('https://github.com/','').replace('/issues/','#');
   return issue.external ? issue.title.split(' ')[0] : '#'+key.split('/').at(-1);
 }
+const diagnosticsById = new Map(result.diagnostics.map(issue => [issue.id, issue]));
+function scheduleGap(key) {
+  const id = task(key)?.diagnosticIds[0];
+  const why = diagnosticsById.get(id);
+  return why ? shortName(why.key) + ' ' + diagnosticText(why) : shortName(key) + ' 日程情報なし';
+}
 function pairName(pair) {
   if (pair.internal) return shortName(pair.from)+' 親内の前提 '+pair.edges.length+'件';
   const label = key => {
@@ -66,17 +73,23 @@ function dependencyDetail(pair) {
     const fromScope = scope(edge.from), toScope = scope(edge.to);
     const state = source(edge.from)?.completion.value;
     const status = state === 'done' ? '前提完了' : state === 'not-done' ? '前提未完了' : '完了状態未確認';
+    const unscheduled = [edge.from, edge.to].find(key => source(key)?.completion.value !== 'done' && !task(key)?.earliestStart);
     return '<li>'+taskLink(edge.from)+' → '+taskLink(edge.to)+'<p class="hint">'+status+' · '+escape(fromScope)+(fromScope===toScope ? '' : ' → '+escape(toScope))+
-      (!task(edge.from)?.earliestFinish || !task(edge.to)?.earliestStart ? ' · 日程未算出' : '')+'</p>'+
+      (unscheduled ? ' · ' + escape(scheduleGap(unscheduled)) : '')+'</p>'+
       evidence.map(r=>'<p>登録された前提 → 後続　'+taskLink(r.prerequisiteKey)+' → '+taskLink(r.successorKey)+'</p>').join('')+'</li>';
   }).join('')+'</ul>';
 }
 function load() {
   const due = milestone.dueDate ? `期日 ${milestone.dueDate.replaceAll('-', '/')}` : '期日未設定';
   const releaseName = input.milestones.find(item => item.key === milestone.key).title;
+  const forecast = incompleteForecast(result, milestone, sources);
   $('#release-name').textContent = releaseName;
   $('#release-details').setAttribute('aria-label', releaseName + 'の計算根拠');
-  $('#summary').innerHTML = `<span>${milestone.finish ? `見込み <strong>${monthDay(parseDate(milestone.finish.date))}</strong>${milestone.dueDate ? ` <span class="warn">${dueText(milestone.dueDifference)}</span>` : ''}` : ({ incomplete:'見込み未算出・クリティカル未確定', empty:'作業未登録', completed:'全作業完了' })[milestone.state]}</span><span>${due}</span>`;
+  $('#summary').innerHTML = `<span>${milestone.finish ? `見込み <strong>${monthDay(parseDate(milestone.finish.date))}</strong>${milestone.dueDate ? ` <span class="warn">${dueText(milestone.dueDifference)}</span>` : ''}` : ({ incomplete:forecast?.label, empty:'作業未登録', completed:'全作業完了' })[milestone.state]}</span><span>${due}</span>`;
+  if (forecast) {
+    const facts = [...forecast.causes, forecast.allocation].filter(Boolean);
+    if (facts.length) $('#summary').insertAdjacentHTML('afterend', '<p class="forecast-evidence">' + facts.map(escape).join(' ／ ') + '</p>');
+  }
   const diagnostics = milestone.diagnosticIds;
   const hasCycle = result.cycles.some(cycle => diagnostics.includes(cycle.diagnosticId));
   $('#alerts').innerHTML = [
@@ -88,16 +101,19 @@ function load() {
   const taskRow = item => {
     const critical = milestone.criticalTaskKeys.includes(item.key);
     const warning = item.iterationOverflow ? '期間外' : '';
-    return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button>${progressMarkup(item.key)}</div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : '日程未算出'}</span>`}</div></div>`;
+    return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button>${progressMarkup(item.key)}</div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : escape(scheduleGap(item.key))}</span>`}</div></div>`;
   };
   let groupIndex = 0;
   function scheduleTrack(key, range) {
-    const { earliestStart, earliestFinish, scheduled, count } = range;
-    if (!scheduled) return '<div class="track"><span class="unavailable">日程未算出</span></div>';
+    const { earliestStart, earliestFinish, scheduled, remaining, firstUnscheduled } = range;
+    if (!scheduled) {
+      const label = firstUnscheduled ? scheduleGap(firstUnscheduled) : '残作業なし';
+      return '<div class="track"><span class="unavailable">'+escape(label)+'</span></div>';
+    }
     const point = calendarPosition(earliestStart) === calendarPosition(earliestFinish);
-    const partial = scheduled < count;
+    const partial = scheduled < remaining;
     const first = monthDay(parseDate(earliestStart.date)), last = monthDay(parseDate(earliestFinish.date));
-    const label = (partial ? '一部 '+scheduled+'/'+count+'件 · ' : '') + (first === last && earliestStart.date === earliestFinish.date ? first : first+'–'+last);
+    const label = (partial ? '一部 '+scheduled+'/'+remaining+'件 · ' : '') + (first === last && earliestStart.date === earliestFinish.date ? first : first+'–'+last);
     return `<div class="track"><span data-goal-bar="${escape(key)}" class="bar goal-bar${point ? ' point' : ''}${partial ? ' partial' : ''}" role="img"></span><span class="goal-period">${label}</span></div>`;
   }
   function renderEntries(entries, depth, insideGoal = false) {
@@ -209,12 +225,12 @@ function showDetails(key) {
     const item = task(key), original = source(key);
     heading = title(key);
     if (!item) {
-      body = `<p>${original ? (original.state.value ?? '状態未取得') : 'Issue未取得'}・${original?.children.keys.length ? '集約Issue' : '日程未算出'}</p><ul>${(original?.children.keys || []).map(k => `<li>${taskLink(k)}</li>`).join('')}</ul>`;
+      body = `<p>${original ? (original.state.value ?? '状態未取得') : 'Issue未取得'}・${original?.children.keys.length ? '集約Issue' : original?.completion.value === 'done' ? '完了済み' : '日程未算出'}</p><ul>${(original?.children.keys || []).map(k => `<li>${taskLink(k)}</li>`).join('')}</ul>`;
     } else {
       const reverse = milestone.tasks.find(t => t.key === key);
       const progress = progressDisplay(original.planning.workProgressPercent);
       const progressText = progress.label + (progress.value === 100 && item.completion.value !== 'done' ? '・未完了' : '');
-      body = `<dl class="facts">${fact('期間', item.completion.value === 'done' ? '完了済み（実績日不明）' : `${positionText(item.earliestStart)} →<br>${positionText(item.earliestFinish)}`)}${fact('残り', item.durationDisplay ?? '未算出')}${fact('作業進捗率', progressText+`（見積 ${original.planning.estimatePoints.value === null ? '未入力' : `${original.planning.estimatePoints.value}pt`}）`)}${fact('担当', escape(original.planning.owner.value ?? '不明'))}${fact('余裕', reverse?.slackDisplay ?? '未算出')}${fact('既存分類', escape(original.category))}</dl>`;
+      body = `<dl class="facts">${fact('期間', item.completion.value === 'done' ? '完了済み（実績日不明）' : `${positionText(item.earliestStart)} →<br>${positionText(item.earliestFinish)}`)}${fact('残り', item.durationDisplay ?? '未算出')}${fact('作業進捗率', progressText+`（見積 ${original.planning.estimatePoints.value === null ? '未入力' : `${original.planning.estimatePoints.value}pt`}）`)}${fact('担当', escape(original.planning.owner.value ?? '不明'))}${fact('余裕', item.completion.value === 'done' ? '対象外' : reverse?.slackDisplay ?? '未算出')}${fact('既存分類', escape(original.category))}</dl>`;
       if (item.iterationOverflow) body += `<p class="warn">Iteration終了 ${original.planning.iteration.value.endDate} を${item.iterationOverflow.display}超過</p>`;
       if (item.diagnosticIds.length) body += `<h3>計算できない理由</h3>${diagnosticsHtml(item.diagnosticIds)}`;
       const incoming = dependencyData.allEdges.filter(edge => edge.to === key);
@@ -252,7 +268,7 @@ function hierarchyHtml(key, seen = new Set()) {
 }
 function descendants(key, seen = new Set()) { if(seen.has(key)) return []; seen = new Set([...seen,key]); return (source(key)?.children.keys || []).flatMap(k => [k, ...descendants(k,seen)]); }
 function diagnosticsHtml(ids) {
-  return `<ul>${ids.map(id => result.diagnostics.find(item => item.id === id)).filter(Boolean).map(item => `<li>${source(item.key) && item.code !== 'dependency-cycle' ? taskLink(item.key) : ''}<span>${escape(diagnosticText(item))}</span>${item.code === 'dependency-cycle' ? `<ul>${result.cycles.find(c => c.diagnosticId === item.id)?.taskKeys.map(k => `<li>${taskLink(k)}</li>`).join('') || ''}</ul>` : ''}</li>`).join('')}</ul>`;
+  return `<ul>${ids.map(id => diagnosticsById.get(id)).filter(Boolean).map(item => `<li>${source(item.key) && item.code !== 'dependency-cycle' ? taskLink(item.key) : ''}<span>${escape(diagnosticText(item))}</span>${item.code === 'dependency-cycle' ? `<ul>${result.cycles.find(c => c.diagnosticId === item.id)?.taskKeys.map(k => `<li>${taskLink(k)}</li>`).join('') || ''}</ul>` : ''}</li>`).join('')}</ul>`;
 }
 function relationsHtml(edges, direction, incomplete = false) {
   return (edges.length ? `<ul>${edges.map(edge => `<li>${edge.criticalByMilestone[milestone.key] ? '<span class="critical-mark" aria-label="クリティカルな接続">◆</span> ' : ''}${taskLink(edge[direction])}<span class="hint"> ${task(edge[direction])?.durationDisplay ?? '未算出'}</span></li>`).join('')}</ul>` : (incomplete ? '' : '<p>取得した範囲に登録なし</p>')) + (incomplete ? '<p>前提の取得が不完全</p>' : '');
@@ -285,7 +301,7 @@ function setScale(nextScale) {
     const start = calendarPosition(item.earliestStart), end = calendarPosition(item.earliestFinish);
     bar.style.setProperty('--start', `${percentage(start)}%`);
     bar.style.setProperty('--span', `${(end-start)/span*100}%`);
-    const detail = range ? (range.scheduled < range.count ? `、一部算出 ${range.scheduled}/${range.count}件` : '') : `、${item.durationDisplay}`;
+    const detail = range ? (range.scheduled < range.remaining ? `、一部算出 ${range.scheduled}/${range.remaining}件` : '') : `、${item.durationDisplay}`;
     const description = `${title(key)}、${positionText(item.earliestStart)}から${positionText(item.earliestFinish)}${detail}`;
     bar.setAttribute('aria-label', description); bar.title = description;
   }

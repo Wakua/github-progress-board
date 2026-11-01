@@ -31,7 +31,7 @@ try {
   await selectRelease('リリースB');
   await button(card,'#201（リリースA） → #200').press('Enter');
   assert.match(await dialog.innerText(),/#401 変更通知を再送する/);
-  assert.match(await dialog.innerText(),/日程未算出/);
+  assert.match(await dialog.innerText(),/#401 作業進捗率：未入力/);
   await page.keyboard.press('Escape');
 
   await start(ganttSnapshot('dependencies'));
@@ -39,9 +39,10 @@ try {
   for (const scale of ['day','week','month']) {
     await card.locator('[aria-pressed][data-scale="'+scale+'"]').click();
     assert.equal(await paths.count(),1);
-    const geometry=await paths.first().evaluate(el=>{
+    const geometry=await card.locator('[data-gantt="connections"]').evaluate(svg=>{
+      const el=svg.querySelector('path[data-pair]');
       const [from,to]=JSON.parse(el.dataset.pair.slice(5));
-      const end=el.getPointAtLength(el.getTotalLength()), svg=el.ownerSVGElement;
+      const end=el.getPointAtLength(el.getTotalLength());
       const tip=new DOMPoint(end.x,end.y).matrixTransform(svg.getScreenCTM());
       const target=[...el.closest('.chart').querySelectorAll('[data-goal-bar]')].find(bar=>bar.dataset.goalBar===to).getBoundingClientRect();
       return {from,to,hit:tip.y>=target.top-1 && tip.y<=target.bottom+1 && tip.x>=target.left-1 && tip.x<=target.right+1};
@@ -50,7 +51,8 @@ try {
   }
   await card.locator('[aria-pressed][data-scale="day"]').click();
   await card.locator('.chart').scrollIntoViewIfNeeded();
-  const hit=await paths.first().evaluate(el=>{
+  const hit=await card.locator('[data-gantt="connections"]').evaluate(svg=>{
+    const el=svg.querySelector('path[data-pair]');
     const p=el.getPointAtLength(el.getTotalLength()/2).matrixTransform(el.getScreenCTM());
     return {x:p.x,y:p.y};
   });
@@ -89,7 +91,7 @@ try {
   assert.match(await dialog.innerText(),/#201.*未取得/s);
   await page.keyboard.press('Escape');
   await pair.press('Enter');
-  assert.ok((await dialog.innerText()).includes('日程未算出'));
+  assert.match(await dialog.innerText(), /#201 前提：未取得/);
   console.log('元の登録、目標間の矢印の向き、親内・別リリース・未所属、取得不足、日程未算出、重複とキー復帰を確認した。');
 } finally {
   await browser.close();
