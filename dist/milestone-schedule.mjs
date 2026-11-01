@@ -5,6 +5,8 @@ const unique = values => sorted(new Set(values));
 const keyOf = value => typeof value === 'string' ? value.toLowerCase().replace(/\/$/, '') : value;
 const idOf = (...parts) => JSON.stringify(parts);
 const readOK = read => read?.problem === null;
+export const validWorkProgress = read =>
+  readOK(read) && Number.isInteger(read.value) && read.value >= 0 && read.value <= 100;
 const linksOK = links => links?.complete === true && links.problem === null;
 const record = value => value !== null && typeof value === 'object' && !Array.isArray(value);
 const issueKeyOK = key => typeof key === 'string' && /^https:\/\/[^/]+\/[^/]+\/[^/]+\/issues\/\d+$/.test(key);
@@ -163,7 +165,7 @@ export function calculateMilestoneSchedule(input) {
     else {
       const estimate = p.estimatePoints, progress = p.workProgressPercent, iteration = p.iteration;
       const validEstimate = readOK(estimate) && Number.isFinite(estimate.value) && estimate.value > 0;
-      const validProgress = readOK(progress) && Number.isInteger(progress.value) && progress.value >= 0 && progress.value <= 100;
+      const validProgress = validWorkProgress(progress);
       if (!validEstimate) node.causes.add(readFailure(key, 'estimatePoints', estimate));
       if (!validProgress) node.causes.add(readFailure(key, 'workProgressPercent', progress));
       if (validEstimate && validProgress) node.duration = math.exact(estimate.value) * BigInt(100 - progress.value) / 100n;
