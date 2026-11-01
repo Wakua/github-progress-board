@@ -45,7 +45,7 @@ try {
     await page.evaluate(([key, data]) => localStorage.setItem(key, JSON.stringify(data)), [STORAGE_KEY, workspaceFor(example)]);
     await page.reload();
     await page.getByRole('tab', { name: 'リリース', exact: true }).click();
-    await page.getByLabel('表示するリリース').selectOption({label:'リリースA'});
+    await page.getByRole('button',{name:'リリースAの詳細',exact:true}).click();
     assert.equal(await page.getByLabel('計算に使うProject').inputValue(),'sample-project');
     const card = page.getByRole('region', { name: 'リリースA', exact: true });
     const goal = card.locator('.goal-heading').filter({hasText:'#200 機能A'});
@@ -114,7 +114,7 @@ try {
   await page.evaluate(([key,data]) => localStorage.setItem(key,JSON.stringify(data)),[STORAGE_KEY,workspace]);
   await page.reload();
   await page.getByRole('tab',{name:'リリース',exact:true}).click();
-  await page.getByLabel('表示するリリース').selectOption({label:'リリースA'});
+  await page.getByRole('button',{name:'リリースAの詳細',exact:true}).click();
   assert.equal(await page.getByLabel('計算に使うProject').inputValue(),'');
   assert.equal(await page.locator('.goal-heading').count(),0);
   await page.getByLabel('計算に使うProject').selectOption('sample-project');

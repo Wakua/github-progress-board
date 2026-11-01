@@ -79,6 +79,7 @@ UI変更の必須レビューと提出条件は、[UI/UXレビューの手順](d
 - PRをReadyにしたら、PRに「承認待ちの上限N件（ユーザー指定／既定）・承認待ちM件」とコメントする。ユーザーは画面の上限と照らして、AIが同じ上限を使ったかを確認する。
 - リリースは2イテレーション（2週間）ごとにMilestoneで区切る。Milestoneの期日は、対象PRをmainにマージする期限とする。対象PRをすべてマージし、mainでの検証を終えたら、期日前でもユーザーにmainの受入確認を依頼する。
 - ユーザーがmainを確認して承認したら、リリース用のPRで `package.json` と `package-lock.json` の版を更新する。版の規則は [バージョン](docs/development.md#バージョン) に従う。
+- 利用者が受け入れた時点でMilestoneを完了とし、公開したら版番号を添える。担当者は[受入と公開版の記録](docs/development.md#受入と公開版の記録)に従い、Milestoneの説明を更新する。
 - リリース用のPRのマージ後に、ユーザーの承認を得て、タグ `v<版>` とGitHub Releaseを作る。承認なしにタグやReleaseを作らない。Releaseの本文には、完了したIssueの一覧を書く。
 - フィードバックはIssueにし、担当・Iteration・Estimateを設定して次のイテレーションに割り当てる。GitHubでClosedにしても、ユーザーの確認が済むまで受入完了としない。
 

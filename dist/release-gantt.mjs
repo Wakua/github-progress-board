@@ -2,10 +2,37 @@ import { ganttProjects, releaseGanttModel } from './release-gantt-model.mjs';
 import { releaseGoalGroups } from './gantt-groups.mjs';
 import { mountGanttChart } from './gantt-chart.mjs';
 import { ganttTemplate } from './gantt-template.mjs';
-import { milestoneSources } from './github-planning.mjs';
+import { githubPlan, milestoneSources } from './github-planning.mjs';
+import { releaseLifecycle } from './release-lifecycle.mjs';
+import { itemButton } from './github-planning-view.mjs';
 import { releaseSummaries } from './release.mjs';
 import { todayInTokyo } from './engine.mjs';
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+
+function releaseList(milestones, selectedUrl) {
+  const groups = [[], []];
+  for (const m of milestones) {
+    const { accepted, label, published } = releaseLifecycle(m);
+    const due = m.dueOn ? `期日 <time datetime="${esc(m.dueOn.slice(0,10))}">${esc(m.dueOn.slice(0,10).replaceAll('-', '/'))}</time>` : '期日未設定';
+    const version = published ? `<a href="${esc(published.url)}">${esc(published.tag)} 公開済み</a>` : '';
+    groups[accepted ? 1 : 0].push(`<li>
+      <button type="button" class="release-choose" data-release="${esc(m.url)}" aria-pressed="${m.url === selectedUrl}" aria-label="${esc(m.title)}の詳細">${esc(m.title)}</button>
+      <span class="badge ${accepted ? 'done' : 'review'}">${esc(label)}</span>
+      <span class="release-facts">${due}${version ? ' · ' + version : ''}</span>
+    </li>`);
+  }
+  return `<div class="release-list">${groups.map((rows, index) => {
+    const title = index ? '完了' : '未完了';
+    return `<section aria-label="${title}"><h3>${title} <span class="count">${rows.length}件</span></h3>${rows.length ? '<ul>' + rows.join('') + '</ul>' : '<p class="empty-message">該当なし</p>'}</section>`;
+  }).join('')}</div>`;
+}
+
+// 閉じたMilestoneの将来日程は計算せず、親から継承した子作業も含めて表示する。
+function closedRelease(snapshot, selected) {
+  const release = githubPlan(snapshot).releases.find(m => m.number === selected.number);
+  const rows = release.tasks.map(task => `<li class="my-work-row">${itemButton(task)}<span class="github-state">${esc(task.item.state === 'closed' ? 'Closed' : 'Open')}</span></li>`);
+  return `<section class="my-work-section" aria-label="${esc(selected.title)}"><h3>${esc(selected.title)}</h3><p class="footnote">GitHubでClosed・日程計算の対象外</p>${rows.length ? '<ul class="my-work-list">' + rows.join('') + '</ul>' : '<p class="empty-message">作業未登録</p>'}</section>`;
+}
 
 // UI selections are scoped to the local project and this session, never written to a snapshot.
 export function createReleaseGantt(root) {
@@ -19,19 +46,21 @@ export function createReleaseGantt(root) {
 
     root.innerHTML = '<div data-local-github>' + (typeof status === 'function' ? status() : status) + '</div>';
     if (!snapshot?.planning) { root.insertAdjacentHTML('beforeend','<p class="empty-message">GitHubの計画情報は未取得です。</p>'); return; }
-    const open = snapshot.planning.milestones.filter(m => m.state === 'open');
-    if (!open.length) { root.insertAdjacentHTML('beforeend','<p class="empty-message">開いているリリース（Milestone）がありません。</p>'); return; }
-    if (!open.some(m => m.url === selection.release)) selection.release = '';
-    root.insertAdjacentHTML('beforeend','<label class="gantt-source">表示するリリース <select data-release><option value="">選択してください</option>'+open.map(m =>
-      '<option value="'+esc(m.url)+'"'+(selection.release===m.url?' selected':'')+'>'+esc(m.title)+'</option>').join('')+'</select></label>');
-    const releases = root.querySelector('[data-release]');
-    releases.onchange = () => {
-      selection.release = releases.value;
+    const milestones = snapshot.planning.milestones;
+    if (!milestones.length) { root.insertAdjacentHTML('beforeend','<p class="empty-message">リリース（Milestone）がありません。</p>'); return; }
+    const selected = milestones.find(m => m.url === selection.release);
+    if (!selected) selection.release = '';
+    root.insertAdjacentHTML('beforeend', releaseList(milestones, selection.release));
+    const list = root.querySelector('.release-list');
+    list.onclick = event => {
+      const button = event.target.closest('button[data-release]');
+      if (!button || button.dataset.release === selection.release) return;
+      selection.release = button.dataset.release;
       draw();
-      root.querySelector('[data-release]').focus();
+      root.querySelector('.release-choose[aria-pressed="true"]').focus();
     };
-    const selected = open.find(m => m.url === selection.release);
     if (!selected) return;
+    if (selected.state === 'closed') { root.insertAdjacentHTML('beforeend', closedRelease(snapshot, selected)); return; }
     const issues = snapshot.planning.issues;
     const sources = milestoneSources(snapshot.repositoryUrl, issues);
     if (!issues.some(i => i.childCount === 0 && sources.get(i.number)?.milestoneNumber === selected.number)) {
@@ -80,7 +109,15 @@ export function createReleaseGantt(root) {
       snapshot = nextSnapshot; projectId = nextProjectId; status = localStatus;
       if(!selections.has(projectId)) selections.set(projectId,{release:'',sourceProjectIds:{},scales:{},folds:new Map(),baseDate:date});
       selections.get(projectId).baseDate = date;
-      if(nextKey !== lastKey) { lastKey=nextKey; draw(); }
+      if(nextKey !== lastKey) {
+        const releaseFocus = root.contains(document.activeElement) && document.activeElement.dataset.release;
+        lastKey = nextKey;
+        draw();
+        if (releaseFocus) {
+          const buttons = [...root.querySelectorAll('button[data-release]')];
+          (buttons.find(button => button.dataset.release === releaseFocus) || buttons[0])?.focus();
+        }
+      }
       else controller?.redraw();
     },
     destroy,

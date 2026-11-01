@@ -11,7 +11,7 @@ try {
   await page.route('**/api/**', route=>route.fulfill({status:503}));
   await page.goto(process.env.QA_BASE_URL || 'http://127.0.0.1:4340/');
   const card=page.locator('.gantt[data-milestone]'), dialog=card.locator('dialog[open]');
-  const release=page.getByLabel('表示するリリース');
+  const selectRelease = name => page.getByRole('button',{name:name + 'の詳細',exact:true}).click();
   const paths=card.locator('path[data-pair]');
   const button=(scope,name)=>scope.getByRole('button',{name,exact:true});
   async function start(snapshot) {
@@ -19,7 +19,7 @@ try {
     w.projects[0].repositoryUrl=snapshot.repositoryUrl; attachSnapshot(w.projects[0],snapshot);
     await page.evaluate(([k,w])=>localStorage.setItem(k,JSON.stringify(w)),[STORAGE_KEY,w]);
     await page.reload(); await page.getByRole('tab',{name:'リリース',exact:true}).click();
-    await release.selectOption({label:'リリースA'});
+    await selectRelease('リリースA');
   }
   await start(ganttSnapshot('goals'));
   assert.equal(await paths.count(),0);
@@ -28,7 +28,7 @@ try {
   assert.match(await dialog.innerText(),/登録された前提/);
   assert.equal(await dialog.locator('li').count(),2);
   await page.keyboard.press('Escape');
-  await release.selectOption({label:'リリースB'});
+  await selectRelease('リリースB');
   await button(card,'#201（リリースA） → #200').press('Enter');
   assert.match(await dialog.innerText(),/#401 変更通知を再送する/);
   assert.match(await dialog.innerText(),/日程未算出/);

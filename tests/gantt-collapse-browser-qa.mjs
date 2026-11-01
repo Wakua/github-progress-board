@@ -29,8 +29,7 @@ try {
   await page.reload();
   const releaseTab = page.getByRole('tab', { name:'リリース', exact:true });
   await releaseTab.click();
-  const picker = page.getByLabel('表示するリリース');
-  const selectRelease = name => picker.selectOption({label:name});
+  const selectRelease = name => page.getByRole('button',{name:name + 'の詳細',exact:true}).click();
   const showA = () => selectRelease('リリースA');
   const showB = () => selectRelease('リリースB');
   assert.equal(await page.locator('#release-panel .gantt').count(),0);

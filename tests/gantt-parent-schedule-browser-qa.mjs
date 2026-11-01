@@ -20,7 +20,7 @@ try {
     await page.evaluate(([key,data])=>localStorage.setItem(key,JSON.stringify(data)),[STORAGE_KEY,w]);
     await page.reload();
     await page.getByRole('tab',{name:'リリース',exact:true}).click();
-    await page.getByLabel('表示するリリース').selectOption({label:'リリースA'});
+    await page.getByRole('button',{name:'リリースAの詳細',exact:true}).click();
   }
   const card = page.locator('.gantt[data-milestone]');
   const goal = n => card.locator('[data-goal-bar$="/'+n+'"]');
@@ -64,7 +64,7 @@ try {
       assert.equal(await goal(200).getAttribute('aria-label'),parentPeriod);
     }
   }
-  await page.getByLabel('表示するリリース').selectOption({label:'リリースB'});
+  await page.getByRole('button',{name:'リリースBの詳細',exact:true}).click();
   assert.equal(await goal(200).count(),0);
   assert.ok(await card.getByText('日程未算出',{exact:true}).first().isVisible());
 
