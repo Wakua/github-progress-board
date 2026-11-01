@@ -90,7 +90,74 @@ ghのstderr・credentialをブラウザに返さない。
 Nodeのキャッシュは保存先ではなく、サーバー再起動で消える。
 保存先は[保存の範囲](specification.md#保存の範囲)に従う。
 
-hosted SiteのMCP経路・サーバー保存・双方向同期・deployはこのローカル機能の範囲に含めない。
+Hostedの対応範囲は[ガント情報の取得と保存](#ガント情報の取得と保存)を参照する。
+
+## ガント情報の取得と保存
+
+ローカル自動取得は、既存の計画情報に任意の `planning.schedule` を加える。
+この項目は `schemaVersion: 1`、GraphQLの出典URL `sourceUrl`、repository込みのIssue URLをキーにした `issues` を持つ。
+既存の `planning.issues`・Milestone・作業分類・集計は変更しない。
+旧snapshotは移行せず読めるが、旧形式が持たない作業進捗率は未取得になる。
+
+| 保存する情報 | 内容 |
+| --- | --- |
+| Issue | 正規化したURL `key`、タイトル、更新日時、開閉、親、子の一覧、blocked by |
+| Project | ID・タイトル・URL、一覧の取得完全性と取得不能の原因 |
+| 計画フィールド | Status・担当・Estimate・作業進捗率・Iterationの取得結果。`fieldSources` にフィールド名と取得できたIDを保持する |
+| 値の取得結果 | `value` と `problem`。取得済みの空欄は `value: null, problem: null`、未取得・権限不足・失敗はそれぞれ `not-fetched`・`forbidden`・`failed` とする |
+| 一覧の取得結果 | キーの一覧 `keys`、全件数 `totalCount`、完全性 `complete`、取得不能の `problem` を保持する |
+
+フィールド値の一覧に項目がなければ取得済みの空欄とし、IDは `null` にする。
+フィールド自体の未作成と、作成済みだが値が空欄の場合は、この取得経路では区別できない。
+取得できた有限の数値は、作業進捗率が範囲外でもその値を保持し、計算側で不正値として診断する。
+未取得や不正値を0へ変換しない。
+Iterationは開始日と、開始日からduration日間の最終日を保存する。
+外部Issueの日付が不正なら実在する別の日付へ補正しない。
+
+開いたMilestoneに所属する末端Issueから、前提と祖先をたどる。
+前提が集約Issueなら最下位の子まで展開し、祖先に登録されたblocked byも取得する。
+祖先を確認しただけでは兄弟作業の詳細を追加取得しない。
+完了が確定した末端の過去の前提は追加取得しないが、Closedの集約Issueは配下を確認する。
+同じURLは共有し、repositoryが異なる同番号のIssueは区別する。
+外部repositoryは、取得した親・子・blocked byの参照先だけを読む。
+
+追加取得は1回の更新につき100要求までとし、Issueの合計は5,000件までとする。
+追加queryの子・blocked byは各100件、Project登録は10件、フィールド値は100件までで、次ページが残れば更新を見送る。
+既存の全体時間・応答容量・GraphQL予約枠を共有し、各追加要求の前にも予約枠を確認する。
+追加取得が失敗した場合はsnapshotの一部だけを保存せず、[保存済みデータを保持する](specification.md#保存済みデータの保持)。
+サーバーは原因を `schedule_forbidden`（権限不足）、`schedule_failed`（取得失敗）、`schedule_limit`（範囲・要求数の上限）、`schedule_invalid`（応答の不整合）として返す。
+APIの一次・二次制限と時間切れには、既存の `rate_limited`・`timeout` を使う。
+ブラウザの取得状態には既存の失敗表示を使い、原因別のガント画面表示は画面への組込みで扱う。
+
+保存前の検証では、構造、URL、重複、件数、取得結果の組合せ、親子関係、既存planningと重複する値を照合する。
+再取得した外部Issueの更新日時が保存済みの同じIssueより古い場合も、snapshotを置き換えない。
+取得不能を記録した拡張snapshotの手動取込は可能だが、ローカル自動取得は必要な追加取得に失敗すると結果を返さない。
+
+### 計算入力への変換
+
+`dist/github-schedule-input.mjs` の `githubScheduleInput(snapshot, options)` を使う。
+`options` は `baseDate`、`selectedProjectId`、任意の `sourceProjectIds` を持つ。
+`sourceProjectIds` はIssue URLから利用者が指定したProject IDへの対応であり、永続化はこのadapterでは行わない。
+同一repositoryの既定の出典には `selectedProjectId` を使い、外部Issueには個別指定を求める。
+先頭のProjectを自動選択せず、指定先への未登録・未取得と、出典未選択を区別する。
+
+完了判定は出典を絞る前のProject一覧に対して求める。
+計画値は選ばれたProjectだけから渡し、別Projectの値で不足を埋めない。
+Milestoneの期日は日時の年月日部分を使い、旧snapshotで不足する前提・親子・進捗率は未取得のまま渡す。
+入出力の意味は[計算側の入力契約](milestone-gantt-calculation.md#入力)を参照する。
+このadapterは保存・通信・画面の組込みを行わない。
+
+### 取得経路ごとの対応
+
+| 経路 | ガント情報の対応 |
+| --- | --- |
+| ローカル自動取得 | 拡張情報を取得・検証し、既存の保存経路へ渡す |
+| snapshot JSONの手動取込 | 拡張あり・なしの両方を検証する。下記のREST専用helperは拡張情報を生成しない |
+| クラウドのworkspace保存・読込み | 共通validatorを使い、拡張情報を保持する。GitHubの自動取得はしない |
+| 限定Hosted MCP | 保存済み拡張情報の読取りはできる。計画情報付きsnapshotの更新は拒否し、保存済みデータを保持する |
+
+GraphQLの項目はGitHub公式の[Issue](https://docs.github.com/en/graphql/reference/issues)・[Project](https://docs.github.com/en/graphql/reference/projects)の定義を使う。
+Hosted MCPによる取得範囲の拡張、GitHubへの書込み、画面への接続はこの取得機能に含めない。
 
 ## snapshot JSONを手動で再取得する
 

@@ -405,6 +405,17 @@ test('子Issueを持つ親の先頭の[Hub]は、目標名を出す箇所で外�
   assert.deepEqual([1, 2, 3].map(n => titleOf(value.items.find(i => i.number === n))), ['QA目標', 'QA中間の親', '[Hub] 接頭語つきの作業']);
 });
 
+test('前提に現れる同じ番号の親・別repositoryの作業をURLで区別する', () => {
+  const value = snapshot(inputs());
+  const target = value.planning.issues.find(i => i.number === 3);
+  const ref = url => ({ number: 1, url, title: '[Hub] QA前提', state: 'open', spec: false });
+  target.blockedBy = [ref(repo + '/issues/1'), ref('https://github.com/another/board/issues/1')];
+  const titles = githubPlan(value).tasks.find(i => i.number === 3).blockedBy.map(b => b.title);
+  assert.deepEqual(titles, ['QA前提', '[Hub] QA前提']);
+  assert.equal(target.blockedBy[0].title, '[Hub] QA前提');
+  assert.equal(snapshotTitleOf(value)({ kind: 'pull_request', url: repo + '/pull/1', title: '[Hub] QA変更' }), '[Hub] QA変更');
+});
+
 test('親のタイトルが[Hub]だけのとき、空にせず元の表示を残す。先頭以外や別の接頭語は外さない', () => {
   const d = inputs();
   d.issuePages[0][0].title = '[Hub] ';

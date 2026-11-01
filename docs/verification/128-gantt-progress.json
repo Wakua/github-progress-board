@@ -1,0 +1,502 @@
+{
+  "issue": 128,
+  "author": "Codex",
+  "observedOn": "2026-10-31",
+  "beforeCommit": "9293c0ec1e4663cce6d9f60528ab66857fe511a8",
+  "request": "Show each task’s acquired progress value with a short progress bar, separate from its remaining-work schedule.",
+  "observation": "With the basic 60% fixture, the list showed only 0.8/1.2/0.4 days; reading 60% required opening task details.",
+  "design": "Read task name, compare percentage and short bar, then open detail if needed. Unknown has no progress bar and says 未入力; 0 is an empty bar. The schedule bar has no progress fill. No permanent explanatory prose was added.",
+  "conditions": {
+    "browser": "Chrome via CUA",
+    "normal": "800x800",
+    "narrow": "320x720",
+    "largeText": "QA CSS doubles text; progress label is 24px, not browser zoom"
+  },
+  "checks": {
+    "fullTests": {
+      "passed": 744,
+      "failed": 0
+    },
+    "syntaxAndScreenshots": "passed",
+    "build": "passed",
+    "recordAssertions": "passed"
+  },
+  "observations": {
+    "before": {
+      "rows": [
+        "#201 実装A\n0.8日",
+        "◆\n#202 実装B\n1.2日",
+        "◆\n#210 結合確認\n0.4日"
+      ],
+      "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+      "viewport": {
+        "height": 800,
+        "width": 800
+      }
+    },
+    "beforeDetail": "#202 実装B\n閉じる\n期間\n2026/11/02 開始 →\n2026/11/03 日内20%\n残り\n1.2日\n作業進捗率\n60%（見積 3pt）\n担当\n実装B\n余裕\n0日\n既存分類\n着手可能\n前提\n\nなし\n\n後続\n◆ #210 結合確認 0.4日\n\nGitHubで開く ↗",
+    "beforeNarrow": {
+      "client": 305,
+      "height": 720,
+      "scroll": 305,
+      "width": 320
+    },
+    "after": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 800,
+      "pageScroll": 785,
+      "pageWidth": 785,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/02 日内80%、0.8日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "#201 実装A\n0.8日\n60%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/03 日内20%、1.2日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#202 実装B\n1.2日\n60%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/03 日内20%から2026/11/03 日内60%、0.4日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#210 結合確認\n0.4日\n60%"
+        }
+      ],
+      "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+      "width": 800
+    },
+    "afterNarrow": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 720,
+      "pageScroll": 305,
+      "pageWidth": 305,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/02 日内80%、0.8日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "#201 実装A\n0.8日\n60%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/03 日内20%、1.2日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#202 実装B\n1.2日\n60%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/03 日内20%から2026/11/03 日内60%、0.4日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#210 結合確認\n0.4日\n60%"
+        }
+      ],
+      "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+      "width": 320
+    },
+    "scaleChecks": [
+      {
+        "scale": "week",
+        "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+        "height": 720,
+        "pageScroll": 305,
+        "pageWidth": 305,
+        "rows": [
+          {
+            "bar": "#201 実装A、2026/11/02 開始から2026/11/02 日内80%、0.8日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "#201 実装A\n0.8日\n60%"
+          },
+          {
+            "bar": "#202 実装B、2026/11/02 開始から2026/11/03 日内20%、1.2日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "◆\n#202 実装B\n1.2日\n60%"
+          },
+          {
+            "bar": "#210 結合確認、2026/11/03 日内20%から2026/11/03 日内60%、0.4日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "◆\n#210 結合確認\n0.4日\n60%"
+          }
+        ],
+        "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+        "width": 320
+      },
+      {
+        "scale": "month",
+        "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+        "height": 720,
+        "pageScroll": 305,
+        "pageWidth": 305,
+        "rows": [
+          {
+            "bar": "#201 実装A、2026/11/02 開始から2026/11/02 日内80%、0.8日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "#201 実装A\n0.8日\n60%"
+          },
+          {
+            "bar": "#202 実装B、2026/11/02 開始から2026/11/03 日内20%、1.2日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "◆\n#202 実装B\n1.2日\n60%"
+          },
+          {
+            "bar": "#210 結合確認、2026/11/03 日内20%から2026/11/03 日内60%、0.4日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "◆\n#210 結合確認\n0.4日\n60%"
+          }
+        ],
+        "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+        "width": 320
+      },
+      {
+        "scale": "day",
+        "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+        "height": 720,
+        "pageScroll": 305,
+        "pageWidth": 305,
+        "rows": [
+          {
+            "bar": "#201 実装A、2026/11/02 開始から2026/11/02 日内80%、0.8日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "#201 実装A\n0.8日\n60%"
+          },
+          {
+            "bar": "#202 実装B、2026/11/02 開始から2026/11/03 日内20%、1.2日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "◆\n#202 実装B\n1.2日\n60%"
+          },
+          {
+            "bar": "#210 結合確認、2026/11/03 日内20%から2026/11/03 日内60%、0.4日",
+            "fill": "60%",
+            "progress": "60",
+            "text": "◆\n#210 結合確認\n0.4日\n60%"
+          }
+        ],
+        "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+        "width": 320
+      }
+    ],
+    "prerequisite": "戻る\n#202 実装B\n閉じる\n期間\n2026/11/02 開始 →\n2026/11/03 日内20%\n残り\n1.2日\n作業進捗率\n60%（見積 3pt）\n担当\n実装B\n余裕\n0日\n既存分類\n着手可能\n前提\n\nなし\n\n後続\n◆ #210 結合確認 0.4日\n\nGitHubで開く ↗",
+    "successor": "戻る\n#210 結合確認\n閉じる\n期間\n2026/11/03 日内20% →\n2026/11/03 日内60%\n残り\n0.4日\n作業進捗率\n60%（見積 1pt）\n担当\n結合確認\n余裕\n0日\n既存分類\n着手可能\n開始条件\n\n親の開閉にかかわらず、配下の作業の完了を待つ。\n\n#200 機能A · Closed\n#201 実装A 2026/11/02 日内80%\n◆ #202 実装B 2026/11/03 日内20%\n後続\n\nなし\n\nGitHubで開く ↗",
+    "zero": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 651,
+      "pageScroll": 1156,
+      "pageWidth": 1156,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "#201 実装A\n2日\n0%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/04 終了、3日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "◆\n#202 実装B\n3日\n0%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/05 開始から2026/11/05 終了、1日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "◆\n#210 結合確認\n1日\n0%"
+        }
+      ],
+      "summary": "見込み 11/5 1日超過期日 2026/11/04",
+      "width": 1171
+    },
+    "refresh60": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 651,
+      "pageScroll": 1156,
+      "pageWidth": 1156,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/02 日内80%、0.8日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "#201 実装A\n0.8日\n60%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/03 日内20%、1.2日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#202 実装B\n1.2日\n60%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/03 日内20%から2026/11/03 日内60%、0.4日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#210 結合確認\n0.4日\n60%"
+        }
+      ],
+      "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+      "width": 1171
+    },
+    "refresh100": {
+      "edges": "#201 実装A → #210 結合確認（クリティカル）、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 651,
+      "pageScroll": 1156,
+      "pageWidth": 1156,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/02 開始、0日",
+          "fill": "100%",
+          "progress": "100",
+          "text": "◆\n#201 実装A\n0日\n100%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/02 開始、0日",
+          "fill": "100%",
+          "progress": "100",
+          "text": "◆\n#202 実装B\n0日\n100%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/02 開始から2026/11/02 開始、0日",
+          "fill": "100%",
+          "progress": "100",
+          "text": "◆\n#210 結合確認\n0日\n100%"
+        }
+      ],
+      "summary": "見込み 11/2 3日余裕期日 2026/11/04",
+      "width": 1171
+    },
+    "hundredDetail": "#202 実装B\n閉じる\n期間\n2026/11/02 開始 →\n2026/11/02 開始\n残り\n0日\n作業進捗率\n100%・未完了（見積 3pt）\n担当\n実装B\n余裕\n0日\n既存分類\n着手可能\n前提\n\nなし\n\n後続\n◆ #210 結合確認 0日\n\nGitHubで開く ↗",
+    "missing": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認",
+      "height": 651,
+      "pageScroll": 1156,
+      "pageWidth": 1156,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "#201 実装A\n2日\n0%"
+        },
+        {
+          "bar": null,
+          "fill": null,
+          "progress": null,
+          "text": "#202 実装B\n未入力\n日程未算出"
+        },
+        {
+          "bar": null,
+          "fill": "0%",
+          "progress": "0",
+          "text": "#210 結合確認\n1日\n0%\n日程未算出"
+        }
+      ],
+      "summary": "見込み未算出・クリティカル未確定期日 2026/11/04",
+      "width": 1171
+    },
+    "missingNarrow": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認",
+      "height": 720,
+      "pageScroll": 305,
+      "pageWidth": 305,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "#201 実装A\n2日\n0%"
+        },
+        {
+          "bar": null,
+          "fill": null,
+          "progress": null,
+          "text": "#202 実装B\n未入力\n日程未算出"
+        },
+        {
+          "bar": null,
+          "fill": "0%",
+          "progress": "0",
+          "text": "#210 結合確認\n1日\n0%\n日程未算出"
+        }
+      ],
+      "summary": "見込み未算出・クリティカル未確定期日 2026/11/04",
+      "width": 320
+    },
+    "largeText": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 800,
+      "pageScroll": 785,
+      "pageWidth": 785,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/02 日内80%、0.8日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "#201 実装A\n0.8日\n60%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/03 日内20%、1.2日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#202 実装B\n1.2日\n60%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/03 日内20%から2026/11/03 日内60%、0.4日",
+          "fill": "60%",
+          "progress": "60",
+          "text": "◆\n#210 結合確認\n0.4日\n60%"
+        }
+      ],
+      "summary": "見込み 11/3 1.4日余裕期日 2026/11/04",
+      "width": 800,
+      "font": "24px"
+    },
+    "restoredFocus": "#210 結合確認の詳細、クリティカル",
+    "errors": [],
+    "beforeFailure": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認",
+      "height": 651,
+      "pageScroll": 1156,
+      "pageWidth": 1156,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "#201 実装A\n2日\n0%"
+        },
+        {
+          "bar": null,
+          "fill": null,
+          "progress": null,
+          "text": "#202 実装B\n未入力\n日程未算出"
+        },
+        {
+          "bar": null,
+          "fill": "0%",
+          "progress": "0",
+          "text": "#210 結合確認\n1日\n0%\n日程未算出"
+        }
+      ],
+      "summary": "見込み未算出・クリティカル未確定期日 2026/11/04",
+      "width": 1171
+    },
+    "failedRefresh": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認",
+      "height": 651,
+      "pageScroll": 1156,
+      "pageWidth": 1156,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "#201 実装A\n2日\n0%"
+        },
+        {
+          "bar": null,
+          "fill": null,
+          "progress": null,
+          "text": "#202 実装B\n未入力\n日程未算出"
+        },
+        {
+          "bar": null,
+          "fill": "0%",
+          "progress": "0",
+          "text": "#210 結合確認\n1日\n0%\n日程未算出"
+        }
+      ],
+      "summary": "見込み未算出・クリティカル未確定期日 2026/11/04",
+      "width": 1171
+    },
+    "failureMessage": "自動更新済み。 起動時と表示中の5分ごとに取得し、このブラウザに保存します。\nGitHubを再取得",
+    "hundredNarrow": {
+      "edges": "#201 実装A → #210 結合確認（クリティカル）、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 720,
+      "pageScroll": 305,
+      "pageWidth": 305,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/02 開始、0日",
+          "fill": "100%",
+          "progress": "100",
+          "text": "◆\n#201 実装A\n0日\n100%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/02 開始、0日",
+          "fill": "100%",
+          "progress": "100",
+          "text": "◆\n#202 実装B\n0日\n100%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/02 開始から2026/11/02 開始、0日",
+          "fill": "100%",
+          "progress": "100",
+          "text": "◆\n#210 結合確認\n0日\n100%"
+        }
+      ],
+      "summary": "見込み 11/2 3日余裕期日 2026/11/04",
+      "width": 320
+    },
+    "zeroNormal": {
+      "edges": "#201 実装A → #210 結合確認、#202 実装B → #210 結合確認（クリティカル）",
+      "height": 800,
+      "pageScroll": 785,
+      "pageWidth": 785,
+      "rows": [
+        {
+          "bar": "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "#201 実装A\n2日\n0%"
+        },
+        {
+          "bar": "#202 実装B、2026/11/02 開始から2026/11/04 終了、3日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "◆\n#202 実装B\n3日\n0%"
+        },
+        {
+          "bar": "#210 結合確認、2026/11/05 開始から2026/11/05 終了、1日",
+          "fill": "0%",
+          "progress": "0",
+          "text": "◆\n#210 結合確認\n1日\n0%"
+        }
+      ],
+      "summary": "見込み 11/5 1日超過期日 2026/11/04",
+      "width": 800
+    }
+  },
+  "sourceBlobs": {
+    "dist/gantt-chart.mjs": "b89e23bdfbaaf105e3db1e25c491caef50c20e55",
+    "dist/gantt.css": "a0c60bdf114fb8444286c687ed8a4a5fc32a7e1e",
+    "tests/gantt-review-server.mjs": "e1fa581ad1d8bcd43d105a8ef5ec4e21e4dcabca",
+    "dist/release-gantt-model.mjs": "8771a5fa070dbd1c808d0f24adc99dc45ff4cd8c",
+    "dist/milestone-schedule.mjs": "6bbcb6e6f6cea0244e95d1e1125d014b9312e104"
+  },
+  "screenshots": [
+    "docs/screens/128/after-09-progress-normal.jpg",
+    "docs/screens/128/after-10-progress-narrow.jpg",
+    "docs/screens/128/after-11-progress-missing.jpg",
+    "docs/screens/128/after-12-progress-large.jpg",
+    "docs/screens/128/after-13-progress-hundred.jpg",
+    "docs/screens/128/after-14-progress-zero.jpg",
+    "docs/screens/128/before-02-progress-normal.jpg",
+    "docs/screens/128/before-03-progress-narrow.jpg"
+  ],
+  "unchanged": [
+    "Calculation, persistence and GitHub write contracts.",
+    "The 60% demonstration fixture on port 4402; all boundary-value changes used isolated port 4406."
+  ],
+  "unverified": [
+    "Independent user operation/acceptance.",
+    "Actual progress writes, actual Japan midnight crossing, actual browser zoom, screen reader speech and touch devices."
+  ]
+}

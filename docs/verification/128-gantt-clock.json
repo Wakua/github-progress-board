@@ -1,0 +1,420 @@
+{
+  "issue": 128,
+  "author": "Codex",
+  "observedOn": "2026-10-31",
+  "baseCommit": "9d781e472d898a5172c8a39f3c747db5d5f9040a",
+  "method": {
+    "page": "/qa-clock",
+    "data": "basic fictional fixture",
+    "clock": "Date is replaced only in this page before product modules load. Explicit Date arguments remain native.",
+    "timers": "Native setInterval delays remain 60000/300000ms. Wrapper counts real executions and calls the original product callback. No timer callback is manually invoked.",
+    "dateChange": "The QA button changes the page clock only. It does not call render, calculation, refresh, or a product event.",
+    "visibility": "A separate button dispatches a synthetic visibilitychange while the document is visible. This also permits existing refresh listeners; it does not simulate actual background suspension.",
+    "system": "OS time, timezone, user settings and production files are unchanged."
+  },
+  "steps": [
+    "Start QA server on a free port, open /qa, seed the basic fixture, then navigate to /qa-clock.",
+    "Open Release and explicitly choose the sample Project. Initial clock is 2026-11-02T23:59:59+09:00.",
+    "Set 2026-11-03T00:00:00+09:00 with the clock-only button. Confirm unchanged schedule before the timer fires.",
+    "Open integration detail then its prerequisite. Wait for the native 60-second refreshGanttDate interval; verify changed summary, bars and open detail.",
+    "Use Back and Close. Change clock to Saturday 2026-11-07, dispatch synthetic visibilitychange and verify Monday start plus the new base date.",
+    "Set 2026-11-10, open prerequisite detail and wait for another native interval. Back and Close preserve history and return focus to the original task."
+  ],
+  "checks": {
+    "assertions": "passed",
+    "modelTests": "6/6 passed",
+    "syntaxAndImageCheck": "npm run check passed",
+    "build": "npm run build passed"
+  },
+  "observations": {
+    "before": {
+      "bars": [
+        "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+        "#202 実装B、2026/11/02 開始から2026/11/04 終了、3日",
+        "#210 結合確認、2026/11/05 開始から2026/11/05 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:50:43.284Z",
+        "simulatedNow": "2026-11-02T14:59:59.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": null,
+            "name": "refreshGanttDate",
+            "ticks": 0
+          }
+        ]
+      },
+      "source": "sample-project",
+      "summary": "見込み 11/5 1日超過期日 2026/11/04"
+    },
+    "changedBeforeTick": {
+      "bars": [
+        "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+        "#202 実装B、2026/11/02 開始から2026/11/04 終了、3日",
+        "#210 結合確認、2026/11/05 開始から2026/11/05 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:50:44.306Z",
+        "simulatedNow": "2026-11-02T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": null,
+            "name": "refreshGanttDate",
+            "ticks": 0
+          }
+        ]
+      },
+      "source": "sample-project",
+      "summary": "見込み 11/5 1日超過期日 2026/11/04"
+    },
+    "detailBeforeTick": {
+      "bars": [
+        "#201 実装A、2026/11/02 開始から2026/11/03 終了、2日",
+        "#202 実装B、2026/11/02 開始から2026/11/04 終了、3日",
+        "#210 結合確認、2026/11/05 開始から2026/11/05 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:50:55.293Z",
+        "simulatedNow": "2026-11-02T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": null,
+            "name": "refreshGanttDate",
+            "ticks": 0
+          }
+        ]
+      },
+      "detail": "戻る#202 実装B閉じる期間2026/11/02 開始 →2026/11/04 終了残り3日作業進捗率0%（見積 3pt）担当実装B余裕0日既存分類着手可能前提なし後続◆ #210 結合確認 1日GitHubで開く ↗",
+      "source": "sample-project",
+      "summary": "見込み 11/5 1日超過期日 2026/11/04"
+    },
+    "afterNativeTick": {
+      "bars": [
+        "#201 実装A、2026/11/03 開始から2026/11/04 終了、2日",
+        "#202 実装B、2026/11/03 開始から2026/11/05 終了、3日",
+        "#210 結合確認、2026/11/06 開始から2026/11/06 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:51:46.032Z",
+        "simulatedNow": "2026-11-02T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "(anonymous)",
+            "ticks": 1
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "refreshGanttDate",
+            "ticks": 1
+          }
+        ]
+      },
+      "detail": "戻る#202 実装B閉じる期間2026/11/03 開始 →2026/11/05 終了残り3日作業進捗率0%（見積 3pt）担当実装B余裕0日既存分類着手可能前提なし後続◆ #210 結合確認 1日GitHubで開く ↗",
+      "source": "sample-project",
+      "summary": "見込み 11/6 2日超過期日 2026/11/04"
+    },
+    "historyAfterTick": {
+      "bars": [
+        "#201 実装A、2026/11/03 開始から2026/11/04 終了、2日",
+        "#202 実装B、2026/11/03 開始から2026/11/05 終了、3日",
+        "#210 結合確認、2026/11/06 開始から2026/11/06 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:52:16.531Z",
+        "simulatedNow": "2026-11-02T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "(anonymous)",
+            "ticks": 1
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "refreshGanttDate",
+            "ticks": 1
+          }
+        ]
+      },
+      "detail": "戻る#210 結合確認閉じる期間2026/11/06 開始 →2026/11/06 終了残り1日作業進捗率0%（見積 1pt）担当結合確認余裕0日既存分類着手可能開始条件親の開閉にかかわらず、配下の作業の完了を待つ。#200 機能A · Closed#201 実装A 2026/11/04 終了◆ #202 実装B 2026/11/05 終了後続なしGitHubで開く ↗",
+      "source": "sample-project",
+      "summary": "見込み 11/6 2日超過期日 2026/11/04"
+    },
+    "focusAfterTick": null,
+    "beforeSyntheticVisible": {
+      "bars": [
+        "#201 実装A、2026/11/03 開始から2026/11/04 終了、2日",
+        "#202 実装B、2026/11/03 開始から2026/11/05 終了、3日",
+        "#210 結合確認、2026/11/06 開始から2026/11/06 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:52:18.782Z",
+        "simulatedNow": "2026-11-06T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "(anonymous)",
+            "ticks": 1
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "refreshGanttDate",
+            "ticks": 1
+          }
+        ]
+      },
+      "source": "sample-project",
+      "summary": "見込み 11/6 2日超過期日 2026/11/04"
+    },
+    "afterSyntheticVisible": {
+      "bars": [
+        "#201 実装A、2026/11/09 開始から2026/11/10 終了、2日",
+        "#202 実装B、2026/11/09 開始から2026/11/11 終了、3日",
+        "#210 結合確認、2026/11/12 開始から2026/11/12 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:52:19.783Z",
+        "simulatedNow": "2026-11-06T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "(anonymous)",
+            "ticks": 1
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:51:35.282Z",
+            "name": "refreshGanttDate",
+            "ticks": 1
+          }
+        ]
+      },
+      "source": "sample-project",
+      "summary": "見込み 11/12 6日超過期日 2026/11/04"
+    },
+    "weekendBasis": {
+      "bars": [
+        "#201 実装A、2026/11/09 開始から2026/11/10 終了、2日",
+        "#202 実装B、2026/11/09 開始から2026/11/11 終了、3日",
+        "#210 結合確認、2026/11/12 開始から2026/11/12 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:52:43.538Z",
+        "simulatedNow": "2026-11-06T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:52:35.280Z",
+            "name": "(anonymous)",
+            "ticks": 2
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:52:35.280Z",
+            "name": "refreshGanttDate",
+            "ticks": 2
+          }
+        ]
+      },
+      "detail": "戻るリリースA閉じる基準日2026-11-07取得時点2026-10-31T06:52:19.690Z完了見込み2026/11/12 終了期日差6日超過日程は登録済みの前提が終わり次第、着手する計算。余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。残りの期間0期間未完了Estimate6pt割当の見直し#201 実装A 期日より後#202 実装B 期日より後#210 結合確認 期日より後",
+      "source": "sample-project",
+      "summary": "見込み 11/12 6日超過期日 2026/11/04"
+    },
+    "secondBefore": {
+      "bars": [
+        "#201 実装A、2026/11/09 開始から2026/11/10 終了、2日",
+        "#202 実装B、2026/11/09 開始から2026/11/11 終了、3日",
+        "#210 結合確認、2026/11/12 開始から2026/11/12 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:53:25.057Z",
+        "simulatedNow": "2026-11-09T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:52:35.280Z",
+            "name": "(anonymous)",
+            "ticks": 2
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:52:35.280Z",
+            "name": "refreshGanttDate",
+            "ticks": 2
+          }
+        ]
+      },
+      "detail": "戻る#202 実装B閉じる期間2026/11/09 開始 →2026/11/11 終了残り3日作業進捗率0%（見積 3pt）担当実装B余裕0日既存分類着手可能前提なし後続◆ #210 結合確認 1日GitHubで開く ↗",
+      "source": "sample-project",
+      "summary": "見込み 11/12 6日超過期日 2026/11/04"
+    },
+    "secondAfter": {
+      "bars": [
+        "#201 実装A、2026/11/10 開始から2026/11/11 終了、2日",
+        "#202 実装B、2026/11/10 開始から2026/11/12 終了、3日",
+        "#210 結合確認、2026/11/13 開始から2026/11/13 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:53:57.996Z",
+        "simulatedNow": "2026-11-09T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:53:35.283Z",
+            "name": "(anonymous)",
+            "ticks": 3
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:53:35.283Z",
+            "name": "refreshGanttDate",
+            "ticks": 3
+          }
+        ]
+      },
+      "detail": "戻る#202 実装B閉じる期間2026/11/10 開始 →2026/11/12 終了残り3日作業進捗率0%（見積 3pt）担当実装B余裕0日既存分類着手可能前提なし後続◆ #210 結合確認 1日GitHubで開く ↗",
+      "source": "sample-project",
+      "summary": "見込み 11/13 7日超過期日 2026/11/04"
+    },
+    "secondHistory": {
+      "bars": [
+        "#201 実装A、2026/11/10 開始から2026/11/11 終了、2日",
+        "#202 実装B、2026/11/10 開始から2026/11/12 終了、3日",
+        "#210 結合確認、2026/11/13 開始から2026/11/13 終了、1日"
+      ],
+      "clock": {
+        "realNow": "2026-10-31T06:53:58.284Z",
+        "simulatedNow": "2026-11-09T15:00:00.000Z",
+        "timers": [
+          {
+            "delay": 300000,
+            "lastRealTime": null,
+            "name": "(anonymous)",
+            "ticks": 0
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:53:35.283Z",
+            "name": "(anonymous)",
+            "ticks": 3
+          },
+          {
+            "delay": 60000,
+            "lastRealTime": "2026-10-31T06:53:35.283Z",
+            "name": "refreshGanttDate",
+            "ticks": 3
+          }
+        ]
+      },
+      "detail": "戻る#210 結合確認閉じる期間2026/11/13 開始 →2026/11/13 終了残り1日作業進捗率0%（見積 1pt）担当結合確認余裕0日既存分類着手可能開始条件親の開閉にかかわらず、配下の作業の完了を待つ。#200 機能A · Closed#201 実装A 2026/11/11 終了◆ #202 実装B 2026/11/12 終了後続なしGitHubで開く ↗",
+      "source": "sample-project",
+      "summary": "見込み 11/13 7日超過期日 2026/11/04"
+    },
+    "settledFocusAfterTick": {
+      "aria": "#210 結合確認の詳細、クリティカル",
+      "text": "◆#210 結合確認1日"
+    },
+    "consoleErrors": []
+  },
+  "sourceBlobs": {
+    "tests/gantt-review-clock.mjs": "07b3d7a955c80f2d7f630e7a570e459430e5b0ab",
+    "tests/gantt-review-server.mjs": "7437344f8c2766d0a3ec38f77cd99a9119785064",
+    "dist/app.mjs": "f8e91626a1e933935c03d788d69ce5c87a018806",
+    "dist/release-gantt.mjs": "8a8a4b8863ad730a38babe625edb5df89423fe54",
+    "dist/release-gantt-model.mjs": "8771a5fa070dbd1c808d0f24adc99dc45ff4cd8c",
+    "dist/engine.mjs": "e883bc87e5e2a6d5cbc3cea2a61513a6a621be58"
+  },
+  "screenshot": "docs/screens/128/after-08-clock-basis.jpg",
+  "remaining": [
+    "Actual wall-clock Japan midnight crossing and actual browser/OS suspension are unverified.",
+    "No actual GitHub work-progress write, user acceptance, Ready transition or merge was performed."
+  ]
+}

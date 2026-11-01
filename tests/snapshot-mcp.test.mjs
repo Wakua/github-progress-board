@@ -17,6 +17,8 @@ test('old timestamps, missing old facts, identity and version conflicts cannot o
 test('main planning metadata is readable under the output contract and cannot be erased by the limited facts tool',async t=>{
  const h=setup(t);await h.seed();const s=snapshot();
  s.planning={sources:{hierarchy:{complete:true,url:'https://api.github.com/graphql'},milestones:{complete:true,urls:['https://api.github.com/repos/Wakua/github-progress-board/milestones?state=all&per_page=100&sort=due_on&direction=asc&page=1']}},issues:[{number:5,parent:null,childCount:0,milestoneNumber:null,projects:[]}],milestones:[]};
+ const item=s.items.find(i=>i.kind==='issue'),empty={keys:[],totalCount:0,complete:true,problem:null};
+ s.planning.schedule={schemaVersion:1,sourceUrl:'https://api.github.com/graphql',issues:[{key:item.url.toLowerCase(),title:item.title,updatedAt:item.updatedAt,state:{value:item.state,problem:null},parent:{value:null,problem:null},children:structuredClone(empty),blockedBy:structuredClone(empty),projects:[],projectsComplete:true,projectsProblem:null}]};
  const r=await h.db.load('owner');r.workspace.projects.find(p=>p.id==='progress-board').githubSnapshot={...s,projectId:'progress-board'};
  await h.db.save('owner',{baseVersion:r.version,operationId:'planning-existing',workspace:r.workspace});
  const before=await h.db.load('owner');assert.deepEqual((await h.call('read_github_facts')).snapshot.planning,s.planning);

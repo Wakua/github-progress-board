@@ -1,3 +1,4 @@
+import { validateScheduleData } from './github-schedule-data.mjs';
 // Read-only GitHub planning metadata; manual plans never enter this model.
 const fail = () => { throw new Error('GitHubの計画情報が不完全または不整合です。'); };
 const object = v => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -22,7 +23,7 @@ const WORK_KEYS = ['blockedBy', 'pullRequests', 'spec'];
 export const URGENT_PRIORITY = '緊急';
 export const isUrgent = task => task.projects.some(p => p.priority === URGENT_PRIORITY);
 export function validatePlanning(planning, snapshot) {
-  keys(planning, ['sources', 'issues', 'milestones']);
+  keys(planning, ['sources', 'issues', 'milestones'], ['schedule']);
   keys(planning.sources, ['hierarchy', 'milestones']);
   keys(planning.sources.hierarchy, ['complete', 'url']);
   if (planning.sources.hierarchy.complete !== true || planning.sources.hierarchy.url !== 'https://api.github.com/graphql') fail();
@@ -121,22 +122,65 @@ export function validatePlanning(planning, snapshot) {
     if (m.parent?.url.toLowerCase().startsWith(snapshot.repositoryUrl.toLowerCase() + '/issues/')) childCounts.set(m.parent.number, (childCounts.get(m.parent.number) || 0) + 1);
   }
   for (const m of metadata.values()) if (m.childCount < (childCounts.get(m.number) || 0)) fail();
+  if (Object.hasOwn(planning, 'schedule')) validateScheduleData(planning.schedule, snapshot);
   return planning;
 }
 
 // 親Issue(子Issueを持つIssue)のタイトルは、先頭の「[Hub] 」を外して表示する。GitHub上のタイトルは変えない。
 // 親かどうかは子Issueの有無で決め、タイトルでは決めない。外すと空になるときは、元のタイトルを残す。
-export const parentTitle = title => title.replace(/^\[Hub\] /, '') || title;
+function parentTitle(title) {
+  const name = title.replace(/^\[Hub\] /, '');
+  return name.trim() ? name : title;
+}
 export const planTitle = issue => issue.childCount > 0 ? parentTitle(issue.item.title) : issue.item.title;
 export function snapshotTitleOf(snapshot) {
-  const parents = new Set((snapshot?.planning?.issues ?? []).filter(i => i.childCount > 0).map(i => i.number));
-  return item => item.kind === 'issue' && parents.has(item.number) ? parentTitle(item.title) : item.title;
+  const parents = new Set((snapshot?.planning?.issues ?? []).filter(i => i.childCount > 0)
+    .map(i => snapshot.repositoryUrl.toLowerCase() + '/issues/' + i.number));
+  for (const issue of snapshot?.planning?.schedule?.issues ?? []) {
+    if (issue.children.totalCount > 0) parents.add(issue.key);
+  }
+  return ({ url, title }) => parents.has(url.toLowerCase()) ? parentTitle(title) : title;
+}
+
+// An explicit assignment starts a new subtree. Match parent URLs, since Issue
+// numbers and Milestone numbers are only unique within one repository.
+export function milestoneSources(repositoryUrl, issues) {
+  const children = new Map();
+  const sources = new Map();
+  const assigned = [];
+  for (const issue of issues) {
+    if (issue.parent) {
+      const parent = issue.parent.url.toLowerCase();
+      if (!children.has(parent)) children.set(parent, []);
+      children.get(parent).push(issue);
+    }
+    if (issue.milestoneNumber !== null) {
+      sources.set(issue.number, issue);
+      assigned.push(issue);
+    }
+  }
+  const prefix = repositoryUrl.toLowerCase() + '/issues/';
+  for (let index = 0; index < assigned.length; index++) {
+    const parent = assigned[index];
+    for (const child of children.get(prefix + parent.number) ?? []) {
+      if (sources.has(child.number)) continue;
+      sources.set(child.number, sources.get(parent.number));
+      assigned.push(child);
+    }
+  }
+  return sources;
 }
 
 export function githubPlan(snapshot) {
   if (!snapshot?.planning) return null;
   const records = new Map(snapshot.items.filter(i => i.kind === 'issue').map(i => [i.number, i]));
-  const issues = snapshot.planning.issues.map(m => ({ ...m, item: records.get(m.number) })).sort((a, b) => a.number - b.number);
+  const sources = milestoneSources(snapshot.repositoryUrl, snapshot.planning.issues);
+  const titleOf = snapshotTitleOf(snapshot);
+  const issues = snapshot.planning.issues.map(m => {
+    const source = sources.get(m.number);
+    const references = m.blockedBy ? { blockedBy: m.blockedBy.map(b => ({ ...b, title: titleOf(b) })) } : {};
+    return { ...m, ...references, item: records.get(m.number), releaseNumber: source?.milestoneNumber ?? null, milestoneSourceNumber: source?.number ?? null };
+  }).sort((a, b) => a.number - b.number);
   const byNumber = new Map(issues.map(i => [i.number, i]));
   const rootFor = issue => {
     let current = issue;
@@ -168,7 +212,7 @@ export function githubPlan(snapshot) {
   return { issues, tasks, goals,
     periods: [...periods.values()].sort((a, b) => a.iteration.startDate.localeCompare(b.iteration.startDate) || a.key.localeCompare(b.key)),
     unassigned: tasks.filter(t => !t.projects.some(p => p.iteration)),
-    releases: snapshot.planning.milestones.map(m => ({ ...m, tasks: tasks.filter(t => t.milestoneNumber === m.number) })) };
+    releases: snapshot.planning.milestones.map(m => ({ ...m, tasks: tasks.filter(t => t.releaseNumber === m.number) })) };
 }
 
 // Estimate belongs to a source Project. Repository-wide scopes require one source per task.
