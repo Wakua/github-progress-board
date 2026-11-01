@@ -126,10 +126,43 @@ export function validatePlanning(planning, snapshot) {
   return planning;
 }
 
+// An explicit assignment starts a new subtree. Match parent URLs, since Issue
+// numbers and Milestone numbers are only unique within one repository.
+export function milestoneSources(repositoryUrl, issues) {
+  const children = new Map();
+  const sources = new Map();
+  const assigned = [];
+  for (const issue of issues) {
+    if (issue.parent) {
+      const parent = issue.parent.url.toLowerCase();
+      if (!children.has(parent)) children.set(parent, []);
+      children.get(parent).push(issue);
+    }
+    if (issue.milestoneNumber !== null) {
+      sources.set(issue.number, issue);
+      assigned.push(issue);
+    }
+  }
+  const prefix = repositoryUrl.toLowerCase() + '/issues/';
+  for (let index = 0; index < assigned.length; index++) {
+    const parent = assigned[index];
+    for (const child of children.get(prefix + parent.number) ?? []) {
+      if (sources.has(child.number)) continue;
+      sources.set(child.number, sources.get(parent.number));
+      assigned.push(child);
+    }
+  }
+  return sources;
+}
+
 export function githubPlan(snapshot) {
   if (!snapshot?.planning) return null;
   const records = new Map(snapshot.items.filter(i => i.kind === 'issue').map(i => [i.number, i]));
-  const issues = snapshot.planning.issues.map(m => ({ ...m, item: records.get(m.number) })).sort((a, b) => a.number - b.number);
+  const sources = milestoneSources(snapshot.repositoryUrl, snapshot.planning.issues);
+  const issues = snapshot.planning.issues.map(m => {
+    const source = sources.get(m.number);
+    return { ...m, item: records.get(m.number), releaseNumber: source?.milestoneNumber ?? null, milestoneSourceNumber: source?.number ?? null };
+  }).sort((a, b) => a.number - b.number);
   const byNumber = new Map(issues.map(i => [i.number, i]));
   const rootFor = issue => {
     let current = issue;
@@ -161,7 +194,7 @@ export function githubPlan(snapshot) {
   return { issues, tasks, goals,
     periods: [...periods.values()].sort((a, b) => a.iteration.startDate.localeCompare(b.iteration.startDate) || a.key.localeCompare(b.key)),
     unassigned: tasks.filter(t => !t.projects.some(p => p.iteration)),
-    releases: snapshot.planning.milestones.map(m => ({ ...m, tasks: tasks.filter(t => t.milestoneNumber === m.number) })) };
+    releases: snapshot.planning.milestones.map(m => ({ ...m, tasks: tasks.filter(t => t.releaseNumber === m.number) })) };
 }
 
 // Estimate belongs to a source Project. Repository-wide scopes require one source per task.

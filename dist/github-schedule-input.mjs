@@ -1,4 +1,5 @@
 import { validateSnapshot } from './github-snapshot.mjs';
+import { milestoneSources } from './github-planning.mjs';
 import { githubWorkCategory } from './github-work.mjs';
 
 const key = url => url.toLowerCase();
@@ -73,10 +74,12 @@ export function githubScheduleInput(snapshot, { baseDate, selectedProjectId, sou
     planning: planningFor(issue, sourceIds.has(issue.key) ? sourceIds.get(issue.key) :
       issue.key.startsWith(key(snapshot.repositoryUrl) + '/issues/') ? selectedProjectId : null),
   }));
+  const localIssues = snapshot.planning?.issues ?? [];
+  const sources = milestoneSources(snapshot.repositoryUrl, localIssues);
   const milestones = (snapshot.planning?.milestones ?? []).map(m => ({
     key: key(m.url), state: m.state, dueDate: m.dueOn === null ? null : m.dueOn.slice(0, 10),
-    tasks: links(records.filter(i => i.key.startsWith(key(snapshot.repositoryUrl) + '/issues/') && metadata.get(Number(i.key.split('/').at(-1)))?.milestoneNumber === m.number &&
-      metadata.get(Number(i.key.split('/').at(-1)))?.childCount === 0).map(i => i.key)),
+    tasks: links(localIssues.filter(i => i.childCount === 0 && sources.get(i.number)?.milestoneNumber === m.number)
+      .map(i => key(snapshot.repositoryUrl + '/issues/' + i.number))),
   }));
   return { baseDate, selectedProjectId, fetchedAt: snapshot.fetchedAt, issues, milestones };
 }

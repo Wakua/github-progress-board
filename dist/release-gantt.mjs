@@ -2,6 +2,7 @@ import { ganttProjects, releaseGanttModel } from './release-gantt-model.mjs';
 import { releaseGoalGroups } from './gantt-groups.mjs';
 import { mountGanttChart } from './gantt-chart.mjs';
 import { ganttTemplate } from './gantt-template.mjs';
+import { milestoneSources } from './github-planning.mjs';
 import { releaseSummaries } from './release.mjs';
 import { todayInTokyo } from './engine.mjs';
 const esc = value => String(value ?? '').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
@@ -31,7 +32,9 @@ export function createReleaseGantt(root) {
     };
     const selected = open.find(m => m.url === selection.release);
     if (!selected) return;
-    if (!snapshot.planning.issues.some(i => i.milestoneNumber === selected.number && i.childCount === 0)) {
+    const issues = snapshot.planning.issues;
+    const sources = milestoneSources(snapshot.repositoryUrl, issues);
+    if (!issues.some(i => i.childCount === 0 && sources.get(i.number)?.milestoneNumber === selected.number)) {
       root.insertAdjacentHTML('beforeend','<section class="gantt"><h2>'+esc(selected.title)+'</h2><p>作業未登録</p><p>'+(selected.dueOn?'期日 '+esc(selected.dueOn.slice(0,10)):'期日未設定')+'</p></section>'); return;
     }
     const choices = ganttProjects(snapshot);

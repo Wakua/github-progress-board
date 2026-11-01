@@ -45,7 +45,7 @@ function releaseGoalsInput(dependencies) {
   return input;
 }
 export function ganttSnapshot(name = 'basic', progress = null, fetchedAt = '2026-10-31T00:00:00Z') {
-  const input = ['goals','dependencies'].includes(name) ? releaseGoalsInput(name === 'dependencies') : name === 'collapse' ? collapseInput() : structuredClone(samples[name].input);
+  const input = ['goals','dependencies','inherited'].includes(name) ? releaseGoalsInput(name === 'dependencies') : name === 'collapse' ? collapseInput() : structuredClone(samples[name].input);
   const updatedAt = '2026-10-30T00:00:00Z';
   if (progress !== null) for(const i of input.issues) if(i.planning.workProgressPercent.value !== null) i.planning.workProgressPercent.value = progress;
   const toProject = i => {
@@ -57,6 +57,12 @@ export function ganttSnapshot(name = 'basic', progress = null, fetchedAt = '2026
   const rows = input.issues.map(i=>({ key:i.key,title:i.title,updatedAt,state:i.state,parent:i.parent,children:i.children,blockedBy:i.blockedBy,projects:[toProject(i)],projectsComplete:true,projectsProblem:null }));
   const local = input.issues.filter(i=>i.key.startsWith(repositoryUrl+'/issues/'));
   const milestoneNumbers = new Map(input.milestones.flatMap(m => m.tasks.keys.map(key => [key, Number(m.key.split('/').at(-1))])));
+  if (name === 'inherited') {
+    milestoneNumbers.clear();
+    for (const [issue, milestone] of [[200, 1], [300, 1], [401, 2]]) {
+      milestoneNumbers.set(repositoryUrl + '/issues/' + issue, milestone);
+    }
+  }
   const snapshot = {schemaVersion:1,source:'github',repositoryUrl,fetchedAt,
     sources: { issues:{complete:true,urls:['https://api.github.com/repos/example/gantt-sample/issues?state=all&per_page=100&sort=updated&direction=desc&page=1']},pullRequests:{complete:true,urls:['https://api.github.com/repos/example/gantt-sample/pulls?state=all&per_page=100&sort=updated&direction=desc&page=1']}},
     items:local.map(i=>({kind:'issue',...ref(i.key),title:i.title,state:i.state.value,updatedAt,closedAt:i.state.value==='closed'?updatedAt:null,estimatePoints:null,deadline:null})),

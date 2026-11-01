@@ -25,6 +25,18 @@ test('外部集約の末端・祖先の前提を取得し、祖先の兄弟作�
   assert.ok(!result.tasks.some(t => t.key === url(6, external)));
 });
 
+test('親のMilestoneを継いだ子も外部前提の再取得を起動する', async () => {
+  const data = scheduleFixture();
+  const [child, parent] = data.issuePages[0];
+  parent.milestone = child.milestone;
+  child.milestone = null;
+  const snapshot = await scheduleSnapshot(data);
+  assert.ok(data.reads.includes(url(1, external)));
+  const input = githubScheduleInput(snapshot, options);
+  assert.deepEqual(input.milestones[0].tasks.keys, [url(1)]);
+  assert.equal(calculateMilestoneSchedule(input).milestones[0].state, 'calculated');
+});
+
 test('外部Issueの出典を指定しなければ先頭Projectを選ばず未確定にする', async () => {
   const snapshot = await scheduleSnapshot();
   const input = githubScheduleInput(snapshot, { ...options, sourceProjectIds: {} });

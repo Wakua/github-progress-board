@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { releaseGanttModel, ganttProjects } from '../dist/release-gantt-model.mjs';
 import { releaseGoalGroups, goalProgress, goalSchedule } from '../dist/gantt-groups.mjs';
 import { releaseDependencies, projectDependencies } from '../dist/gantt-dependencies.mjs';
+import { githubPlan, milestoneSources } from '../dist/github-planning.mjs';
+import { githubItemPlanning } from '../dist/github-planning-view.mjs';
 import { ganttSnapshot } from './gantt-fixture.mjs';
 import { scheduleSnapshot, repo, external, url } from './github-schedule-fixture.mjs';
 const options={selectedProjectId:'sample-project',baseDate:'2026-11-02'};
@@ -16,6 +18,34 @@ test('Projectを指定するまで計算せず、snapshotと既存分類を変�
   assert.equal(m.result.tasks.find(i=>i.key.endsWith('/210')).earliestStart.date,'2026-11-05');
   assert.deepEqual(s,before);
 });
+test('未設定の子孫は最も近いMilestoneに一度だけ入り、一覧・詳細・日程が一致する', () => {
+  const snapshot = ganttSnapshot('inherited');
+  const issue = n => snapshot.planning.issues.find(i => i.number === n);
+  const check = expected => {
+    const plan = githubPlan(snapshot);
+    assert.deepEqual(plan.releases.map(m => m.tasks.map(t => t.number)), expected);
+    const { result } = releaseGanttModel(snapshot, options);
+    assert.deepEqual(result.milestones.map(m => m.targetTaskKeys.map(k => Number(k.split('/').at(-1)))), expected);
+  };
+  check([[201, 202, 301], [401]]);
+  assert.match(githubItemPlanning(snapshot, 301), /#300から継承/);
+  assert.doesNotMatch(githubItemPlanning(snapshot, 401), /から継承/);
+  assert.equal(issue(301).milestoneNumber, null);
+  issue(305).milestoneNumber = 2;
+  check([[201, 202], [301, 401]]);
+  assert.match(githubItemPlanning(snapshot, 301), /#305から継承/);
+  issue(200).milestoneNumber = null;
+  check([[], [301, 401]]);
+  delete snapshot.planning.schedule;
+  check([[], [301, 401]]);
+});
+
+test('別repositoryの同番号の親からMilestoneを継承しない', () => {
+  const issues = [{ number: 9, parent: null, milestoneNumber: 1 },
+    { number: 1, parent: { number: 9, url: url(9, external) }, milestoneNumber: null }];
+  assert.equal(milestoneSources(repo, issues).has(1), false);
+});
+
 test('再取得した進捗率と基準日の変更で計算し直す',()=>{
   const before=releaseGanttModel(ganttSnapshot(),options);
   const after=releaseGanttModel(ganttSnapshot('basic',50),options);
