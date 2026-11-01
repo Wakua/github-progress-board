@@ -44,14 +44,14 @@ try {
   const facts = card => card.evaluate(el => ({
     summary: el.querySelector('[data-gantt="summary"]').textContent,
     alerts: el.querySelector('[data-gantt="alerts"]').textContent,
-    progress: [...el.querySelectorAll('.task-progress')].map(n => n.textContent),
+    goalCounts: [...el.querySelectorAll('.goal-metrics')].map(n => n.textContent),
     bars: [...el.querySelectorAll('[data-bar]')].map(n => n.getAttribute('aria-label')),
   }));
   const lines = () => a.locator('svg.connections path[marker-end]').evaluateAll(nodes => nodes.map(n => n.getAttribute('d')));
   const shot = name => panel.screenshot({ path:path.join(artifacts,name+'.jpg'),quality:58 });
   const state = async (toggle, expanded) => assert.equal(await toggle.getAttribute('aria-expanded'),String(expanded));
   assert.deepEqual(await visibleTasks(a),[]);
-  assert.match(await parent.locator('..').innerText(),/2件\s*作業進捗 0%/);
+  assert.match(await parent.locator('..').innerText(),/0\/2/);
   await showB();
   assert.equal(await a.count(),0);
   assert.deepEqual(await visibleTasks(b),[]);

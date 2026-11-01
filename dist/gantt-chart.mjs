@@ -1,9 +1,15 @@
 import { axisFor, calendarPosition, positionText, dueText, diagnosticText, diagnosticReason, parseDate, monthDay, addDays } from './gantt-axis.mjs';
-import { goalProgress, goalSchedule } from './gantt-groups.mjs';
+import { goalSchedule } from './gantt-groups.mjs';
 import { releaseDependencies, projectDependencies } from './gantt-dependencies.mjs';
 import { validWorkProgress } from './milestone-schedule.mjs';
 import { incompleteForecast } from './gantt-forecast-judgment.mjs';
 
+function completionCount({total, remaining}) {
+  const done = total - remaining;
+  const complete = total > 0 && remaining === 0;
+  const label = complete ? total+'件すべて完了' : total+'件中'+done+'件完了';
+  return '<span aria-hidden="true"'+(complete ? ' class="goal-complete"' : '')+'>'+(complete ? '✓ ' : '')+done+'/'+total+'</span><span class="sr-only">'+label+'</span>';
+}
 function progressDisplay(read) {
   if (validWorkProgress(read)) return { value: read.value, label: read.value + '%' };
   const reason = read.problem ?? (read.value === null ? 'missing-value' : 'invalid-value');
@@ -28,12 +34,6 @@ const sources = new Map(input.issues.map(issue => [issue.key, issue]));
 const source = key => sources.get(key);
 const title = key => source(key)?.title || key;
 const taskLink = key => `<button class="plain-action" data-follow="${escape(key)}">${escape(title(key))}</button>`;
-function progressMarkup(key) {
-  const { value, label } = progressDisplay(source(key).planning.workProgressPercent);
-  const name = escape(title(key)) + 'の作業進捗率';
-  if (value === null) return `<span class="task-progress"><span class="sr-only">${name}：</span>${label}</span>`;
-  return `<span class="task-progress"><span class="progress-track" role="progressbar" aria-label="${name}" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${value}"><span style="width:${label}"></span></span><span aria-hidden="true">${label}</span></span>`;
-}
 function shortName(key) {
   const issue = source(key);
   if (!issue) return key.replace('https://github.com/','').replace('/issues/','#');
@@ -101,7 +101,7 @@ function load() {
   const taskRow = item => {
     const critical = milestone.criticalTaskKeys.includes(item.key);
     const warning = item.iterationOverflow ? '期間外' : '';
-    return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button>${progressMarkup(item.key)}</div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : escape(scheduleGap(item.key))}</span>`}</div></div>`;
+    return `<div class="row"><div class="name"><button class="plain-action task-button" data-task="${escape(item.key)}" aria-label="${escape(title(item.key))}の詳細${critical ? '、クリティカル' : ''}">${critical ? '<span class="critical-mark" aria-hidden="true">◆</span>' : ''}<span class="task-name">${escape(title(item.key))}</span><span class="duration">${item.durationDisplay ?? ''}</span>${warning ? `<span class="warn row-warning">${warning}</span>` : ''}</button></div><div class="track">${item.earliestStart ? `<span data-bar="${escape(item.key)}" class="bar${critical ? ' critical' : ''}${item.durationDays === 0 ? ' point' : ''}" role="img"></span>` : `<span class="unavailable">${item.completion.value === 'done' ? '完了' : escape(scheduleGap(item.key))}</span>`}</div></div>`;
   };
   let groupIndex = 0;
   function scheduleTrack(key, range) {
@@ -121,21 +121,14 @@ function load() {
       if (entry.task) return taskRow(entry.task);
       const id = options.arrowId + '-group-' + groupIndex++;
       const expanded = !fold.parents.has(entry.key);
-      let metrics = '', parentLink = '';
       const goal = depth === 0 && entry.key !== 'other-work';
-      if (goal) {
-        const { count, percent, gaps } = goalProgress(entry, sources);
-        const percentText = percent === null ? '' : Number(percent.toFixed(1)) + '%';
-        const progress = percent === null ? escape(gaps.join('・')) :
-          '作業進捗 ' + percentText + '<span class="progress-track" aria-hidden="true"><span style="width:'+percentText+'"></span></span>';
-        metrics = '<span>'+count+'件</span> <span class="goal-work-progress">'+progress+'</span>';
-        if (source(entry.key) && !source(entry.key).external)
-          parentLink = '<a class="goal-issue" href="'+escape(entry.key)+'" target="_blank" rel="noopener noreferrer">子Issueの追加はGitHubで ↗</a>';
-      }
-      const heading = `<div class="parent-heading ${goal?'goal-heading':entry.key==='other-work'?'other-heading':''}" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}" ${goal ? `aria-describedby="${id}-metrics"` : ''}>${escape(entry.title ?? title(entry.key))}</button>${goal ? `<span class="goal-metrics" id="${id}-metrics">${metrics}</span>` : ''}</div>`;
+      const range = goal || insideGoal ? goalSchedule(entry) : null;
+      const metrics = range ? completionCount(range) : '';
+      const parentLink = goal && source(entry.key) && !source(entry.key).external
+        ? '<a class="goal-issue" href="'+escape(entry.key)+'" target="_blank" rel="noopener noreferrer">子Issueの追加はGitHubで ↗</a>' : '';
+      const heading = `<div class="parent-heading ${goal?'goal-heading':entry.key==='other-work'?'other-heading':''}" style="--level:${Math.min(depth,3)}"><button type="button" class="fold-button" data-parent="${escape(entry.key)}" id="${id}-toggle" aria-expanded="${expanded}" aria-controls="${id}" ${range ? `aria-describedby="${id}-metrics"` : ''}>${escape(entry.title ?? title(entry.key))}</button>${range ? `<span class="goal-metrics" id="${id}-metrics">${metrics}</span>` : ''}</div>`;
       let row = heading;
-      if (goal || insideGoal) {
-        const range = goalSchedule(entry);
+      if (range) {
         goalSchedules.set(entry.key, range);
         row = `<div class="row gantt-goal-row">${heading}${scheduleTrack(entry.key,range)}</div>`;
       }
@@ -194,7 +187,7 @@ function showDetails(key) {
   let heading, body;
   if (key === 'release') {
     heading = input.milestones.find(item => item.key === milestone.key).title;
-    body = `<dl class="facts">${fact('基準日', input.baseDate)}${fact('取得時点', input.fetchedAt)}${fact('完了見込み', positionText(milestone.finish))}${fact('期日差', dueText(milestone.dueDifference))}</dl><p>目標の作業進捗は、このリリースの末端作業の見積で作業進捗率を加重した割合。見積や進捗率が不足すると未算出。Issueの完了・本人の受入は別に確認する。</p><p>日程は登録済みの前提が終わり次第、着手する計算。</p><p>余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。</p>`;
+    body = `<dl class="facts">${fact('基準日', input.baseDate)}${fact('取得時点', input.fetchedAt)}${fact('完了見込み', positionText(milestone.finish))}${fact('期日差', dueText(milestone.dueDifference))}</dl><p>親の件数は、このリリースに属する末端作業のうち完了した件数と総数。</p><p>日程は登録済みの前提が終わり次第、着手する計算。</p><p>余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。</p>`;
     const summary = options.releaseSummary;
     if (summary) {
       body += '<dl class="facts">'+fact('残りの期間', summary.iterations+'期間')+fact('未完了Estimate', summary.remainingPoints+'pt')+'</dl>';
@@ -229,8 +222,9 @@ function showDetails(key) {
     } else {
       const reverse = milestone.tasks.find(t => t.key === key);
       const progress = progressDisplay(original.planning.workProgressPercent);
-      const progressText = progress.label + (progress.value === 100 && item.completion.value !== 'done' ? '・未完了' : '');
-      body = `<dl class="facts">${fact('期間', item.completion.value === 'done' ? '完了済み（実績日不明）' : `${positionText(item.earliestStart)} →<br>${positionText(item.earliestFinish)}`)}${fact('残り', item.durationDisplay ?? '未算出')}${fact('作業進捗率', progressText+`（見積 ${original.planning.estimatePoints.value === null ? '未入力' : `${original.planning.estimatePoints.value}pt`}）`)}${fact('担当', escape(original.planning.owner.value ?? '不明'))}${fact('余裕', item.completion.value === 'done' ? '対象外' : reverse?.slackDisplay ?? '未算出')}${fact('既存分類', escape(original.category))}</dl>`;
+      const progressText = escape(progress.label) + (progress.value === 100 && item.completion.value !== 'done' ? '・未完了' : '');
+      const meter = progress.value === null ? '' : `<span class="progress-track" role="progressbar" aria-label="${escape(heading)}の作業進捗率" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${progress.value}"><span style="width:${progress.value}%"></span></span>`;
+      body = `<dl class="facts">${fact('期間', item.completion.value === 'done' ? '完了済み（実績日不明）' : `${positionText(item.earliestStart)} →<br>${positionText(item.earliestFinish)}`)}${fact('残り', item.durationDisplay ?? '未算出')}${fact('作業進捗率', progressText+`（見積 ${original.planning.estimatePoints.value === null ? '未入力' : `${original.planning.estimatePoints.value}pt`}）${meter}`)}${fact('担当', escape(original.planning.owner.value ?? '不明'))}${fact('余裕', item.completion.value === 'done' ? '対象外' : reverse?.slackDisplay ?? '未算出')}${fact('既存分類', escape(original.category))}</dl>`;
       if (item.iterationOverflow) body += `<p class="warn">Iteration終了 ${original.planning.iteration.value.endDate} を${item.iterationOverflow.display}超過</p>`;
       if (item.diagnosticIds.length) body += `<h3>計算できない理由</h3>${diagnosticsHtml(item.diagnosticIds)}`;
       const incoming = dependencyData.allEdges.filter(edge => edge.to === key);
