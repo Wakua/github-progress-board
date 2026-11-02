@@ -1,4 +1,5 @@
 import { validatePlanning } from './github-planning.mjs';
+import { issueAcceptancePending } from './release-lifecycle.mjs';
 // GitHub facts are separate from manual plans. No status maps to task completion.
 export const SNAPSHOT_VERSION = 1;
 export const MAX_IMPORT_BYTES = 5 * 1024 * 1024;
@@ -54,7 +55,8 @@ export function validateSnapshot(snapshot, { projectId, repositoryUrl, now = Dat
   const identities = new Set(), numbers = new Set();
   for (const item of snapshot.items) {
     if (!object(item) || !['issue', 'pull_request'].includes(item.kind)) fail('Issue・PRの種類を確認してください。');
-    keys(item, ['kind', 'number', 'url', 'title', 'state', 'updatedAt', 'closedAt', 'estimatePoints', 'deadline'], item.kind === 'pull_request' ? ['draft', 'mergedAt'] : []);
+    keys(item, ['kind', 'number', 'url', 'title', 'state', 'updatedAt', 'closedAt', 'estimatePoints', 'deadline'],
+      item.kind === 'pull_request' ? ['draft', 'mergedAt'] : ['acceptancePending', 'notPlanned']);
     if (!Number.isSafeInteger(item.number) || item.number < 1) fail('Issue・PR番号を確認してください。');
     const expected = `${snapshot.repositoryUrl}/${item.kind === 'issue' ? 'issues' : 'pull'}/${item.number}`;
     if (typeof item.url !== 'string' || item.url.toLowerCase() !== expected.toLowerCase()) fail('Issue・PRの出典URLがrepository・番号と一致しません。');
@@ -65,7 +67,10 @@ export function validateSnapshot(snapshot, { projectId, repositoryUrl, now = Dat
     if (item.closedAt !== null && timestamp(item.closedAt, 'Closed日時') > updatedAt) fail('Closed日時と更新日時が一致しません。');
     if ((item.state === 'open' && item.closedAt !== null) || (item.state === 'closed' && item.closedAt === null)) fail('Closed日時と状態が一致しません。');
     if (item.estimatePoints !== null || item.deadline !== null) fail('未取得のEstimate・期限は不明（null）のまま保持してください。');
-    if (item.kind === 'pull_request') {
+    if (item.kind === 'issue') {
+      if (Object.hasOwn(item, 'acceptancePending') && typeof item.acceptancePending !== 'boolean') fail('Issueの受入待ちの記録を確認してください。');
+      if (Object.hasOwn(item, 'notPlanned') && (item.state !== 'closed' || typeof item.notPlanned !== 'boolean')) fail('Issueの終了理由を確認してください。');
+    } else {
       if (typeof item.draft !== 'boolean' || !Object.hasOwn(item, 'mergedAt')) fail('PRのDraft・merge状態を確認してください。');
       if (item.mergedAt !== null && (timestamp(item.mergedAt, 'merge日時') > updatedAt || item.state !== 'closed')) fail('PRのmerge日時と状態が一致しません。');
     }
@@ -138,6 +143,10 @@ export function buildSnapshot({ repositoryUrl, fetchedAt, issuePages, pullPages,
     const item = { kind, number: record.number, url: record.html_url, title: record.title, state: record.state,
       updatedAt: record.updated_at, closedAt: record.closed_at, estimatePoints: null, deadline: null };
     if (kind === 'pull_request') { item.draft = record.draft; item.mergedAt = record.merged_at; }
+    else {
+      if (record.body === null || typeof record.body === 'string') item.acceptancePending = issueAcceptancePending(record.body);
+      if (record.state === 'closed' && ['completed', 'not_planned'].includes(record.state_reason)) item.notPlanned = record.state_reason === 'not_planned';
+    }
     return item;
   };
   const snapshot = { schemaVersion: SNAPSHOT_VERSION, source: 'github', repositoryUrl, fetchedAt, sources,

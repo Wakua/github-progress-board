@@ -68,3 +68,12 @@
 .release-choose:hover, .release-facts a { text-decoration:underline; text-underline-offset:3px; }
 .release-facts { font-size:13px; color:var(--muted); }
 .release-facts a { color:var(--blue); }
+
+.release-task-counts { flex-basis:100%; display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 16px; font-size:14px; }
+.release-task-counts details { min-width:0; max-width:100%; }
+.release-task-counts summary { cursor:pointer; color:var(--blue); }
+.release-task-counts ul { margin:6px 0; }
+.release-task-counts li { border:0; padding:4px 0; display:block; }
+.release-task-counts .issue-name { white-space:normal; text-align:left; overflow-wrap:anywhere; }
+.gantt .forecast-details { margin-block:8px; font-size:14px; }
+.gantt .forecast-details summary { cursor:pointer; color:#a6d3ff; }

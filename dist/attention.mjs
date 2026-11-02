@@ -56,21 +56,36 @@ function attentionRows(model) {
     ...model.mine.map(item => ({ nameHtml: item.nameHtml, labels: ['担当'] })),
   ];
 }
-export function attentionReasons(model) {
-  return [...new Set(attentionRows(model).flatMap(item => item.labels))];
+function countReasons(rows) {
+  const counts = new Map();
+  for (const { labels } of rows) {
+    for (const label of labels) counts.set(label, (counts.get(label) ?? 0) + 1);
+  }
+  return counts;
 }
-function filteredAttention(model, requestedReason) {
-  const rows = attentionRows(model);
-  const reasons = [...new Set(rows.flatMap(item => item.labels))];
-  const reason = reasons.length > 1 && reasons.includes(requestedReason) ? requestedReason : null;
-  return { reasons, reason, rows: reason ? rows.filter(item => item.labels.includes(reason)) : rows };
+export function attentionReasons(model) {
+  return [...countReasons(attentionRows(model)).keys()];
+}
+function reasonFilters(counts, total, selected) {
+  if (!counts.size) return '';
+  if (counts.size === 1) {
+    const [[label, count]] = counts;
+    return `<p class="attention-reasons">${esc(label)} ${count}件</p>`;
+  }
+  const buttons = [[null, total], ...counts].map(([label, count]) =>
+    `<button type="button" class="owner-choice" data-attention-reason="${esc(label ?? '')}" aria-pressed="${label === selected}">${esc(label ?? 'すべて')} ${count}件</button>`
+  );
+  return `<div class="owner-filter attention-reasons" role="group" aria-label="理由で絞り込む"><span class="attention-control-label">理由：</span>${buttons.join('')}</div>`;
 }
 export function attentionCount(model) {
   return attentionRows(model).length;
 }
 export function attentionPanelMarkup(model, requestedReason = null) {
-  const { rows, reasons, reason } = filteredAttention(model, requestedReason);
+  const allRows = attentionRows(model);
+  const counts = countReasons(allRows);
+  const reason = counts.size > 1 && counts.has(requestedReason) ? requestedReason : null;
+  const rows = reason ? allRows.filter(item => item.labels.includes(reason)) : allRows;
   const chips = model.owners.length ? `<div class="owner-filter attention-me" role="group" aria-label="あなたの担当者名"><span class="attention-control-label">あなた：</span>${model.owners.map(owner => `<button type="button" class="owner-choice" data-attention-me="${esc(owner)}" aria-pressed="${owner === model.me}">${esc(owner)}</button>`).join('')}</div>` : '';
-  const filters = reasons.length > 1 ? `<div class="owner-filter attention-reasons" role="group" aria-label="理由で絞り込む"><span class="attention-control-label">理由：</span>${[null, ...reasons].map(value => `<button type="button" class="owner-choice" data-attention-reason="${esc(value ?? '')}" aria-pressed="${value === reason}">${esc(value ?? 'すべて')}</button>`).join('')}</div>` : '';
+  const filters = reasonFilters(counts, allRows.length, reason);
   return chips + filters + (rows.length ? `<section class="my-work-section needs-action"><ul class="my-work-list">${rows.map(item => row(item.nameHtml, item.labels.join('・'))).join('')}</ul></section>` : '<p class="empty-message">手が要る作業はありません。</p>');
 }
