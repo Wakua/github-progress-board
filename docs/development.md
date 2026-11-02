@@ -174,7 +174,7 @@ GitHub Releaseを公開したら、担当者は公開ページと対象のMilest
 
 ## バージョン
 
-現在の版は `0.2.0` である。
+現在の版は `0.3.0` である。
 版の正本は`package.json`と`package-lock.json`の`version`で、一致を単体テストで検査する。
 画面には表示しない。
 
