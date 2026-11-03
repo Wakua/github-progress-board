@@ -67,6 +67,7 @@ try {
   assert.equal(github.posts.length,1);assert.ok(github.posts[0].body.startsWith('<!-- github-progress-board-report:'));
   assert.equal((await read(id)).github.repository,repository);await capture(page,'04-github-registered.png');
   checks.push('接続前の報告は明示操作で一度だけ登録し、取得したタグを表示する');
+  await page.getByRole('button',{name:'← 報告一覧へ',exact:true}).click();
   await page.getByRole('button',{name:'更新',exact:true}).click();await page.locator('#new-tags').waitFor();
   assert.equal((await page.locator('#new-tags').textContent()).trim(),'新しいタグ 1');
   await page.getByRole('button',{name:/^カテゴリの設定/}).click();await page.locator('#category-dialog[open]').waitFor();
@@ -91,6 +92,7 @@ try {
   assert.deepEqual(unseen.tags.map(item=>[item.id,item.role]).sort((a,b)=>a[0]-b[0]),[[7,'main'],[8,'none'],[9,null]]);assert.equal(unseen.newCount,1);
   assert.equal((await page.locator('#new-tags').textContent()).trim(),'新しいタグ 1');
   checks.push('設定画面を開いている間に増えたタグは、見せていないので確定せず、新しいタグのまま残る');
+  await page.locator('.report-row').click();await page.locator('#detail h2').waitFor();
   async function advance(name,status){await page.getByRole('button',{name,exact:true}).click();await page.locator('#detail > .workflow-'+status).waitFor();}
   // 入力が要らない操作はボタン1回で進み、バージョンの指定や確認結果が要る操作は、入力欄を開いてから送る。
   async function advanceWith(openName,submitName,status,version){await page.getByRole('button',{name:openName,exact:true}).click();await page.locator('[name=targetVersion]').fill(version);await page.getByRole('button',{name:submitName,exact:true}).click();await page.locator('#detail > .workflow-'+status).waitFor();}

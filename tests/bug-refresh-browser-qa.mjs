@@ -70,9 +70,9 @@ try {
   await page.getByRole('button',{name:'← 報告一覧へ',exact:true}).focus();await page.keyboard.press('Enter');
   assert.equal(await page.locator('.list').isVisible(),true);
   assert.match(await page.locator('.report-row.active').textContent(),/予約一覧の更新中に保存した報告/);
-  await page.locator('.report-row.active').focus();await page.keyboard.press('Enter');
+  assert.equal(await page.locator('.report-row.active').evaluate(node=>node===document.activeElement),true);await page.keyboard.press('Enter');
   await page.locator('#detail.mobile-open').waitFor();
-  checks.push('キーボードで詳細から一覧へ戻り、同じ行の選択を確認し、行へフォーカスして詳細を再び開いた（自動フォーカス復元は未対応）');
+  checks.push('キーボードで詳細から一覧へ戻り、同じ行の選択とフォーカスの復元を確認し、そのままEnterで詳細を再び開いた');
   assert.deepEqual(errors,[]);
   await writeFile(path.join(artifacts,prefix+'-summary.json'),JSON.stringify({at:new Date().toISOString(),productCommit:execFileSync('git',['-C',codeDir,'rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).trim(),expected,state,checks,errors},null,2)+'\n');
   console.log(JSON.stringify({expected,checks,errors}));

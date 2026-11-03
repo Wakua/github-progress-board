@@ -61,7 +61,8 @@ try {
     await page.getByRole('button',{name:'← 報告一覧へ',exact:true}).press('Enter');
     assert.equal(await page.locator('.report-row').count(),2);
     assert.match(await page.locator('.report-row.active').textContent(),/#107/);
-    checks.push('詳細で前回のタグと取得失敗を確認し、一覧へ戻って選択と絞り込みを維持（既存の自動フォーカス復元は対象外）');
+    assert.equal(await page.locator('.report-row.active').evaluate(node=>node===document.activeElement),true);
+    checks.push('詳細で前回のタグと取得失敗を確認し、一覧へ戻って選択・絞り込み・フォーカスを維持');
     await page.setViewportSize({width:800,height:900});await overflow();
     await page.locator('#list-heading').scrollIntoViewIfNeeded();await shot('02-filtered');
     await page.locator('#search').fill('予約一覧');

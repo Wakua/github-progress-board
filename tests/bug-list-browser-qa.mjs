@@ -101,11 +101,10 @@ export async function checkBugList({browser,artifacts,checks,errors}) {
     assert.equal(await row(local.title).getByText('GitHub未登録',{exact:true}).count(),1);
     await row(title[0]).click();await page.locator('#detail h2').filter({hasText:title[0]}).waitFor();
     assert.match(await page.locator('#detail .report-body').textContent(),/QA-CSV/);
-    const layout=await page.evaluate(()=>{
-      const list=document.querySelector('.list').getBoundingClientRect(),detail=document.querySelector('#detail').getBoundingClientRect();
-      return {listRight:list.right,detailLeft:detail.left,rowsInside:[...document.querySelectorAll('.report-row')].every(node=>{const box=node.getBoundingClientRect();return box.left>=list.left&&box.right<=list.right;})};
-    });
-    assert.ok(layout.listRight<=layout.detailLeft);assert.equal(layout.rowsInside,true);
+    assert.equal(await page.locator('.list').isVisible(),false);
+    assert.equal(await page.locator('#detail').isVisible(),true);
+    await page.getByRole('button',{name:'← 報告一覧へ',exact:true}).click();
+    assert.equal(await page.locator('.list').isVisible(),true);
     await capture('07-list-and-areas');checks.push('一覧の題名・Issue番号・対応状況・領域、登録前の行、一覧と詳細の領域を確認する');
 
     // タイトルにない語、英字の大小、全角空白、すべての語との一致を、実際の検索APIで確認する。
