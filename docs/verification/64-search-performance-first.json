@@ -1,0 +1,243 @@
+{
+  "at": "2026-11-03T04:41:31.601Z",
+  "node": "v24.15.0",
+  "platform": "win32 10.0.26100",
+  "cpu": "Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz",
+  "browser": "156.0.8078.74",
+  "externalGitHub": false,
+  "conditions": [
+    {
+      "count": 50,
+      "bodyLengthCharacters": 2048,
+      "storeSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 0.42,
+          "p95Ms": 0.67,
+          "maxMs": 0.7
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 0.35,
+          "p95Ms": 0.36,
+          "maxMs": 0.37
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 3.22,
+          "p95Ms": 3.41,
+          "maxMs": 3.44
+        }
+      ],
+      "httpSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 2.19,
+          "p95Ms": 5.24,
+          "maxMs": 7.82
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 1.59,
+          "p95Ms": 5.12,
+          "maxMs": 9.4
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 4.53,
+          "p95Ms": 7.8,
+          "maxMs": 8.07
+        }
+      ],
+      "reload": {
+        "samples": 12,
+        "p50Ms": 50.15,
+        "p95Ms": 61.23,
+        "maxMs": 61.23,
+        "searchRequests": 15,
+        "refreshClicks": 15
+      }
+    },
+    {
+      "count": 250,
+      "bodyLengthCharacters": 2048,
+      "storeSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 2.89,
+          "p95Ms": 4.03,
+          "maxMs": 5.21
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 2.6,
+          "p95Ms": 3.61,
+          "maxMs": 3.81
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 17.85,
+          "p95Ms": 18.64,
+          "maxMs": 18.8
+        }
+      ],
+      "httpSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 3.97,
+          "p95Ms": 5.06,
+          "maxMs": 15.25
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 3.78,
+          "p95Ms": 4.93,
+          "maxMs": 5.07
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 19.62,
+          "p95Ms": 25.21,
+          "maxMs": 32.76
+        }
+      ],
+      "reload": {
+        "samples": 12,
+        "p50Ms": 68.37,
+        "p95Ms": 88.42,
+        "maxMs": 88.42,
+        "searchRequests": 15,
+        "refreshClicks": 15
+      }
+    },
+    {
+      "count": 500,
+      "bodyLengthCharacters": 2048,
+      "storeSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 7.12,
+          "p95Ms": 7.47,
+          "maxMs": 7.63
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 6.55,
+          "p95Ms": 6.87,
+          "maxMs": 7
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 39.92,
+          "p95Ms": 74.26,
+          "maxMs": 95.32
+        }
+      ],
+      "httpSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 9.92,
+          "p95Ms": 18.52,
+          "maxMs": 21.2
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 8.67,
+          "p95Ms": 11.24,
+          "maxMs": 13.62
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 39.2,
+          "p95Ms": 43.6,
+          "maxMs": 51.96
+        }
+      ],
+      "reload": {
+        "samples": 12,
+        "p50Ms": 164.88,
+        "p95Ms": 249.93,
+        "maxMs": 249.93,
+        "searchRequests": 15,
+        "refreshClicks": 15
+      }
+    },
+    {
+      "count": 500,
+      "bodyLengthCharacters": 16384,
+      "storeSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 53.74,
+          "p95Ms": 71.26,
+          "maxMs": 90.84
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 50.14,
+          "p95Ms": 73.4,
+          "maxMs": 81.81
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 269.59,
+          "p95Ms": 1467.03,
+          "maxMs": 7574.67
+        }
+      ],
+      "httpSearch": [
+        {
+          "query": "検索対象",
+          "samples": 30,
+          "p50Ms": 47.49,
+          "p95Ms": 88.99,
+          "maxMs": 110.06
+        },
+        {
+          "query": "存在しない語",
+          "samples": 30,
+          "p50Ms": 44.27,
+          "p95Ms": 74.1,
+          "maxMs": 166.98
+        },
+        {
+          "query": "alpha beta gamma delta epsilon zeta eta theta iota kappa",
+          "samples": 30,
+          "p50Ms": 265.52,
+          "p95Ms": 284.91,
+          "maxMs": 445.01
+        }
+      ],
+      "reload": {
+        "samples": 12,
+        "p50Ms": 433.05,
+        "p95Ms": 1843.61,
+        "maxMs": 1843.61,
+        "searchRequests": 15,
+        "refreshClicks": 15
+      }
+    }
+  ],
+  "errors": []
+}
