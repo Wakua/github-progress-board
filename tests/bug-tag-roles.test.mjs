@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {Element as Node} from './support/bug-ui.mjs';
 import {mkdtempSync,rmSync} from 'node:fs';
 import {tmpdir} from 'node:os';
 import path from 'node:path';
@@ -159,15 +160,6 @@ test('the settings dialog lists new tags first and saves only the new and the ch
 });
 
 // 設定画面の操作を、疑似のDOMとAPIで動かす。
-class Node {
-  constructor(tag) {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.checked=false;this.dataset={};this.style={setProperty(){}};}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  setAttribute() {}
-  querySelectorAll() {const found=[],walk=node=>{for(const child of node.children){if(child.tag==='input'&&child.checked)found.push(child);walk(child);}};walk(this);return found;}
-  showModal() {this.open=true;}
-  close() {this.open=false;}
-}
 function dialogFixture(tags,{api:custom}={}) {
   const nodes=new Map(),posts=[],notices=[];
   const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Node('div'));return nodes.get(selector);};

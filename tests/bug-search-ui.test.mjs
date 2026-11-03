@@ -1,25 +1,17 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createBugDom,loadBugApp} from './support/bug-ui.mjs';
 import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 実際の画面のコードを、擬似DOMと偽のAPIで動かし、一覧と検索の振る舞いを検証する。
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.value='';this.listeners={};this.classes=new Set();this.classList={toggle:(name,force)=>{if(force)this.classes.add(name);else this.classes.delete(name);},contains:name=>this.classes.has(name)};}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  get options() {return this.children;}
-  addEventListener(type,listener) {(this.listeners[type]||=[]).push(listener);}
-  fire(type,event={}) {for(const listener of this.listeners[type]||[])listener(event);}
-}
 const report=(id,title,{status='received',state='registered',repository='qa/booking-reports',body=title,labels=[],number=null}={})=>({id,title,body,status,reporterName:'共通の利用者',createdAt:'2030-01-01T00:00:00.000Z',attachmentCount:0,github:{state,repository,number,tags:{state:'ok',labels}}});
 const sample=()=>[report('r1','予約一覧が更新されない'),report('r2','通知メールが届かない',{status:'working'}),report('r3','支払いの合計がずれる',{state:'pending',repository:null})];
 
 function fixture({reports=sample(),githubEnabled=true,search,tags=[],loadFailure=null}={}) {
-  const nodes=new Map(),timers=[],searchQueries=[],mounted={};
-  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
+  const timers=[],searchQueries=[],mounted={};
+  const {node,document}=createBugDom();
   node('#report-form').elements={files:{}};
   const respond=search||(async query=>({status:200,value:{ids:reports.filter(item=>item.body.includes(query)).map(item=>item.id)}}));
   const fetch=async(url,options={})=>{
@@ -28,14 +20,10 @@ function fixture({reports=sample(),githubEnabled=true,search,tags=[],loadFailure
     const result=await respond(query);
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
-  // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、タグの役割を返すだけの模擬にする。
   const panel=createFilterPanelStub();
-  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:options=>{mounted.options=options;return{load:async()=>loadFailure,tags:()=>tags};},document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:options=>{mounted.options=options;return{load:async()=>loadFailure,tags:()=>tags};},document,fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
-  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
-  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
-  vm.runInContext(app.slice(0,end),context);
+  loadBugApp(context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,github:{enabled:'+githubEnabled+',repository:"qa/booking-reports"}};',context);
   context.reports=undefined;vm.runInContext('reports=__reports',Object.assign(context,{__reports:reports}));
   const box=()=>node('#reports');

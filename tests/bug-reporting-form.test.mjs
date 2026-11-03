@@ -1,26 +1,13 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {Element,createBugDom,loadBugApp} from './support/bug-ui.mjs';
 import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import {randomUUID} from 'node:crypto';
 
 // Run the actual form event handlers with an isolated DOM and failure-injecting API.
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.checked=false;this.disabled=false;this.classList={toggle(){}};}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  get childElementCount() {return this.children.length;}
-  querySelectorAll(selector) {
-    return this.children.flatMap(child=>[...(child.tag==='input'&&(!selector.includes(':checked')||child.checked)?[child]:[]),...child.querySelectorAll(selector)]);
-  }
-  addEventListener() {}
-  showModal() {this.open=true;}
-  close() {this.open=false;}
-}
 function formFixture({pending=[],failFile,failReportOnce=false,maxFiles=20}={}) {
-  const nodes=new Map();
-  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
+  const {node,document}=createBugDom();
   const form=node('#report-form'),files=new Element('input'),body=new Element('textarea'),version=new Element('input');
   files.files=[];body.value='架空の再現報告';version.value='QA';
   form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version,kind:{value:'bug'}});
@@ -42,12 +29,8 @@ function formFixture({pending=[],failFile,failReportOnce=false,maxFiles=20}={}) 
     return{ok:status<400,status,json:async()=>value};
   };
   const panel=createFilterPanelStub();
-  const context=vm.createContext({document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID},setTimeout,clearTimeout,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>{},tags:()=>[]})});
-  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  // importは仮想環境で実行できないので取り除く。importした関数のうち、読み込み時に呼ぶものはcontextに用意する。
-  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
-  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
-  vm.runInContext(app.slice(0,end),context);
+  const context=vm.createContext({document,fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID},setTimeout,clearTimeout,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>{},tags:()=>[]})});
+  loadBugApp(context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,policy:{maxFiles:'+maxFiles+',maxBytes:1000}};refresh=async()=>{};openReport=async()=>{};notice=()=>{};',context);
   return {
     node,requests,uploads,saved,

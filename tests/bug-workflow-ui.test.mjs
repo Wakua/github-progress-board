@@ -2,29 +2,16 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createBugDom,loadBugApp} from './support/bug-ui.mjs';
 import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 実際の画面のコードの「対応状況と次の操作」の帯を、擬似DOMと偽のAPIで動かし、入力欄の開き方と送信を検証する。
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.value='';this.className='';this.name='';this.listeners={};this.classList={toggle(){}};}
-  focus() {Element.active=this;}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  get options() {return this.children;}
-  addEventListener() {}
-  descendants() {return this.children.flatMap(child=>[child,...child.descendants()]);}
-  // フォームの入力欄を、順番どおりの配列と、名前での参照の両方で返す。
-  get elements() {
-    const found=this.descendants().filter(child=>['input','textarea','select'].includes(child.tag)||child.tag==='button');
-    return Object.assign(found,Object.fromEntries(found.filter(child=>child.name).map(child=>[child.name,child])));
-  }
-}
 const report=(overrides={})=>({id:'r1',title:'予約一覧が更新されない',status:'received',revision:3,targetVersion:'',developerNote:'',isOwn:true,...overrides});
 
 function fixture({role='admin',shared=false,fail=null}={}) {
-  const nodes=new Map(),requests=[];
-  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
+  const requests=[];
+  const {node,document}=createBugDom();
   Object.defineProperty(node('#report-form'),'elements',{value:{files:{}}});
   const fetch=async (url,options={})=>{
     const route=url.replace('/api/bugs/','');
@@ -34,15 +21,12 @@ function fixture({role='admin',shared=false,fail=null}={}) {
     return{ok:true,status:200,json:async()=>({matchesTarget:true})};
   };
   const panel=createFilterPanelStub();
-  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'request-1'},
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document,fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'request-1'},
     setTimeout:()=>0,clearTimeout(){}});
-  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
-  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
-  vm.runInContext(app.slice(0,end),context);
+  loadBugApp(context);
   vm.runInContext('actor={id:"local-shared",role:"'+role+'",shared:'+shared+',github:{enabled:false}};',context);
   return {
-    requests,notice:()=>node('#notice').textContent,
+    document,requests,notice:()=>node('#notice').textContent,
     build:value=>{context.__report=value;return vm.runInContext('renderWorkflow(__report)',context);}
   };
 }
@@ -112,14 +96,14 @@ test('操作する人には、案内の文を出さず、確認対象とボタ�
 test('入力欄を開くと最初の入力欄へ、閉じるともとのボタンへ、フォーカスを移す',()=>{
   const fx=fixture(),box=fx.build(report());
   named(box,'入力して進める').onclick();
-  assert.equal(Element.active,form(box).elements[0]);assert.equal(Element.active.name,'targetVersion');
+  assert.equal(fx.document.activeElement,form(box).elements[0]);assert.equal(fx.document.activeElement.name,'targetVersion');
   named(box,'閉じる').onclick();
-  assert.equal(Element.active,named(box,'対応を始める'));
+  assert.equal(fx.document.activeElement,named(box,'対応を始める'));
   const fixed=fx.build(report({status:'fixed'}));
   named(fixed,'公開してテスターへ確認を依頼する…').onclick();
-  assert.equal(Element.active.name,'targetVersion');
+  assert.equal(fx.document.activeElement.name,'targetVersion');
   named(fixed,'閉じる').onclick();
-  assert.equal(Element.active,named(fixed,'公開してテスターへ確認を依頼する…'));
+  assert.equal(fx.document.activeElement,named(fixed,'公開してテスターへ確認を依頼する…'));
 });
 test('入力欄を送信して失敗したときは、入力を保持していることを、帯に出す',async()=>{
   const fx=fixture({fail:{status:503,error:'保存処理を完了できませんでした。'}}),box=fx.build(report());
