@@ -25,7 +25,8 @@ try {
   for(const width of [1100,800,390]) {
     await page.setViewportSize({width,height:width===390?844:700});
     await page.goto(fixture.origin+'/bugs/');await page.locator('.report-row').first().waitFor();
-    await page.locator('#search').fill('架空');
+    const searched=page.waitForResponse(response=>response.request().method()==='POST'&&new URL(response.url()).pathname==='/api/bugs/reports/search');
+    await page.locator('#search').fill('架空');await(await searched).finished();
     await page.locator('[data-filter=status] summary').click();
     await page.getByRole('checkbox',{name:'確認完了を除く',exact:true}).check();
     await page.getByRole('checkbox',{name:'確認完了を除く',exact:true}).press('Escape');

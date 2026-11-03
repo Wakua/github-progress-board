@@ -39,3 +39,6 @@ button.board-title{cursor:pointer}
 .decision-edit button{padding:7px 12px;font-size:14px}
 .decision-edit .meta{margin:0}
 .kind-mark.decision-accept{color:#b8ccf4;border-color:#526aa1}
+
+/* 一覧の題名は、末尾だけが短い行になるのを避ける。 */
+.report-row .report-title{text-wrap:balance}

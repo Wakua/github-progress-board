@@ -1,8 +1,9 @@
 // バグ報告ツールの画面を撮るための、架空のデータと模擬のGitHubを持つサーバー。
-// 実際の報告、個人の声、実在のrepositoryは使わない。架空の予約管理アプリの報告18件と、タグ7つだけを使う。
+// 実際の報告、個人の声、実在のrepositoryは使わない。架空の予約管理アプリの報告とタグだけを使う。
 // 使い方: node tests/bug-screens-server.mjs <保存先> <ポート> [<コードのフォルダー>]
 //   保存先が空なら、報告とタグの役割を作る。既にあれば、そのまま使う。
 //   コードのフォルダーを渡すと、そのフォルダーのserver.mjsで起動する。変更前のmainと変更後のブランチで、同じデータを撮るために使う。
+//   QA_TITLE_WRAPPING=1で、折り返し検証用の長い題名を4件加える。
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -49,6 +50,14 @@ const registered = [
   ['キャンセル後の返金は、仕様では何日かかるのか', 'received', ['決済'], 'question'],
   ['満席の日に、予約ボタンが押せないのは仕様なのか', 'received', ['予約', '画面'], 'question'],
 ];
+// #63の比較時だけ、長い題名を同じ画面用データへ加える。
+const titleWrappingCases = [
+  '会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える',
+  '予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される',
+  'The booking confirmation screen shows the previous date after editing',
+  'booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789',
+];
+if(process.env.QA_TITLE_WRAPPING==='1')for(const title of titleWrappingCases)registered.push([title,'received',['予約','画面']]);
 const bodyOf = title => title + '\n架空の予約管理アプリでの再現手順を記入する。';
 // 登録前のカテゴリ（#68）の例。GitHub未登録の報告に、保留したカテゴリを付ける。
 const pendingCategories = ['予約', '通知'];
@@ -129,4 +138,4 @@ if (existing.length >= expected) {
 }
 
 // 自動検証は同じ架空データを使い、模擬GitHubの応答だけを制御する。
-export { server, github, origin };
+export { server, github, origin, titleWrappingCases };
