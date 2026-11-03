@@ -548,11 +548,14 @@ test('changed repository preserves old queues and processes only new reports',as
   await fx.worker.stop();
   const client=fake('qa-fixture/another');const worker=new GitHubWorker(fx.store,client);
   await worker.processOne();assert.equal(client.posts.length,0);
-  assert.equal(fx.store.registration(pending.id).state,'pending');assert.equal(fx.store.registration(creating.id).state,'creating');
-  await assert.rejects(worker.register(fx.actors.admin,pending.id),error=>error.status===409);
+  assert.equal(fx.store.registration(pending.id).state,'pending');assert.equal(fx.store.registration(creating.id).state,'unknown');
+  await worker.register(fx.actors.admin,pending.id);
+  await worker.serialize(()=>worker.processOne());
+  assert.equal(fx.store.registration(pending.id).repository,client.repository);
+  assert.equal(fx.store.registration(pending.id).state,'registered');
   const fresh=fx.report();await worker.processOne();
-  assert.equal(client.posts.length,1);assert.equal(fx.store.registration(fresh.id).repository,client.repository);
-  assert.equal(fx.store.registration(fresh.id).url,url(101,client.repository));
+  assert.equal(client.posts.length,2);assert.equal(fx.store.registration(fresh.id).repository,client.repository);
+  assert.equal(fx.store.registration(fresh.id).url,url(102,client.repository));
 });
 function switchRepository(fx,repository) {
   const client=fake(repository);
@@ -593,4 +596,55 @@ test('an unconfirmed report is reconciled and confirmed before registering, even
   await assert.rejects(original.register(fx.actors.admin,report.id),error=>error.status===409);
   await assert.rejects(original.retryUnknown(fx.actors.admin,report.id,{confirmNoIssue:true,revision:fx.store.registration(report.id).revision}),error=>error.status===409);
   await original.reconcile(fx.actors.admin,report.id);assert.equal(fx.store.registration(report.id).candidates.length,0);
+});
+
+test('repository recovery keeps each namespace, attempt time and revision across database reopen',async t=>{
+  const fx=fixture(t),reports=[fx.report(),fx.report(),fx.report(),fx.report()];
+  const repositories=[approvedRepository,'qa-fixture/another','qa-fixture/third',approvedRepository];
+  reports.forEach((report,index)=>fx.store.db.prepare("UPDATE registration_queue SET repository=?,state=?,attempted_at=90000,revision=7 WHERE report_id=?").run(repositories[index],index===3?'unknown':'creating',report.id));
+  const marker=fx.worker.marker(reports[0].id);await fx.worker.stop();
+  const reopened=new BugStore(fx.dir),client=fake('qa-fixture/another'),worker=new GitHubWorker(reopened,client,{clock:()=>100000});
+  try {
+    for(const [index,report] of reports.entries()) {
+      const row=reopened.registration(report.id);
+      assert.equal(row.state,'unknown');assert.equal(row.repository,repositories[index]);
+      assert.equal(row.holdUntil,150000);assert.equal(row.revision,index===3?7:8);
+    }
+    assert.equal(worker.marker(reports[0].id),marker);await worker.processOne();assert.equal(client.posts.length,0);
+    await worker.stop();const again=new GitHubWorker(reopened,client);
+    assert.equal(reopened.registration(reports[0].id).revision,8);await again.stop();
+  } finally {await reopened.githubWorker.stop();reopened.close();}
+});
+
+test('retargeting an unsent pending report requires an active administrator and observes cooldown',async t=>{
+  const fx=fixture(t),report=fx.report(),{client,worker}=await switchRepository(fx,'qa-fixture/another');
+  const before=fx.store.registration(report.id);
+  await assert.rejects(worker.register(fx.actors.a,report.id),error=>error.status===403);
+  fx.store.db.prepare('UPDATE github_runtime SET cooldown_until=? WHERE id=1').run(Date.now()+60000);
+  await assert.rejects(worker.register(fx.actors.admin,report.id),error=>error.status===429);
+  assert.deepEqual(fx.store.registration(report.id),before);assert.equal(client.posts.length,0);
+  fx.store.db.prepare('UPDATE github_runtime SET cooldown_until=0 WHERE id=1').run();
+  await worker.register(fx.actors.admin,report.id);await worker.serialize(()=>worker.processOne());
+  assert.equal(fx.store.registration(report.id).repository,client.repository);assert.equal(client.posts.length,1);
+  await assert.rejects(worker.register(fx.actors.admin,report.id),error=>error.status===409);assert.equal(client.posts.length,1);
+});
+
+test('a sent pending creation is recovered before a repository change can duplicate its issue',async t=>{
+  const fx=fixture(t),create=fx.client.createIssue.bind(fx.client),report=fx.report();
+  fx.client.createIssue=async(...args)=>{await create(...args);throw new GitHubFailure('limited',{status:429,uncertain:true});};
+  await fx.worker.processOne();assert.equal(fx.store.registration(report.id).state,'pending');
+  const before=fx.store.registration(report.id),{client,worker}=await switchRepository(fx,'qa-fixture/another');
+  const recovered=fx.store.registration(report.id);
+  assert.equal(recovered.state,'unknown');assert.equal(recovered.repository,approvedRepository);assert.equal(recovered.holdUntil,160000);assert.equal(recovered.revision,before.revision+1);
+  await assert.rejects(worker.register(fx.actors.admin,report.id),error=>error.status===409);await worker.processOne();assert.equal(client.posts.length,0);
+  await worker.stop();fx.setClock(300000);const original=new GitHubWorker(fx.store,fx.client,{clock:()=>300000});
+  await original.reconcile(fx.actors.admin,report.id);assert.equal(fx.store.registration(report.id).state,'registered');assert.equal(fx.client.posts.length,1);
+});
+
+test('a pending retry at the same repository retains its schedule on restart',async t=>{
+  const fx=fixture(t),report=fx.report();
+  fx.store.db.prepare('UPDATE registration_queue SET attempted_at=90000,retry_at=160000 WHERE report_id=?').run(report.id);
+  const before=fx.store.registration(report.id);await fx.worker.stop();
+  const worker=new GitHubWorker(fx.store,fx.client,{clock:()=>100000});
+  assert.deepEqual(fx.store.registration(report.id),before);await worker.processOne();assert.equal(fx.client.posts.length,0);
 });
