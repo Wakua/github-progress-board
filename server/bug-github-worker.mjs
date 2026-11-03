@@ -18,7 +18,8 @@ export class GitHubWorker {
     store.githubWorker=this;
     this.store=store;this.client=client;this.clock=clock;this.origin=url.origin;this.stopped=false;this.tail=Promise.resolve();this.labelTail=Promise.resolve();this.labelCursor=0;
     store.githubRepository=client.repository;
-    store.db.prepare("UPDATE registration_queue SET state='unknown',error='前回の作成結果を確認してください。',revision=revision+1 WHERE state='creating' AND repository=?").run(client.repository);
+    // 作成中は全接続先を復旧する。送信済みの登録待ちも別の接続先で作り直さない。
+    store.db.prepare("UPDATE registration_queue SET state='unknown',error='前回の作成結果を確認してください。',revision=revision+1 WHERE state='creating' OR (state='pending' AND attempted_at IS NOT NULL AND repository<>?)").run(client.repository);
   }
   marker(id) {return '<!-- github-progress-board-report:'+this.store.db.prepare('SELECT instance_id FROM github_runtime WHERE id=1').get().instance_id+':'+id+' -->';}
   reportCreatedAt(id) {return this.store.db.prepare('SELECT created_at FROM reports WHERE id=?').get(id).created_at;}
@@ -216,8 +217,8 @@ export class GitHubWorker {
     }
     return this.serialize(()=>{this.store.assertActive(actor);return this.applyLabelResults(rows,results);});
   }
-  // A failed creation never made an issue, so only a failed report may move to the current repository.
-  authorize(actor,id,{retarget=false}={}) {this.store.assertActive(actor);if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');this.store.reportRow(actor,id);const row=this.row(id);if(row.repository&&row.repository!==this.client.repository&&!(retarget&&row.state==='failed'))throw new BugError(409,'保存されたGitHub接続先が一致しません。');return row;}
+  // 接続先の付替えは、失敗した報告か、作成要求をまだ送っていない登録待ちだけに限る。
+  authorize(actor,id,{retarget=false}={}) {this.store.assertActive(actor);if(actor.role!=='admin')throw new BugError(403,'GitHubの登録管理は管理者だけが利用できます。');this.store.reportRow(actor,id);const row=this.row(id);if(row.repository&&row.repository!==this.client.repository&&!(retarget&&(row.state==='failed'||row.state==='pending'&&row.attempted_at===null)))throw new BugError(409,'保存されたGitHub接続先が一致しません。');return row;}
   register(actor,id) {
     return this.serialize(()=>{
       const row=this.authorize(actor,id,{retarget:true});this.requireAvailable();

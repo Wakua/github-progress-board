@@ -52,3 +52,17 @@ test('容量の表示は、上限だけにし、画面の上の小さな見出�
   assert.equal(fx.node('#policy').textContent,'1報告 1.00 GiB・20ファイルまで');
   assert.equal(readFileSync(new URL('../dist/bugs/index.html',import.meta.url),'utf8').includes('id="scope"'),false);
 });
+
+test('別の接続先に残った登録待ちだけに手動登録を示す',()=>{
+  for(const [state,repository,expected] of [['pending','qa/old',true],['pending','qa/booking-reports',false],['pending',null,true],['creating','qa/old',false],['registered','qa/old',false]]) {
+    const box=fixture().call('renderGitHub',report({state,repository,number:null}));
+    assert.equal(buttonNames(box).includes('GitHubに登録'),expected,state+':'+repository);
+  }
+  for(const options of [{role:'tester'},{githubEnabled:false}])assert.equal(buttonNames(fixture(options).call('renderGitHub',report({state:'pending',repository:'qa/old',number:null}))).includes('GitHubに登録'),false);
+});
+
+test('別の接続先の結果未確認は戻す接続先を示し、古い照合結果から再試行させない',()=>{
+  const box=fixture().call('renderGitHub',report({state:'unknown',repository:'qa/old',number:null,checkedAt:Date.now(),candidates:[],holdUntil:Date.now()-1000}));
+  assert.deepEqual(explanations(box),['接続先をqa/oldへ戻して照合してください。']);
+  assert.deepEqual(buttonNames(box),[]);assert.equal(box.descendants().filter(child=>child.tag==='input').length,0);
+});
