@@ -1,0 +1,837 @@
+{
+  "recordedAt": "2026-11-03T11:30:56.414Z",
+  "performedBy": "Codex",
+  "testedProductCommit": "88c1e85be337f99c188b8c4c71cabb75253658e7",
+  "baseCommit": "160f8e120c9007d32489b9498acaae02491921d2",
+  "environment": {
+    "os": "Windows",
+    "node": "v24.15.0",
+    "browser": "Chrome 156.0.8078.80"
+  },
+  "unit": {
+    "command": "npm test",
+    "tests": 802,
+    "pass": 802,
+    "fail": 0
+  },
+  "check": {
+    "command": "npm run check",
+    "exitCode": 0,
+    "imagesCheckedAfterCopy": true
+  },
+  "before": {
+    "at": "2026-11-03T11:25:19.323Z",
+    "checkoutHeadAtRun": "160f8e120c9007d32489b9498acaae02491921d2",
+    "checks": [
+      "幅800pxで元の題名と再現用の長い題名を確認し、詳細の幅・題名全文・検索・フォーカスを保持",
+      "幅800pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認",
+      "幅761pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認",
+      "幅999pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認",
+      "幅390pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認",
+      "幅320pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認",
+      "幅1100pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認",
+      "カテゴリ絞り込み後の往復を保ち、かんばんの題名の折り返し指定を変えない"
+    ],
+    "measurements": [
+      {
+        "width": 800,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更",
+              "前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 585.625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消え",
+              "る"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 585.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ],
+        "titleCount": 23
+      },
+      {
+        "width": 800,
+        "detailWidth": 744
+      },
+      {
+        "width": 761,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、",
+              "変更前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 546.625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号",
+              "が消える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 546.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ],
+        "titleCount": 23
+      },
+      {
+        "width": 999,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 739.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 588.40625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ],
+        "titleCount": 23
+      },
+      {
+        "width": 390,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_referen",
+              "ce_abcdefghijklmnopqrstuvwx",
+              "yz0123456789"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 195.65625
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation ",
+              "screen shows the previous ",
+              "date after editing"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 193.828125
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に",
+              "進み、日付と人数を確認して一覧",
+              "へ戻ったあと同じ予約を開くと、変",
+              "更前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 195.625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号",
+              "を入力して予約一覧に戻り、同じ",
+              "会員を選んで開くと電話番号が消",
+              "える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 195.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号",
+              "が消える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 194.578125
+          }
+        ],
+        "titleCount": 23
+      },
+      {
+        "width": 320,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_referenc",
+              "e_abcdefghijklmnopqrstuvwxy",
+              "z0123456789"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.578125
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation ",
+              "screen shows the previous ",
+              "date after editing"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 196.75
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進",
+              "み、日付と人数を確認して一覧へ",
+              "戻ったあと同じ予約を開くと、変更",
+              "前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.546875
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号",
+              "を入力して予約一覧に戻り、同じ会",
+              "員を選んで開くと電話番号が消え",
+              "る"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.578125
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号",
+              "が消える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.578125
+          }
+        ],
+        "titleCount": 23
+      },
+      {
+        "width": 1100,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 739.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 588.40625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ],
+        "titleCount": 23
+      }
+    ],
+    "errors": []
+  },
+  "after": {
+    "at": "2026-11-03T11:29:28.731Z",
+    "checkoutHeadAtRun": "88c1e85be337f99c188b8c4c71cabb75253658e7",
+    "checks": [
+      "幅800pxで元の題名と再現用の長い題名を確認し、詳細の幅・題名全文・検索・フォーカスを保持",
+      "幅800pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認、2行に収まる題名に末尾1文字の行なし",
+      "幅761pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認、2行に収まる題名に末尾1文字の行なし",
+      "幅999pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認、2行に収まる題名に末尾1文字の行なし",
+      "幅390pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認、2行に収まる題名に末尾1文字の行なし",
+      "幅320pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認、2行に収まる題名に末尾1文字の行なし",
+      "幅1100pxで日本語・英文・空白のない英数字を表示し、2行の上限と横はみ出しなしを確認、2行に収まる題名に末尾1文字の行なし",
+      "カテゴリ絞り込み後の往復を保ち、かんばんの題名の折り返し指定を変えない"
+    ],
+    "measurements": [
+      {
+        "width": 800,
+        "titleCount": 23,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧",
+              "へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 585.625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一",
+              "覧に戻り、同じ会員を選んで開くと電話番号が消える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 585.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ]
+      },
+      {
+        "width": 800,
+        "detailWidth": 744
+      },
+      {
+        "width": 761,
+        "titleCount": 23,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧",
+              "へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 546.625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一",
+              "覧に戻り、同じ会員を選んで開くと電話番号が消える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 546.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ]
+      },
+      {
+        "width": 999,
+        "titleCount": 23,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 739.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 588.40625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ]
+      },
+      {
+        "width": 390,
+        "titleCount": 23,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_referen",
+              "ce_abcdefghijklmnopqrstuvwx",
+              "yz0123456789"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 195.65625
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation ",
+              "screen shows the previous ",
+              "date after editing"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 193.828125
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に",
+              "進み、日付と人数を確認して一覧",
+              "へ戻ったあと同じ予約を開くと、変",
+              "更前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 195.625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号",
+              "を入力して予約一覧に戻り、同じ",
+              "会員を選んで開くと電話番号が消",
+              "える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 195.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面",
+              "で電話番号が消える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 194.578125
+          }
+        ]
+      },
+      {
+        "width": 320,
+        "titleCount": 23,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_referenc",
+              "e_abcdefghijklmnopqrstuvwxy",
+              "z0123456789"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.578125
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation ",
+              "screen shows the previous ",
+              "date after editing"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 196.75
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進",
+              "み、日付と人数を確認して一覧へ",
+              "戻ったあと同じ予約を開くと、変更",
+              "前の日時と人数が表示される"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.546875
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号",
+              "を入力して予約一覧に戻り、同じ会",
+              "員を選んで開くと電話番号が消え",
+              "る"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.578125
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面",
+              "で電話番号が消える"
+            ],
+            "height": 42,
+            "lineHeight": 21,
+            "width": 198.578125
+          }
+        ]
+      },
+      {
+        "width": 1100,
+        "titleCount": 23,
+        "titles": [
+          {
+            "text": "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789",
+            "lines": [
+              "booking_confirmation_reference_abcdefghijklmnopqrstuvwxyz0123456789"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 473.46875
+          },
+          {
+            "text": "The booking confirmation screen shows the previous date after editing",
+            "lines": [
+              "The booking confirmation screen shows the previous date after editing"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 450.046875
+          },
+          {
+            "text": "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される",
+            "lines": [
+              "予約内容を変更して確認画面に進み、日付と人数を確認して一覧へ戻ったあと同じ予約を開くと、変更前の日時と人数が表示される"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 739.65625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号を入力して予約一覧に戻り、同じ会員を選んで開くと電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 588.40625
+          },
+          {
+            "text": "会員登録の確認画面で電話番号が消える",
+            "lines": [
+              "会員登録の確認画面で電話番号が消える"
+            ],
+            "height": 21,
+            "lineHeight": 21,
+            "width": 239.421875
+          }
+        ]
+      }
+    ],
+    "errors": []
+  },
+  "regression": {
+    "checks": [
+      "進捗画面から共通の利用者として報告画面を開く",
+      "未設定のGitHubへ送らず本文と再現データを保存する",
+      "添付を取得し、受付後のデータ追加を保持する",
+      "別のブラウザでも保存済み報告を開き、狭い画面で一覧へ戻る",
+      "接続前の報告は明示操作で一度だけ登録し、取得したタグを表示する",
+      "取得したタグの役割を設定画面で保存し、新しいタグの印が消える。GitHubへの書き込みは増えない",
+      "設定画面を開いている間に増えたタグは、見せていないので確定せず、新しいタグのまま残る",
+      "異なる版の確認は状態を保ち、未解消は対応中へ戻し、対象版の解消で完了する",
+      "再起動後も確認履歴・添付・Issueの関連付けを保持する",
+      "一覧の題名・Issue番号・対応状況・領域、登録前の行、一覧と詳細の領域を確認する",
+      "本文だけにある語・英字の大小・複数語で検索し、一致なしと検索解除を確認する",
+      "サブ単独・サブの複数選択・メインの複数選択と、メイン＋サブ＋本文検索の組合せを確認する",
+      "メインの変更で無効なサブが解除され、未分類にはタグなし・使わないタグ・未登録を含み、サブだけの報告を含まない。対応状況とも重ねられる",
+      "検索APIの503と入力制限の400で古い検索結果を外し、カテゴリ条件と理由を残す。再検索・検索解除で通知が消える",
+      "更新時は同じ語を検索し直し、再読み込みでは検索とカテゴリ条件を初期化する",
+      "幅390pxでも検索とメイン・サブを操作し、詳細から戻ると絞り込んだ一覧が残る"
+    ],
+    "errors": []
+  },
+  "navigation": {
+    "checkoutHeadAtRun": "160f8e120c9007d32489b9498acaae02491921d2",
+    "at": "2026-11-03T11:26:55.230Z",
+    "checks": [
+      "幅1100pxで詳細先頭・フォーカス移動、一覧の位置・検索・絞り込み・行のフォーカスを復元し、更新後も一覧を維持",
+      "幅800pxで詳細先頭・フォーカス移動、一覧の位置・検索・絞り込み・行のフォーカスを復元し、更新後も一覧を維持",
+      "幅390pxで詳細先頭・フォーカス移動、一覧の位置・検索・絞り込み・行のフォーカスを復元し、更新後も一覧を維持",
+      "幅1100pxのかんばんで、元の札・ページ位置・横スクロール位置を復元",
+      "幅390pxのかんばんで、元の札・ページ位置・横スクロール位置を復元",
+      "詳細取得の失敗から再試行し、詳細URLの再読込みと、一覧へ戻った後の再読込みを確認",
+      "詳細の再読込中に戻ると、遅い応答が来ても一覧とURLを維持",
+      "詳細で対応状況を進めて絞り込みから外れた報告は、一覧の見出しを画面内に表示してフォーカスを戻す"
+    ],
+    "positions": [
+      {
+        "width": 1100,
+        "start": {
+          "x": 0,
+          "y": 893,
+          "boardX": 0
+        },
+        "restored": {
+          "x": 0,
+          "y": 893,
+          "boardX": 0
+        },
+        "focused": true
+      },
+      {
+        "width": 800,
+        "start": {
+          "x": 0,
+          "y": 893,
+          "boardX": 0
+        },
+        "restored": {
+          "x": 0,
+          "y": 893,
+          "boardX": 0
+        },
+        "focused": true
+      },
+      {
+        "width": 390,
+        "start": {
+          "x": 0,
+          "y": 987,
+          "boardX": 0
+        },
+        "restored": {
+          "x": 0,
+          "y": 987,
+          "boardX": 0
+        },
+        "focused": true
+      },
+      {
+        "width": 1100,
+        "mode": "board",
+        "start": {
+          "x": 0,
+          "y": 0,
+          "boardX": 0
+        },
+        "restored": {
+          "x": 0,
+          "y": 0,
+          "boardX": 0
+        }
+      },
+      {
+        "width": 390,
+        "mode": "board",
+        "start": {
+          "x": 0,
+          "y": 0,
+          "boardX": 401
+        },
+        "restored": {
+          "x": 0,
+          "y": 0,
+          "boardX": 401
+        }
+      }
+    ],
+    "errors": []
+  },
+  "note": "Full tests and existing browser checks ran before commit on the same product CSS. The title wrapping checks also passed on testedProductCommit."
+}
