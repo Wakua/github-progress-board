@@ -1,4 +1,4 @@
-import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction,threadEvents} from './view.mjs';
+import {registrationName,registrationMark,registrationTarget,matchesFilters,roleMap,areaText,mainChoices,subChoices,statusNames,nextStatusNames,nextAction,threadEvents,tagAcquisitionFailed} from './view.mjs';
 import {mountTagRoles} from './tag-roles.mjs';
 import {mountFilterPanel} from './filter-panel.mjs';
 import {categoriesEditable,selectableCategories,kindNames,kindOf,boardColumns,decisionNames,decisionOf} from './view.mjs';
@@ -75,7 +75,7 @@ async function refresh() {
 function renderList() {
   const box=$('#reports'); box.replaceChildren();
   const roles=roleMap(tagRoles.tags());
-  const filters={main:filterPanel.values('main'),sub:filterPanel.values('sub'),state:filterPanel.values('registration'),status:filterPanel.values('status'),kind:filterPanel.values('kind'),decision:filterPanel.values('decision'),found:searchIds,roles};
+  const filters={main:filterPanel.values('main'),sub:filterPanel.values('sub'),state:filterPanel.values('registration'),status:filterPanel.values('status'),kind:filterPanel.values('kind'),decision:filterPanel.values('decision'),tags:filterPanel.values('tags'),found:searchIds,roles};
   const visible=reports.filter(report=>matchesFilters(report,filters));
   $('#report-count').textContent=visible.length+' / '+reports.length+'件';
   if(reports.length&&!visible.length){box.append(element('p','条件に一致する報告はありません。','empty'));return;}
@@ -88,6 +88,7 @@ function renderList() {
     if(kindOf(report)!=='bug')states.append(element('span',kindNames[kindOf(report)],'kind-mark'));
     if(['accept','defer'].includes(decisionOf(report)))states.append(element('span',decisionNames[decisionOf(report)],'kind-mark decision-'+decisionOf(report)));
     if(mark)states.append(element('span',mark,'status status-'+report.github.state));
+    if(tagAcquisitionFailed(report))states.append(element('span','タグ取得失敗','status status-failed'));
     const text=element('span',undefined,'report-text'),area=areaText(report,roles);
     const head=element('span',undefined,'report-head');
     if(report.github.number)head.append(element('span','#'+report.github.number,'report-number'));
@@ -118,6 +119,7 @@ function boardCard(report,roles) {
   head.append(element('span',report.title,'report-title'));
   card.append(head);
   if(area)card.append(element('span',area,'report-area'));
+  if(tagAcquisitionFailed(report))card.append(element('span','タグ取得失敗','status status-failed'));
   // 詳細を開くと、かんばんが隠れて画面の高さが変わるため、開く前の位置を覚え、戻るときに戻す。
   card.addEventListener('click',()=>{boardScroll=globalThis.scrollY??0;openReport(report.id).catch(error=>notice(error.message,true));});
   return card;
@@ -439,11 +441,12 @@ $('#search').addEventListener('compositionend',queueSearch);
 $('#refresh').onclick=async()=>{
   const button=$('#refresh');button.disabled=true;
   try {
-    let tags=null,tagError='';
-    if(actor.github.enabled)try {tags=await api('github/tags',json({}));} catch(error) {tagError=error.message;}
+    let tagError='';
+    if(actor.github.enabled)try {await api('github/tags',json({}));} catch(error) {tagError=error.message;}
     await refresh();
+    const failed=reports.filter(tagAcquisitionFailed).length;
     if(tagError)notice('最新の受付情報を読み込みました。GitHubのタグは取得できませんでした。'+tagError+'前回の結果を保持しています。',true);
-    else if(tags?.failed)notice('最新の受付情報を読み込みました。タグを取得できなかった報告が'+tags.failed+'件あります。前回の結果を保持しています。',true);
+    else if(failed)notice('タグ取得失敗：'+failed+'件。',true);
     else if(rolesError)notice('最新の受付情報を読み込みました。'+rolesNotice(rolesError),true);
     else notice('最新の受付情報を読み込みました。');
   } catch(error) {notice(error.message,true);}

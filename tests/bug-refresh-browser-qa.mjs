@@ -61,7 +61,7 @@ try {
   // 一覧取得の失敗後も受付は続き、次の更新で成功状態へ戻せる。
   fixture.github.listIssues=async()=>{throw new Error('fictional list failure');};
   await page.locator('#refresh').click();await page.locator('#notice.error').waitFor();
-  assert.match(await page.locator('#notice').textContent(),/タグを取得できなかった/);
+  assert.match(await page.locator('#notice').textContent(),/タグ取得失敗/);
   assert.equal(await page.locator('#new-report').isEnabled(),true);
   fixture.github.listIssues=list;
   await page.locator('#refresh').click();await page.waitForFunction(()=>!document.querySelector('#refresh').disabled);
