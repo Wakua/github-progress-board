@@ -11,7 +11,8 @@ export const filterDefs = [
   { id: 'decision', name: '判定', choices: Object.entries(decisionNames).map(([value, text]) => ({ value, text })) },
   { id: 'registration', name: 'GitHub登録', choices: [
     { value: 'pending', text: '登録待ち・未登録' }, { value: 'creating', text: '登録中' }, { value: 'registered', text: '登録済み' },
-    { value: 'failed', text: '登録失敗' }, { value: 'unknown', text: '作成結果が未確認' }] }
+    { value: 'failed', text: '登録失敗' }, { value: 'unknown', text: '作成結果が未確認' }] },
+  { id: 'tags', name: 'タグ取得', choices: [{ value: 'error', text: '取得失敗' }] }
 ];
 
 // ボタンの文字。選んだ値があれば、条件の名前のあとに並べる。

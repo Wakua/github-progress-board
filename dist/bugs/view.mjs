@@ -11,6 +11,8 @@ export function registrationName(report) {
 export function registrationMark(report,githubEnabled) {
   return githubEnabled&&report.github.state!=='registered'?registrationName(report):null;
 }
+// 前回のカテゴリを表示していても、最新のタグを確認できていない報告を区別する。
+export const tagAcquisitionFailed=report=>report.github.state==='registered'&&report.github.tags.state==='error';
 // A failed report registers to the configured repository on retry, so show that one before the operation.
 export function registrationTarget(github,configured) {
   if(github.state==='failed'&&configured&&github.repository&&github.repository!==configured)return '登録先：'+configured+'（失敗した登録先：'+github.repository+'）';
@@ -79,7 +81,7 @@ export function subChoices(reports,tags,main,kind='all') {
 // found: 本文の検索に一致した報告のIDの集合。検索していないときはnull。roles: roleMapの結果。
 // 条件ごとの値は、選んだ値の配列。同じ条件の中は「どれか」、条件同士は「すべて」に当てはまる報告を通す。
 // status：対応状況の値、または 'incomplete'（確認完了を除く）。
-export function matchesFilters(report,{main=[],sub=[],state=[],status=[],kind=[],decision=[],found=null,roles=new Map()}={}) {
+export function matchesFilters(report,{main=[],sub=[],state=[],status=[],kind=[],decision=[],tags=[],found=null,roles=new Map()}={}) {
   if(found&&!found.has(report.id))return false;
   const kinds=asList(kind);
   if(kinds.length&&!kinds.includes(kindOf(report)))return false;
@@ -89,6 +91,7 @@ export function matchesFilters(report,{main=[],sub=[],state=[],status=[],kind=[]
   if(statuses.length&&!statuses.some(value=>value==='incomplete'?report.status!=='complete':report.status===value))return false;
   const states=asList(state);
   if(states.length&&!states.includes(report.github.state))return false;
+  if(asList(tags).includes('error')&&!tagAcquisitionFailed(report))return false;
   if(!inMain(report,main,roles))return false;
   const subs=asList(sub);
   return !subs.length||categoriesOf(report,roles).sub.some(label=>subs.includes('label:'+label.id));

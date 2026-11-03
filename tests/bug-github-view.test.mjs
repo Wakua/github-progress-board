@@ -50,6 +50,17 @@ test('タグの取得に失敗しても、前回のタグでカテゴリを判�
   assert.equal(matchesFilters(value,{main:'label:2',roles}),true);
   assert.equal(areaText(value,roles),'予約');
 });
+test('取得失敗の絞り込みは前回のタグを持つ報告と初回失敗を含み、未取得・タグなし・未登録を含めない',()=>{
+  const values=[withTags('cached','received',[2],'registered','error'),withTags('first','received',[],'registered','error'),withTags('empty','received',[]),withTags('unfetched','received',[],'registered','unfetched'),withTags('pending','received',[],'pending','error')];
+  assert.deepEqual(values.filter(value=>matchesFilters(value,{tags:['error']})).map(value=>value.id),['cached','first']);
+  assert.equal(matchesFilters(values[0],{tags:['error'],main:['label:2'],found:new Set(['cached']),roles}),true);
+  assert.equal(matchesFilters(values[0],{tags:['error'],main:['label:4'],roles}),false);
+  assert.equal(matchesFilters(values[0],{tags:['error'],found:new Set()}),false);
+  assert.equal(matchesFilters(values[0],{tags:['error'],state:['failed']}),false);
+  values[0].github.tags.state='ok';
+  assert.equal(matchesFilters(values[0],{tags:['error']}),false);
+  assert.equal(matchesFilters(values[0],{tags:[]}),true);
+});
 test('メインの選択肢は、割り当てたメインと未分類に、未対応（受付済みと対応中）の件数を添え、未対応がなくても件数0で出す',()=>{
   const reports=[withTags('a','received',[2,3]),withTags('b','working',[2]),withTags('c','fixed',[2]),withTags('d','complete',[2]),withTags('e','received',[1]),withTags('f','received',[],'pending','unfetched'),withTags('g','checking',[3]),withTags('h','complete',[4])];
   const choices=mainChoices(reports,tags);

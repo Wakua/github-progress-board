@@ -32,17 +32,25 @@ const tags=[{id:1,name:'予約',role:'main'},{id:2,name:'通知',role:'main'},{i
 const label=id=>({id,name:tags.find(tag=>tag.id===id).name});
 const report=(id,{status='received',kind,state='registered',ids=[]}={})=>({id,status,...(kind?{kind}:{}),github:{state,tags:{labels:ids.map(label)}}});
 
-test('条件は、メイン・サブ・対応状況・種別・判定・GitHub登録の順に、ボタンで並ぶ。選択肢のないメインとサブは隠す',()=>{
+test('条件は、メイン・サブ・対応状況・種別・判定・GitHub登録・タグ取得の順に並ぶ。選択肢のないメインとサブは隠す',()=>{
   const fx=fixture();
-  assert.deepEqual(filterDefs.map(def=>def.id),['main','sub','status','kind','decision','registration']);
-  assert.deepEqual(fx.root.children.map(node=>node.dataset.filter),['main','sub','status','kind','decision','registration']);
-  assert.deepEqual(fx.root.children.map(node=>node.children[0].textContent),['メイン','サブ','対応状況','種別','判定','GitHub登録']);
-  assert.deepEqual(fx.root.children.map(node=>node.hidden),[true,true,false,false,false,false]);
+  assert.deepEqual(filterDefs.map(def=>def.id),['main','sub','status','kind','decision','registration','tags']);
+  assert.deepEqual(fx.root.children.map(node=>node.dataset.filter),['main','sub','status','kind','decision','registration','tags']);
+  assert.deepEqual(fx.root.children.map(node=>node.children[0].textContent),['メイン','サブ','対応状況','種別','判定','GitHub登録','タグ取得']);
+  assert.deepEqual(fx.root.children.map(node=>node.hidden),[true,true,false,false,false,false,false]);
   assert.deepEqual(fx.texts('status'),['確認完了を除く','受付済み','対応中','修正済み・公開待ち','テスター確認待ち','確認完了']);
   assert.deepEqual(fx.texts('kind'),['不具合','要望','確認']);
   assert.deepEqual(fx.texts('decision'),['未判定','対応する','保留']);
   assert.deepEqual(fx.texts('registration'),['登録待ち・未登録','登録中','登録済み','登録失敗','作成結果が未確認']);
+  assert.deepEqual(fx.texts('tags'),['取得失敗']);
   for(const def of filterDefs)assert.deepEqual(fx.panel.values(def.id),[]);
+});
+test('タグ取得失敗の選択と解除は、ほかの絞り込みを保つ',()=>{
+  const fx=fixture();fx.check('kind','request');fx.check('tags','error');
+  assert.equal(fx.summary('tags').textContent,'タグ取得：取得失敗');
+  assert.deepEqual(fx.panel.values('tags'),['error']);
+  fx.clear('tags').onclick();
+  assert.deepEqual(fx.panel.values('tags'),[]);assert.deepEqual(fx.panel.values('kind'),['request']);
 });
 test('チェックを入れると、その場で選びが変わり、onChangeを呼ぶ。ボタンに選んだ値を出す',()=>{
   const fx=fixture();

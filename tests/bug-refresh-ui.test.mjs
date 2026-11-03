@@ -37,7 +37,9 @@ function fixture({loadFailure=null,githubEnabled=true,tags={status:200,value:{to
     calls,
     notice:()=>({text:node('#notice').textContent,error:node('#notice').classList.contains('error'),hidden:node('#notice').hidden}),
     button:()=>node('#refresh'),
-    click:()=>node('#refresh').onclick()
+    click:()=>node('#refresh').onclick(),
+    choose:panel.choose,
+    count:()=>node('#report-count').textContent
   };
 }
 
@@ -47,11 +49,18 @@ test('「更新」は、タグをまとめて取得してから報告を読み�
   assert.deepEqual(fx.notice(),{text:'最新の受付情報を読み込みました。',error:false,hidden:false});
   assert.equal(fx.button().disabled,false);
 });
-test('一部の報告でタグを取得できなかったときは、件数を示す警告を出し、報告は読み直す',async()=>{
-  const fx=fixture({tags:{status:200,value:{total:5,updated:3,failed:2}}});await fx.click();
+const row=(id,state='error',repository='qa/booking-reports')=>({id,title:id,status:'received',github:{state:'registered',repository,tags:{state,labels:[]}}});
+test('取得失敗の通知は、読み直した報告から数え、絞り込みと同じ件数を示す',async()=>{
+  const fx=fixture({tags:{status:200,value:{total:3,updated:2,failed:1}},reports:{status:200,value:{reports:[row('current'),row('old','error','qa/old-repository'),row('ok','ok')]}}});await fx.click();
   assert.deepEqual(fx.calls.map(call=>call.route),['github/tags','reports']);
   const notice=fx.notice();assert.equal(notice.error,true);
-  assert.match(notice.text,/タグを取得できなかった報告が2件あります/);assert.match(notice.text,/前回の結果を保持/);
+  assert.match(notice.text,/タグ取得失敗：2件/);
+  fx.choose('#tags-filter','error');assert.equal(fx.count(),'2 / 3件');
+});
+test('再取得中に別の操作で取得状況が変わっても、通知は読み直した一覧と一致する',async()=>{
+  const fx=fixture({tags:{status:200,value:{total:1,updated:0,failed:1}},reports:{status:200,value:{reports:[row('recovered','ok')]}}});await fx.click();
+  assert.equal(fx.notice().error,false);
+  fx.choose('#tags-filter','error');assert.equal(fx.count(),'0 / 1件');
 });
 test('タグの取得そのものに失敗しても、理由を添えた警告を出し、報告は読み直す',async()=>{
   const fx=fixture({tags:{status:503,value:{error:'GitHubの利用制限が解除されるまで待ってください。'}}});await fx.click();
