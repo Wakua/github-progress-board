@@ -10,7 +10,8 @@ let rolesError='', actor, reports=[], selected, draftId, uploaded=new Map(), pen
 let deepLink=new URL(location.href).searchParams.get('report');
 // 一覧とかんばんの表示は、このブラウザに覚える。覚えられないときと、内容が読めないときは、一覧にする。
 const viewKey='bug-report-view';
-let viewMode=(()=>{try{return localStorage.getItem(viewKey)==='board'?'board':'list';}catch{return 'list';}})(),completeOpen=false,boardScroll=0;
+let viewMode=(()=>{try{return localStorage.getItem(viewKey)==='board'?'board':'list';}catch{return 'list';}})(),completeOpen=false;
+let listPosition={x:0,y:0,boardX:0},reportRequest=0;
 async function api(route,options={}) {
   const response=await fetch('/api/bugs/'+route,{...options,credentials:'same-origin'});
   const value=await response.json();
@@ -68,7 +69,7 @@ async function reload(result) {
 }
 async function refresh() {
   const current=actor,result=await api('reports'); if(actor!==current)return; await reload(result);
-  if(selected && reports.some(report=>report.id===selected)) await openReport(selected,false);
+  if(selected && $('#detail').classList.contains('mobile-open') && reports.some(report=>report.id===selected)) await openReport(selected,false);
   else if(deepLink) {const id=deepLink;deepLink=null;try{await openReport(id);}catch(error){notice(error.message,true);}}
   scheduleStatusRefresh();
 }
@@ -120,11 +121,10 @@ function boardCard(report,roles) {
   card.append(head);
   if(area)card.append(element('span',area,'report-area'));
   if(tagAcquisitionFailed(report))card.append(element('span','タグ取得失敗','status status-failed'));
-  // 詳細を開くと、かんばんが隠れて画面の高さが変わるため、開く前の位置を覚え、戻るときに戻す。
-  card.addEventListener('click',()=>{boardScroll=globalThis.scrollY??0;openReport(report.id).catch(error=>notice(error.message,true));});
+  card.addEventListener('click',()=>openReport(report.id).catch(error=>notice(error.message,true)));
   return card;
 }
-// 表示を切り替える。かんばんでは、詳細を一覧の右に並べず、報告を選ぶと、かんばんの代わりに開く。
+// 一覧とかんばんの見せ方を切り替える。どちらも詳細は単独で開く。
 function setView(mode,render=true) {
   viewMode=mode;
   try{localStorage.setItem(viewKey,mode);}catch{}
@@ -133,11 +133,26 @@ function setView(mode,render=true) {
   if(mode==='board')$('#detail').classList.remove('mobile-open');
   if(render)renderList();
 }
+function closeReport() {
+  reportRequest++;
+  $('#detail').classList.remove('mobile-open');
+  const url=new URL(location.href);url.searchParams.delete('report');history.replaceState(null,'',url);
+  const board=$('.board');if(board)board.scrollLeft=listPosition.boardX;
+  // 詳細の更新で条件に合わなくなった報告には戻れないため、一覧の見出しを次の操作の起点にする。
+  const active=$('#reports').querySelector('.active'),target=active??$('#list-heading');
+  target.focus?.({preventScroll:true});
+  if(active)globalThis.scrollTo?.(listPosition.x,listPosition.y);
+  else target.scrollIntoView({block:'start'});
+}
 async function openReport(id,move=true) {
-  const current=actor,{report}=await api('reports/'+id); if(actor!==current)return; selected=id; renderList();
-  const url=new URL(location.href);url.searchParams.set('report',id);history.replaceState(null,'',url);
+  const request=++reportRequest,current=actor;
+  const position=move&&!$('#detail').classList.contains('mobile-open')?{x:globalThis.scrollX??0,y:globalThis.scrollY??0,boardX:$('.board')?.scrollLeft??0}:null;
+  const {report}=await api('reports/'+id);if(actor!==current||request!==reportRequest)return;
+  if(position)listPosition=position;
+  selected=id;renderList();
+  if(move){const url=new URL(location.href);url.searchParams.set('report',id);history.replaceState(null,'',url);}
   const detail=$('#detail'); detail.replaceChildren(); if(move) detail.classList.add('mobile-open');
-  const back=element('button','← 報告一覧へ','quiet back'); back.onclick=()=>{detail.classList.remove('mobile-open');if(viewMode==='board')globalThis.scrollTo?.(0,boardScroll);};
+  const back=element('button','← 報告一覧へ','quiet back');back.type='button';back.onclick=closeReport;
   detail.append(back,element('span',statusNames[report.status],'status workflow-'+report.status),element('h2',report.title),
     element('p',(report.reporterName===actor.name?'':report.reporterName+' · ')+time(report.createdAt),'meta'),
     ...(report.reportedVersion?[element('p','発生したバージョン：'+report.reportedVersion,'meta')]:[]),
@@ -176,7 +191,7 @@ async function openReport(id,move=true) {
       }
     };
   }
-  if(move && (viewMode==='board' || matchMedia('(max-width:760px)').matches)) detail.scrollIntoView({block:'start'});
+  if(move){detail.scrollIntoView({block:'start'});back.focus?.({preventScroll:true});}
 }
 function renderWorkflow(report) {
   const box=element('section',undefined,'workflow-panel'),line=element('div',undefined,'workflow-line');

@@ -116,9 +116,28 @@ test('札を押すと、その報告の詳細を、かんばんの代わりに�
   assert.equal(detail.scrolled?.block,'start','かんばんのスクロール位置が残らないよう、詳細の先頭へ移す');
   const back=detail.children.find(part=>classes(part).includes('back'));
   assert.ok(back,'一覧へ戻る操作を持つ');
+  assert.equal(back.focused,true,'詳細の戻る操作にフォーカスを移す');
   back.onclick();
   assert.equal(detail.classes.has('mobile-open'),false);
   assert.deepEqual(fx.scrolls,[480],'開く前のスクロール位置へ戻す');
+  assert.equal(fx.node('#reports').querySelector('.active').focused,true,'作り直した札へフォーカスを戻す');
+});
+test('一覧からも詳細を先頭で開き、戻ると元の行にフォーカスする',async()=>{
+  const fx=fixture();fx.setView('list');
+  fx.node('#reports').children[2].click();await new Promise(resolve=>setTimeout(resolve,0));
+  const detail=fx.node('#detail');assert.equal(detail.scrolled.block,'start');
+  const back=detail.children.find(part=>classes(part).includes('back'));
+  assert.equal(back.focused,true);back.onclick();
+  assert.equal(fx.node('#reports').querySelector('.active').focused,true);
+  assert.deepEqual(fx.scrolls,[480]);
+});
+test('選んだ報告が絞り込みから外れたら、一覧の見出しへ戻る',async()=>{
+  const fx=fixture();fx.setView('list');fx.panel.choose('#status-filter','working');
+  fx.node('#reports').children[0].click();await new Promise(resolve=>setTimeout(resolve,0));
+  fx.panel.choose('#status-filter','received');
+  const back=fx.node('#detail').children.find(part=>classes(part).includes('back'));back.onclick();
+  assert.equal(fx.node('#list-heading').focused,true);
+  assert.equal(fx.node('#list-heading').scrolled.block,'start','戻る行がない場合は、見出しを画面内へ表示する');
 });
 test('表示の切り替えは、一覧とかんばんの印を持ち、選んだ表示をこのブラウザに覚える。かんばんへ切り替えるとき、開いた詳細は閉じる',()=>{
   const fx=fixture();
