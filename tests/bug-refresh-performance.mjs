@@ -1,13 +1,21 @@
 // Optional measurement on fictional reports and an in-memory GitHub client.
 import assert from 'node:assert/strict';
-import {mkdtemp,mkdir,rm,writeFile} from 'node:fs/promises';
+import {mkdtemp,mkdir,rm,writeFile,readFile} from 'node:fs/promises';
+import {execFileSync} from 'node:child_process';
+import {createHash} from 'node:crypto';
+import {fileURLToPath,pathToFileURL} from 'node:url';
 import {tmpdir,cpus,platform,release} from 'node:os';
 import path from 'node:path';
 import {performance} from 'node:perf_hooks';
 import {setTimeout as delay} from 'node:timers/promises';
-import {BugStore} from '../server/bug-store.mjs';
-import {GitHubWorker} from '../server/bug-github-worker.mjs';
-import {createProgressServer} from '../server.mjs';
+const productRoot=path.resolve(process.env.QA_PRODUCT_ROOT||fileURLToPath(new URL('..',import.meta.url)));
+const {BugStore}=await import(pathToFileURL(path.join(productRoot,'server/bug-store.mjs')));
+const {GitHubWorker}=await import(pathToFileURL(path.join(productRoot,'server/bug-github-worker.mjs')));
+const {createProgressServer}=await import(pathToFileURL(path.join(productRoot,'server.mjs')));
+const expectedRegistration=process.env.QA_EXPECT_REGISTRATION||'unblocked';
+assert.ok(['waiting','unblocked'].includes(expectedRegistration));
+const productCommit=execFileSync('git',['-C',productRoot,'rev-parse','HEAD'],{encoding:'utf8',windowsHide:true}).trim();
+const workerSha256=createHash('sha256').update(await readFile(path.join(productRoot,'server/bug-github-worker.mjs'))).digest('hex');
 
 const summarize=samples=>{
   const sorted=samples.toSorted((a,b)=>a-b),middle=Math.floor(sorted.length/2),round=n=>Math.round(n*100)/100;
@@ -18,7 +26,7 @@ const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
 const artifactDir=path.resolve(process.env.QA_ARTIFACT_DIR||'references/bug-refresh-performance');
 await mkdir(artifactDir,{recursive:true});
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_PATH||undefined});
-const result={at:new Date().toISOString(),productCommit:'e65878a',node:process.version,platform:platform()+' '+release(),cpu:cpus()[0].model,browser:await browser.version(),externalGitHub:false,conditions:[],errors:[]};
+const result={at:new Date().toISOString(),productCommit,workerSha256,expectedRegistration,node:process.version,platform:platform()+' '+release(),cpu:cpus()[0].model,browser:await browser.version(),externalGitHub:false,conditions:[],errors:[]};
 try {
   for(const count of [50,250,500]) {
     const dataDir=await mkdtemp(path.join(tmpdir(),'bug-refresh-measure-'));
@@ -65,8 +73,8 @@ try {
         await page.waitForFunction(n=>document.querySelectorAll('.report-row').length===n,count);
         if(i>=2)initial.push(performance.now()-start);
       }
-      await page.locator('#search').fill('予約');
-      await page.waitForResponse(response=>new URL(response.url()).pathname==='/api/bugs/reports/search');
+      const searched=page.waitForResponse(response=>new URL(response.url()).pathname==='/api/bugs/reports/search');
+      await page.locator('#search').fill('予約');assert.equal((await searched).status(),200);
       const refresh=[],stages=[];
       for(let i=0;i<8;i++){
         await page.evaluate(()=>performance.clearResourceTimings());
@@ -93,7 +101,9 @@ try {
         assert.ok(performance.now()<deadline,'registration did not finish after releasing the list');await delay(20);
       }
       const createdAt=events.find(event=>event.event==='create-issue')?.at;
-      assert.equal(beforeRelease,'pending');assert.equal(createdBeforeRelease,false);assert.ok(createdAt>=releasedAt);
+      assert.equal(beforeRelease,expectedRegistration==='waiting'?'pending':'registered');
+      assert.equal(createdBeforeRelease,expectedRegistration==='unblocked');
+      assert.ok(expectedRegistration==='waiting'?createdAt>=releasedAt:createdAt<releasedAt);
       const condition={count,bodyLengthCharacters:2048,listHttp:summarize(http),initialPage:summarize(initial),refreshWithSearch:summarize(refresh),refreshRequestStages:stages,registrationDuringRefresh:{saveMs:saveEnd-saveStart,heldAfterSaveMs:releasedAt-saveEnd,stateBeforeRelease:beforeRelease,createdBeforeRelease,createAfterSaveMs:createdAt-saveEnd,createAfterReleaseMs:createdAt-releasedAt,events:events.map(event=>({event:event.event,msFromSave:event.at-saveStart}))}};
       result.conditions.push(condition);console.log(JSON.stringify({count,listP50:condition.listHttp.p50Ms,pageP50:condition.initialPage.p50Ms,refreshP50:condition.refreshWithSearch.p50Ms,registration:condition.registrationDuringRefresh}));
     } finally {

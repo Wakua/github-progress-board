@@ -9,7 +9,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { randomUUID } from 'node:crypto';
 
 const [dataDir, portText, codeDir = path.join(path.dirname(fileURLToPath(import.meta.url)), '..')] = process.argv.slice(2);
-if (!dataDir || !Number(portText)) { console.error('使い方: node tests/bug-screens-server.mjs <保存先> <ポート> [<コードのフォルダー>]'); process.exit(2); }
+if (!dataDir || portText === undefined || !Number.isInteger(Number(portText)) || Number(portText) < 0 || Number(portText) > 65535) { console.error('使い方: node tests/bug-screens-server.mjs <保存先> <ポート> [<コードのフォルダー>]'); process.exit(2); }
 const port = Number(portText);
 const load = file => import(pathToFileURL(path.join(codeDir, file)).href);
 const { BugStore } = await load('server/bug-store.mjs');
@@ -87,9 +87,10 @@ issues.push({ number: 101 + registered.length, html_url: 'https://github.com/' +
 const reloaded = issues.splice(0);
 const server = createProgressServer({ repositories: [], dataDir, githubRepository: repository, githubClient: github });
 await new Promise(resolve => server.listen(port, '127.0.0.1', resolve));
-console.log('http://127.0.0.1:' + port + '/bugs/');
+const origin = 'http://127.0.0.1:' + server.address().port;
+console.log(origin + '/bugs/');
 
-const base = 'http://127.0.0.1:' + port + '/api/bugs';
+const base = origin + '/api/bugs';
 const call = async (method, p, body) => (await fetch(base + p, { method, headers: body ? { 'Content-Type': 'application/json' } : {}, body: body ? JSON.stringify(body) : undefined })).json();
 const existing = (await call('GET', '/reports')).reports;
 const expected = early.length + registered.length + 1;
@@ -126,3 +127,6 @@ if (existing.length >= expected) {
   for (const item of (await call('GET', '/reports')).reports) { const d = decisions.get(item.title); if (d) await call('POST', '/reports/' + item.id + '/decision', { decision: d[0], note: d[1], revision: item.revision }); }
   console.log('seeded', (await call('GET', '/reports')).reports.length);
 }
+
+// 自動検証は同じ架空データを使い、模擬GitHubの応答だけを制御する。
+export { server, github, origin };

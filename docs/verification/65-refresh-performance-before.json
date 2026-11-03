@@ -1,0 +1,746 @@
+{
+  "at": "2026-11-03T09:41:22.728Z",
+  "productCommit": "f3937c0d1723218cb3774ac7a9dba2cf5ea9e7b0",
+  "workerSha256": "79481b5c1a175bcc884fa29835840df8f52606c37c89e3b2ce76219cd08b5e9d",
+  "expectedRegistration": "waiting",
+  "node": "v24.15.0",
+  "platform": "win32 10.0.26100",
+  "cpu": "Intel(R) Core(TM) i7-9700K CPU @ 3.60GHz",
+  "browser": "156.0.8078.80",
+  "externalGitHub": false,
+  "conditions": [
+    {
+      "count": 50,
+      "bodyLengthCharacters": 2048,
+      "listHttp": {
+        "samples": 20,
+        "p50Ms": 7.81,
+        "p95Ms": 10.33,
+        "maxMs": 13.39,
+        "samplesMs": [
+          10.326399999999921,
+          10.173099999999977,
+          8.483199999999897,
+          8.983400000000074,
+          8.561500000000024,
+          8.106499999999869,
+          8.039600000000064,
+          13.391999999999825,
+          7.3417000000001735,
+          8.912000000000035,
+          7.104100000000017,
+          7.76909999999998,
+          6.783999999999878,
+          7.184199999999919,
+          6.883299999999963,
+          7.46329999999989,
+          7.002899999999954,
+          7.054999999999836,
+          7.850999999999885,
+          7.3279
+        ]
+      },
+      "initialPage": {
+        "samples": 6,
+        "p50Ms": 52.16,
+        "p95Ms": 61.55,
+        "maxMs": 61.55,
+        "samplesMs": [
+          49.51189999999997,
+          53.204299999999876,
+          51.12040000000002,
+          56.83179999999993,
+          50.71150000000034,
+          61.55229999999983
+        ]
+      },
+      "refreshWithSearch": {
+        "samples": 6,
+        "p50Ms": 62.78,
+        "p95Ms": 68.67,
+        "maxMs": 68.67,
+        "samplesMs": [
+          58.58130000000028,
+          65.00419999999986,
+          65.51290000000017,
+          68.67029999999977,
+          60.55550000000039,
+          59.82099999999991
+        ]
+      },
+      "refreshRequestStages": [
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 4.799999998882413,
+            "durationMs": 4.799999998882413
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 14.099999999627471,
+            "endMs": 20.90000000037253,
+            "durationMs": 6.800000000745058
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 21.799999998882413,
+            "endMs": 22.699999999254942,
+            "durationMs": 0.900000000372529
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 23.5,
+            "endMs": 24.90000000037253,
+            "durationMs": 1.400000000372529
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 4.800000000745058,
+            "durationMs": 4.800000000745058
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 14.700000001117587,
+            "endMs": 21.40000000037253,
+            "durationMs": 6.699999999254942
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 22.5,
+            "endMs": 23.40000000037253,
+            "durationMs": 0.900000000372529
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 24.100000001490116,
+            "endMs": 25.40000000037253,
+            "durationMs": 1.299999998882413
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 5.299999998882413,
+            "durationMs": 5.299999998882413
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 14.699999999254942,
+            "endMs": 21.5,
+            "durationMs": 6.800000000745058
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 22.5,
+            "endMs": 23.5,
+            "durationMs": 1
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 24.40000000037253,
+            "endMs": 25.90000000037253,
+            "durationMs": 1.5
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 8,
+            "durationMs": 8
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 13.800000000745058,
+            "endMs": 20.5,
+            "durationMs": 6.699999999254942
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 21.40000000037253,
+            "endMs": 22.40000000037253,
+            "durationMs": 1
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 23.09999999962747,
+            "endMs": 24.40000000037253,
+            "durationMs": 1.300000000745058
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 5.200000001117587,
+            "durationMs": 5.200000001117587
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 14.900000000372529,
+            "endMs": 21.5,
+            "durationMs": 6.599999999627471
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 23.40000000037253,
+            "endMs": 24.5,
+            "durationMs": 1.099999999627471
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 25.300000000745058,
+            "endMs": 26.59999999962747,
+            "durationMs": 1.299999998882413
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 5.299999998882413,
+            "durationMs": 5.299999998882413
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 14.299999998882413,
+            "endMs": 21,
+            "durationMs": 6.700000001117587
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 22,
+            "endMs": 23,
+            "durationMs": 1
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 23.699999999254942,
+            "endMs": 25.09999999962747,
+            "durationMs": 1.400000000372529
+          }
+        ]
+      ],
+      "registrationDuringRefresh": {
+        "saveMs": 3.9144000000001142,
+        "heldAfterSaveMs": 2006.8331000000003,
+        "stateBeforeRelease": "pending",
+        "createdBeforeRelease": false,
+        "createAfterSaveMs": 2012.9037000000003,
+        "createAfterReleaseMs": 6.070600000000013,
+        "events": [
+          {
+            "event": "list-start",
+            "msFromSave": -0.012499999999818101
+          },
+          {
+            "event": "list-return",
+            "msFromSave": 2010.7529000000004
+          },
+          {
+            "event": "registration-search",
+            "msFromSave": 2015.6971000000003
+          },
+          {
+            "event": "create-issue",
+            "msFromSave": 2016.8181000000004
+          }
+        ]
+      }
+    },
+    {
+      "count": 250,
+      "bodyLengthCharacters": 2048,
+      "listHttp": {
+        "samples": 20,
+        "p50Ms": 35.66,
+        "p95Ms": 40.43,
+        "maxMs": 56.17,
+        "samplesMs": [
+          34.30239999999958,
+          34.770400000000336,
+          33.16579999999976,
+          34.61120000000028,
+          33.394900000000234,
+          37.44430000000011,
+          34.46900000000005,
+          33.42979999999989,
+          34.29989999999998,
+          56.17230000000018,
+          33.8800999999994,
+          37.613900000000285,
+          37.866800000000694,
+          35.29740000000038,
+          36.10269999999946,
+          36.797199999999975,
+          36.02149999999983,
+          40.42660000000069,
+          36.299300000000585,
+          37.72369999999955
+        ]
+      },
+      "initialPage": {
+        "samples": 6,
+        "p50Ms": 77.08,
+        "p95Ms": 104.05,
+        "maxMs": 104.05,
+        "samplesMs": [
+          104.04790000000048,
+          77.02430000000004,
+          68.49349999999868,
+          71.52170000000115,
+          86.64400000000023,
+          77.12669999999889
+        ]
+      },
+      "refreshWithSearch": {
+        "samples": 6,
+        "p50Ms": 100.5,
+        "p95Ms": 123.8,
+        "maxMs": 123.8,
+        "samplesMs": [
+          79.95430000000124,
+          96.6268,
+          99.21730000000025,
+          123.79589999999916,
+          106.36880000000019,
+          101.78660000000127
+        ]
+      },
+      "refreshRequestStages": [
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 16,
+            "durationMs": 16
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 16.59999999962747,
+            "endMs": 47.09999999962747,
+            "durationMs": 30.5
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 48.79999999888241,
+            "endMs": 49.90000000037253,
+            "durationMs": 1.1000000014901161
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 50.69999999925494,
+            "endMs": 55.29999999888241,
+            "durationMs": 4.599999999627471
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 15.700000001117587,
+            "durationMs": 15.700000001117587
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 16.40000000037253,
+            "endMs": 48.100000001490116,
+            "durationMs": 31.700000001117587
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 50,
+            "endMs": 51.100000001490116,
+            "durationMs": 1.1000000014901161
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 51.80000000074506,
+            "endMs": 56.30000000074506,
+            "durationMs": 4.5
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 16,
+            "durationMs": 16
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 16.800000000745058,
+            "endMs": 48.80000000074506,
+            "durationMs": 32
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 50.40000000037253,
+            "endMs": 51.5,
+            "durationMs": 1.099999999627471
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 52.19999999925494,
+            "endMs": 56.5,
+            "durationMs": 4.300000000745058
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 17.90000000037253,
+            "durationMs": 17.90000000037253
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 18.700000001117587,
+            "endMs": 53.30000000074506,
+            "durationMs": 34.59999999962747
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 55.09999999962747,
+            "endMs": 74.59999999962747,
+            "durationMs": 19.5
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 75.5,
+            "endMs": 81,
+            "durationMs": 5.5
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 19.5,
+            "durationMs": 19.5
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 20.700000001117587,
+            "endMs": 53.70000000111759,
+            "durationMs": 33
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 55.80000000074506,
+            "endMs": 57,
+            "durationMs": 1.199999999254942
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 58,
+            "endMs": 62.90000000037253,
+            "durationMs": 4.900000000372529
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 16.40000000037253,
+            "durationMs": 16.40000000037253
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 17,
+            "endMs": 50.70000000111759,
+            "durationMs": 33.70000000111759
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 53,
+            "endMs": 54.20000000111759,
+            "durationMs": 1.200000001117587
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 55.100000001490116,
+            "endMs": 59.90000000037253,
+            "durationMs": 4.799999998882413
+          }
+        ]
+      ],
+      "registrationDuringRefresh": {
+        "saveMs": 3.975000000000364,
+        "heldAfterSaveMs": 2004.2175000000007,
+        "stateBeforeRelease": "pending",
+        "createdBeforeRelease": false,
+        "createAfterSaveMs": 2020.2645000000011,
+        "createAfterReleaseMs": 16.04700000000048,
+        "events": [
+          {
+            "event": "list-start",
+            "msFromSave": -0.014099999998506973
+          },
+          {
+            "event": "list-return",
+            "msFromSave": 2008.2005000000008
+          },
+          {
+            "event": "registration-search",
+            "msFromSave": 2022.7864000000009
+          },
+          {
+            "event": "create-issue",
+            "msFromSave": 2024.2395000000015
+          }
+        ]
+      }
+    },
+    {
+      "count": 500,
+      "bodyLengthCharacters": 2048,
+      "listHttp": {
+        "samples": 20,
+        "p50Ms": 76.71,
+        "p95Ms": 101.08,
+        "maxMs": 105.5,
+        "samplesMs": [
+          82.73779999999897,
+          92.08310000000165,
+          73.05609999999979,
+          70.58479999999872,
+          71.47710000000006,
+          69.54740000000129,
+          72.51339999999982,
+          101.07979999999952,
+          69.87910000000011,
+          71.14520000000084,
+          72.37490000000071,
+          76.04370000000017,
+          77.3723000000009,
+          81.81529999999839,
+          105.49889999999868,
+          82.96050000000105,
+          82.96730000000025,
+          73.78319999999803,
+          80.5818999999974,
+          86.8373999999967
+        ]
+      },
+      "initialPage": {
+        "samples": 6,
+        "p50Ms": 148.27,
+        "p95Ms": 189.46,
+        "maxMs": 189.46,
+        "samplesMs": [
+          143.0125999999982,
+          156.55059999999867,
+          189.4559999999983,
+          153.51760000000286,
+          124.85689999999886,
+          134.30729999999676
+        ]
+      },
+      "refreshWithSearch": {
+        "samples": 6,
+        "p50Ms": 203.51,
+        "p95Ms": 242.4,
+        "maxMs": 242.4,
+        "samplesMs": [
+          164.15569999999934,
+          191.6949999999997,
+          242.39589999999953,
+          215.3214999999982,
+          184.90620000000126,
+          216.55749999999898
+        ]
+      },
+      "refreshRequestStages": [
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 35.70000000111759,
+            "durationMs": 35.70000000111759
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 36.5,
+            "endMs": 106.09999999962747,
+            "durationMs": 69.59999999962747
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 109.80000000074506,
+            "endMs": 111.90000000037253,
+            "durationMs": 2.099999999627471
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 112.90000000037253,
+            "endMs": 121.59999999962747,
+            "durationMs": 8.699999999254942
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 31.5,
+            "durationMs": 31.5
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 32.20000000111759,
+            "endMs": 121.40000000037253,
+            "durationMs": 89.19999999925494
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 125.20000000111759,
+            "endMs": 126.90000000037253,
+            "durationMs": 1.699999999254942
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 128,
+            "endMs": 136.90000000037253,
+            "durationMs": 8.900000000372529
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 37.5,
+            "durationMs": 37.5
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 38.399999998509884,
+            "endMs": 123.09999999962747,
+            "durationMs": 84.70000000111759
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 127.29999999888241,
+            "endMs": 154.39999999850988,
+            "durationMs": 27.09999999962747
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 155.5,
+            "endMs": 165.19999999925494,
+            "durationMs": 9.699999999254942
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 36.29999999888241,
+            "durationMs": 36.29999999888241
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 37.29999999888241,
+            "endMs": 114,
+            "durationMs": 76.70000000111759
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 118,
+            "endMs": 119.5,
+            "durationMs": 1.5
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 120.40000000037253,
+            "endMs": 129.5,
+            "durationMs": 9.099999999627471
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 35.09999999962747,
+            "durationMs": 35.09999999962747
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 36.09999999962747,
+            "endMs": 114,
+            "durationMs": 77.90000000037253
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 117.69999999925494,
+            "endMs": 119.69999999925494,
+            "durationMs": 2
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 120.59999999962747,
+            "endMs": 129.2999999988824,
+            "durationMs": 8.699999999254942
+          }
+        ],
+        [
+          {
+            "route": "/api/bugs/github/tags",
+            "startMs": 0,
+            "endMs": 36.20000000111759,
+            "durationMs": 36.20000000111759
+          },
+          {
+            "route": "/api/bugs/reports",
+            "startMs": 37.09999999962747,
+            "endMs": 133.30000000074506,
+            "durationMs": 96.20000000111759
+          },
+          {
+            "route": "/api/bugs/tag-roles",
+            "startMs": 137,
+            "endMs": 139.59999999962747,
+            "durationMs": 2.599999999627471
+          },
+          {
+            "route": "/api/bugs/reports/search",
+            "startMs": 141.09999999962747,
+            "endMs": 151.09999999962747,
+            "durationMs": 10
+          }
+        ]
+      ],
+      "registrationDuringRefresh": {
+        "saveMs": 4.882200000000012,
+        "heldAfterSaveMs": 2014.7216000000008,
+        "stateBeforeRelease": "pending",
+        "createdBeforeRelease": false,
+        "createAfterSaveMs": 2044.1333999999988,
+        "createAfterReleaseMs": 29.41179999999804,
+        "events": [
+          {
+            "event": "list-start",
+            "msFromSave": -0.006900000000314321
+          },
+          {
+            "event": "list-return",
+            "msFromSave": 2019.613300000001
+          },
+          {
+            "event": "registration-search",
+            "msFromSave": 2047.1690999999992
+          },
+          {
+            "event": "create-issue",
+            "msFromSave": 2049.015599999999
+          }
+        ]
+      }
+    }
+  ],
+  "errors": []
+}
