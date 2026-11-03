@@ -2,28 +2,17 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createBugDom,loadBugApp} from './support/bug-ui.mjs';
 import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 画面に、状態の印やボタンで分かる説明の文を、足し戻していないことを、実際の画面のコードで確かめる。
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.value='';this.className='';this.name='';this.style={setProperty(){}};this.classList={toggle(){}};}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  get options() {return this.children;}
-  addEventListener() {}
-  descendants() {return this.children.flatMap(child=>[child,...child.descendants()]);}
-}
 function fixture({githubEnabled=true,role='admin',shared=true}={}) {
-  const nodes=new Map();
-  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
+  const {node,document}=createBugDom();
   Object.defineProperty(node('#report-form'),'elements',{value:{files:{}}});
   const panel=createFilterPanelStub();
-  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch:async()=>({ok:true,status:200,json:async()=>({})}),URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},setTimeout:()=>0,clearTimeout(){}});
-  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
-  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
-  vm.runInContext(app.slice(0,end),context);
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document,fetch:async()=>({ok:true,status:200,json:async()=>({})}),URL,location:{href:'http://127.0.0.1:4327/bugs/'},crypto:{randomUUID:()=>'id'},setTimeout:()=>0,clearTimeout(){}});
+  loadBugApp(context);
   vm.runInContext('actor={id:"local-shared",role:"'+role+'",shared:'+shared+',policy:{maxBytes:1073741824,maxFiles:20},name:"共通の利用者",github:{enabled:'+githubEnabled+',repository:"qa/booking-reports"}};',context);
   return {node,call:(name,value)=>{context.__value=value;return vm.runInContext(name+'(__value)',context);},show:value=>{context.__value=value;vm.runInContext('showActor(__value)',context);}};
 }

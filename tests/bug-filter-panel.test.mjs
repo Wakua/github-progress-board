@@ -1,20 +1,11 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {Element as Node} from './support/bug-ui.mjs';
 import {readFileSync} from 'node:fs';
 import {filterDefs,summaryText,toggled,mountFilterPanel} from '../dist/bugs/filter-panel.mjs';
 import {matchesFilters,mainChoices,subChoices,roleMap,uncategorized} from '../dist/bugs/view.mjs';
 
 // 絞り込みの枠（#105）を、擬似DOMで動かし、チェックを入れたらすぐ絞り込む動作を確かめる。
-class Node {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.hidden=false;this.open=false;this.checked=false;this.value='';this.textContent='';this.className='';this.dataset={};this.listeners={};this.focused=false;}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  addEventListener(type,listener) {(this.listeners[type]||=[]).push(listener);}
-  fire(type,event={}) {for(const listener of this.listeners[type]||[])listener(event);}
-  focus() {this.focused=true;}
-  contains(node) {return node===this||this.children.some(child=>child.contains?.(node));}
-  *walk() {for(const child of this.children){yield child;yield* child.walk();}}
-}
 function fixture() {
   const clicks=[];
   globalThis.document={createElement:tag=>new Node(tag),addEventListener:(type,listener)=>{if(type==='click')clicks.push(listener);}};

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createBugDom,loadBugApp} from './support/bug-ui.mjs';
 import * as view from '../dist/bugs/view.mjs';
 import {createFilterPanelStub} from './filter-panel-stub.mjs';
 
@@ -30,31 +30,9 @@ test('判定は、要望だけが持つ。値を持たない要望は、未判�
   assert.equal(view.matchesFilters(reports[1],{decision:['defer'],status:['complete']}),false);
 });
 
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.value='';this.className='';this.id='';this.classList={toggle(){},add(){},remove(){},contains:()=>false};this.style={setProperty(){}};}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  insertBefore(node,reference) {const index=reference?this.children.indexOf(reference):-1;if(index<0)this.children.push(node);else this.children.splice(index,0,node);}
-  get options() {return this.children;}
-  *walk() {for(const child of this.children){yield child;yield* child.walk();}}
-  querySelector(selector) {
-    const match=selector.startsWith('#')?node=>node.id===selector.slice(1):selector.startsWith('.')?node=>node.className.split(' ').includes(selector.slice(1)):()=>false;
-    for(const node of this.walk())if(match(node))return node;
-    return null;
-  }
-  querySelectorAll() {return [];}
-  addEventListener() {}
-}
 function fixture(reports,{failure=null}={}) {
-  const nodes=new Map(),requests=[];
-  const node=selector=>{
-    if(!nodes.has(selector)) {
-      const found=selector.startsWith('#')&&nodes.has('#detail')?nodes.get('#detail').querySelector(selector):null;
-      if(found)return found;
-      nodes.set(selector,new Element());
-    }
-    return nodes.get(selector);
-  };
+  const requests=[];
+  const {node,document}=createBugDom();
   const panel=createFilterPanelStub();
   node('#report-form').elements={files:{files:[]}};
   const fetch=async(url,options={})=>{
@@ -64,12 +42,9 @@ function fixture(reports,{failure=null}={}) {
     const found=reports.find(item=>route==='reports/'+item.id);
     return {ok:true,status:200,json:async()=>found?{report:found}:{reports}};
   };
-  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>[]}),document,fetch,URL,
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),setTimeout:()=>1,clearTimeout(){}});
-  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
-  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
-  vm.runInContext(app.slice(0,end),context);
+  loadBugApp(context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,name:"共通の利用者",policy:{maxFiles:20,maxBytes:1000},github:{enabled:true,repository:"qa/booking-reports"}};var refreshed=0;refresh=async()=>{refreshed++};var lastNotice="";notice=(message)=>{lastNotice=message};',context);
   Object.assign(context,{__reports:reports});vm.runInContext('reports=__reports;',context);
   return {node,requests,context,choose:panel.choose,

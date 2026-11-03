@@ -2,30 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {Element,createBugDom,loadBugApp} from './support/bug-ui.mjs';
 import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 報告の種別（#73）の画面。実際の画面のコードを、擬似DOMと偽のAPIで動かす。
-class Element {
-  constructor(tag='div') {
-    this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.checked=false;this.value='';this.className='';this.id='';
-    this.classList={toggle(){},add(){},remove(){},contains:()=>false};this.style={setProperty(){}};
-  }
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  insertBefore(node,reference) {const index=reference?this.children.indexOf(reference):-1;if(index<0)this.children.push(node);else this.children.splice(index,0,node);}
-  get options() {return this.children;}
-  *walk() {for(const child of this.children){yield child;yield* child.walk();}}
-  querySelector(selector) {
-    const match=selector.startsWith('#')?node=>node.id===selector.slice(1):selector.startsWith('.')?node=>node.className.split(' ').includes(selector.slice(1)):()=>false;
-    for(const node of this.walk())if(match(node))return node;
-    return null;
-  }
-  querySelectorAll(selector) {return [...this.walk()].filter(node=>node.tag==='input'&&(!selector.includes(':checked')||node.checked));}
-  addEventListener() {}
-  showModal() {this.open=true;}
-  close() {this.open=false;}
-}
 const tags=[{id:11,name:'予約',color:'336699',role:'main'},{id:12,name:'一覧',color:'993366',role:'sub'},{id:13,name:'通知',color:'339966',role:'main'}];
 const label=id=>tags.find(tag=>tag.id===id);
 const report=(id,{kind,status='received',state='registered',labels=[],revision=3,body='架空の本文'}={})=>({
@@ -41,15 +22,8 @@ const sample=()=>[
 ];
 
 function fixture({reports=sample(),details=new Map(),kindFailure=null,search}={}) {
-  const nodes=new Map(),requests=[];
-  const node=selector=>{
-    if(!nodes.has(selector)) {
-      const found=selector.startsWith('#')&&nodes.has('#detail')?nodes.get('#detail').querySelector(selector):null;
-      if(found)return found;
-      nodes.set(selector,new Element());
-    }
-    return nodes.get(selector);
-  };
+  const requests=[];
+  const {node,document}=createBugDom();
   const form=node('#report-form'),files=new Element('input'),body=new Element('textarea'),version=new Element('input'),kind={value:'bug'};
   files.files=[];body.value='架空の再現報告';
   form.elements=Object.assign([files,body,version,node('#submit-report')],{files,body,reportedVersion:version,kind});
@@ -69,13 +43,10 @@ function fixture({reports=sample(),details=new Map(),kindFailure=null,search}={}
   const fetch=async(url,options={})=>{const result=respond(url.replace('/api/bugs/',''),options);return{ok:result.status<400,status:result.status,json:async()=>result.value};};
   const timers=[];
   const panel=createFilterPanelStub();
-  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>null,tags:()=>tags}),document,fetch,URL,
     location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},matchMedia:()=>({matches:false}),
     setTimeout:(fn,ms)=>{timers.push({fn,ms,live:true});return timers.length;},clearTimeout:id=>{if(timers[id-1])timers[id-1].live=false;}});
-  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
-  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
-  vm.runInContext(app.slice(0,end),context);
+  loadBugApp(context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,policy:{maxFiles:20,maxBytes:1000},github:{enabled:true,repository:"qa/booking-reports"}};var lastNotice="";var lastError=false;notice=(message,error)=>{lastNotice=message;lastError=Boolean(error)};var refreshed=0;refresh=async()=>{refreshed++};',context);
   Object.assign(context,{__reports:reports});vm.runInContext('reports=__reports;',context);
   const box=()=>node('#reports');

@@ -1,22 +1,15 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {readFileSync} from 'node:fs';
 import vm from 'node:vm';
+import {createBugDom,loadBugApp} from './support/bug-ui.mjs';
 import {createFilterPanelStub} from './filter-panel-stub.mjs';
 import * as view from '../dist/bugs/view.mjs';
 
 // 実際の画面のコードの「更新」を、擬似DOMと偽のAPIで動かし、タグの取得と通知の分岐を検証する。
-class Element {
-  constructor(tag='div') {this.tag=tag;this.children=[];this.textContent='';this.hidden=false;this.disabled=false;this.value='';this.classes=new Set();this.classList={toggle:(name,force)=>{if(force)this.classes.add(name);else this.classes.delete(name);},contains:name=>this.classes.has(name)};}
-  append(...children) {this.children.push(...children);}
-  replaceChildren(...children) {this.children=[...children];}
-  get options() {return this.children;}
-  addEventListener() {}
-}
 
 function fixture({loadFailure=null,githubEnabled=true,tags={status:200,value:{total:2,updated:2,failed:0}},reports={status:200,value:{reports:[]}}}={}) {
-  const nodes=new Map(),calls=[];
-  const node=selector=>{if(!nodes.has(selector))nodes.set(selector,new Element());return nodes.get(selector);};
+  const calls=[];
+  const {node,document}=createBugDom();
   node('#report-form').elements={files:{}};
   const fetch=async url=>{
     const route=url.replace('/api/bugs/','');calls.push({route,buttonDisabled:node('#refresh').disabled});
@@ -24,14 +17,10 @@ function fixture({loadFailure=null,githubEnabled=true,tags={status:200,value:{to
     if(!result)throw new Error('Unexpected request: '+route);
     return{ok:result.status<400,status:result.status,json:async()=>result.value};
   };
-  // 画面のコードのimportは取り除くため、読み込む表示用の関数は、globalとして渡す。読み込み時に呼ぶmountTagRolesは、何もしない模擬にする。
   const panel=createFilterPanelStub();
-  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>loadFailure,tags:()=>[]}),document:{querySelector:node,createElement:tag=>new Element(tag)},fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
+  const context=vm.createContext({...view,mountFilterPanel:panel.mountFilterPanel,mountTagRoles:()=>({load:async()=>loadFailure,tags:()=>[]}),document,fetch,URL,location:{href:'http://127.0.0.1:4327/bugs/'},history:{replaceState(){}},crypto:{randomUUID:()=>'id'},
     setTimeout:()=>0,clearTimeout(){}});
-  const source=readFileSync(new URL('../dist/bugs/app.mjs',import.meta.url),'utf8');
-  const app=source.replace(/^import .*\n/gm,''),end=app.lastIndexOf('\ntry { showActor');
-  assert.ok(source.startsWith('import ')&&end>0,'App import and bootstrap boundaries must exist');
-  vm.runInContext(app.slice(0,end),context);
+  loadBugApp(context);
   vm.runInContext('actor={id:"local-shared",role:"admin",shared:true,github:{enabled:'+githubEnabled+',repository:"qa/booking-reports"}};',context);
   return {
     calls,
