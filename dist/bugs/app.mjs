@@ -406,8 +406,12 @@ function renderGitHub(report) {
     controls.append(button);return button;
   }
   if(github.state==='failed')action('GitHub登録を再試行','register');
-  else if(github.state==='pending'&&!github.repository)action('GitHubに登録','register');
+  else if(github.state==='pending'&&github.repository!==actor.github.repository)action('GitHubに登録','register');
   else if(github.state==='unknown') {
+    if(github.repository&&github.repository!==actor.github.repository) {
+      box.append(element('p','接続先を'+github.repository+'へ戻して照合してください。','muted'));
+      return box;
+    }
     box.append(element('p','作成された可能性があります。照合してください。','muted'));
     action('既存のIssueと照合','reconcile');
     if(github.checkedAt)box.append(element('p','照合：'+time(github.checkedAt),'meta'));
