@@ -55,6 +55,7 @@ npm run check
 | [開発手順と実施記録](docs/development-workflow.md) | 着手から受入までの工程、証拠、提出前の照合 |
 | [クラウド共有保存](docs/cloud-workspace.md) | 認証、端末間の共有、移行と障害時の操作 |
 | [クラウドの本番確認](docs/cloud-release-verification.md#本番で残る確認) | 公開前に必要な確認と未確認事項 |
+| [テストケースの登録・編集](docs/test-case-editor.md) | ローカルDBへのケース保存、カテゴリ絞込み、競合時の操作 |
 | [バグ報告](docs/bug-reporting.md) | 報告の初期設定、GitHub登録、修正版の確認 |
 
 ## ライセンス
