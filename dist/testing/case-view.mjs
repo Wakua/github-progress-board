@@ -51,7 +51,8 @@ export function mountCaseEditor(root, { repository, window: win = window, docume
     const wrapper = field(label + (required ? ' *' : ''), node); wrapper.append(error); return wrapper;
   }
   const top = make('div', undefined, 'case-form-row');
-  top.append(input('id', 'ID', { required: true, readonly: true }), input('status', '状態', { choices: CASE_STATES, required: true }), input('category', 'カテゴリ', { choices: [''] }));
+  top.append(input('id', 'ID', { required: true, readonly: true }), input('status', '状態', { choices: CASE_STATES, required: true }), input('category', 'カテゴリ'));
+  const categoryNames = make('datalist'); categoryNames.id = `${listId}-categories`; controls.category.setAttribute('list', categoryNames.id); top.append(categoryNames);
   fields.append(top, input('title', 'タイトル', { required: true }), input('steps', '手順', { required: true, type: 'textarea', rows: 4 }), input('expected', '期待結果', { required: true, type: 'textarea' }));
   const optional = make('details'); optional.append(make('summary', '補足'));
   optional.append(input('purpose', '目的', { type: 'textarea' }), input('preconditions', '事前条件', { type: 'textarea' }), input('cleanup', '事後処理', { type: 'textarea' }), input('priority', '優先度', { choices: ['', 'High', 'Medium', 'Low'] }), input('type', 'テスト種別', { choices: ['', 'Manual', 'Automated', 'Exploratory'] }), input('reference', '関連する仕様'), input('notes', '備考', { type: 'textarea' }));
@@ -107,11 +108,11 @@ export function mountCaseEditor(root, { repository, window: win = window, docume
     const value = editor.snapshot(), busy = ['loading', 'creating', 'saving'].includes(value.phase);
     layout(value);
     if (['load', 'select', 'filter', 'saved', 'cancel'].includes(kind)) renderRows(value);
-    if (kind === 'load') {
+    if (kind === 'load' || kind === 'saved') {
       category.replaceChildren(select([['', 'すべて']]).firstChild);
-      controls.category.replaceChildren(select([['', '未指定']]).firstChild);
-      for (const name of value.categories) {
-        for (const control of [category, controls.category]) { const option = make('option', name); option.value = name; control.append(option); }
+      categoryNames.replaceChildren();
+      for (const name of [...new Set([...value.categories, value.category].filter(Boolean))]) {
+        for (const control of [category, categoryNames]) { const option = make('option', name); option.value = name; control.append(option); }
       }
       category.value = value.category;
     }

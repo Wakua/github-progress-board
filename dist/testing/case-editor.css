@@ -67,3 +67,4 @@
  .case-form-row label:last-child{grid-column:1/-1}
  .case-placeholder{padding:24px}
 }
+body{margin:0;background:#101720}.case-navigation{max-width:1160px;margin:auto;padding:12px 30px 0;display:flex;gap:20px;font:14px system-ui}.case-navigation a{color:#b5d1ff}

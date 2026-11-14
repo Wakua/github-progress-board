@@ -15,7 +15,7 @@ export function validateCase(value) {
 }
 export class UnsavedCaseError extends Error {}
 
-// repositoryは内部接続口。実保存アダプターは保存境界の採用後に接続する。
+// repositoryは内部接続口。HTTP経由でローカルのテストDBへ接続する。
 // load -> {cases,categories}; newCase -> 未保存のケース; save -> 保存したケース。
 export function createCaseEditor(repository, { requestId = () => crypto.randomUUID() } = {}) {
   let cases = [], categories = [], selected = null, draft = null, original = null;
@@ -100,6 +100,7 @@ export function createCaseEditor(repository, { requestId = () => crypto.randomUU
         if (saved?.id !== submitted.id || Object.keys(validateCase(saved)).length) throw new Error('保存結果を確認できませんでした。入力は残っています。');
         const index = cases.findIndex(record => record.id === saved.id);
         if (index < 0) cases.push(copy(saved)); else cases[index] = copy(saved);
+        categories = [...new Set(cases.map(record => record.category).filter(Boolean))].sort();
         draft = caseValues(saved); original = copy(draft); phase = 'ready'; saveKey = saveFingerprint = null;
         emit('saved'); return true;
       } catch (cause) {

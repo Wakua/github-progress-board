@@ -6,6 +6,8 @@ import { randomBytes, timingSafeEqual } from 'node:crypto';
 import path from 'node:path';
 import { createGithubRefresher, configuredRepositories } from './scripts/local-github-refresh.mjs';
 import { repositoryKey } from './dist/github-snapshot.mjs';
+import { TestStore } from './server/test-store.mjs';
+import { handleTestApi } from './server/test-api.mjs';
 import { BugStore } from './server/bug-store.mjs';
 import { handleBugApi, acquireDataLock, recoverIncompleteUploads } from './server/bug-api.mjs';
 import { GitHubClient, parseBugRepository } from './server/bug-github-client.mjs';
@@ -31,12 +33,17 @@ async function readRequest(req) {
   });
 }
 
-export function createProgressServer({ root = defaultRoot, repositories = configuredRepositories(), refresher = createGithubRefresher({ repositories }), dataDir = process.env.BUG_REPORTING_DATA_DIR || path.resolve('.bug-reporting-data'), githubRepository = process.env.BUG_REPORTING_GITHUB_REPO || null, githubClient } = {}) {
+export function createProgressServer({ root = defaultRoot, repositories = configuredRepositories(), refresher = createGithubRefresher({ repositories }), dataDir = process.env.BUG_REPORTING_DATA_DIR || path.resolve('.bug-reporting-data'), githubRepository = process.env.BUG_REPORTING_GITHUB_REPO || null, githubClient, testDataDir = process.env.TEST_MANAGEMENT_DATA_DIR || path.resolve('.test-management-data') } = {}) {
   const bugRepository = parseBugRepository(githubRepository);
   const relative = path.relative(root, path.resolve(dataDir));
   if (relative !== '..' && !relative.startsWith('..' + path.sep) && !path.isAbsolute(relative)) throw new Error('報告の保存先はdistの外に置いてください。');
   if (githubClient && bugRepository && githubClient.repository !== bugRepository) throw new Error('GitHubの接続先が設定と一致しません。');
-  let store, release, worker;
+  let store, release, worker, testStore;
+  const getTestStore = () => {
+    const relativeTest = path.relative(path.resolve(root), path.resolve(testDataDir));
+    if (relativeTest !== '..' && !relativeTest.startsWith('..' + path.sep) && !path.isAbsolute(relativeTest)) throw new Error('テストの保存先はdistの外に置いてください。');
+    return testStore ||= new TestStore(testDataDir);
+  };
   if (existsSync(path.join(dataDir, 'reports.sqlite'))) {
     store = new BugStore(dataDir);
     try {
@@ -63,6 +70,7 @@ export function createProgressServer({ root = defaultRoot, repositories = config
       }
       if (pathname.startsWith('/api/')) {
         if (url.search || url.hash || req.headers.origin && req.headers.origin !== origin || req.headers['sec-fetch-site'] && req.headers['sec-fetch-site'] !== 'same-origin') throw failure(403, 'forbidden');
+        if (pathname.startsWith('/api/testing/')) { await handleTestApi(req, res, pathname, getTestStore); return; }
         if (pathname === '/api/local-github') {
           if (req.method !== 'GET') throw failure(405, 'invalid_request');
           if (req.headers['x-progress-client'] !== '1') throw failure(403, 'forbidden');
@@ -80,7 +88,7 @@ export function createProgressServer({ root = defaultRoot, repositories = config
         throw failure(404, 'not_found');
       }
       if (!['GET', 'HEAD'].includes(req.method)) throw failure(405, 'invalid_request');
-      const location = pathname === '/bugs' || pathname === '/bugs/' ? '/bugs/index.html' : pathname === '/' ? '/index.html' : pathname;
+      const location = pathname === '/testing' || pathname === '/testing/' ? '/testing/index.html' : pathname === '/bugs' || pathname === '/bugs/' ? '/bugs/index.html' : pathname === '/' ? '/index.html' : pathname;
       const file = path.resolve(root, `.${location}`);
       if (!file.startsWith(root + path.sep) && file !== path.join(root, 'index.html')) throw failure(403, 'forbidden');
       const data = await readFile(file);
@@ -99,7 +107,7 @@ export function createProgressServer({ root = defaultRoot, repositories = config
   let resolveBugClosed;
   server.bugClosed = new Promise(resolve => { resolveBugClosed = resolve; });
   server.once('close', () => {
-    const close = () => { release?.(); store?.close(); resolveBugClosed(); };
+    const close = () => { release?.(); store?.close(); testStore?.close(); resolveBugClosed(); };
     if (worker) worker.stop().then(close, close); else close();
   });
   server.bugWorker = worker; server.bugStore = store;
