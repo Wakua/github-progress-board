@@ -1,0 +1,71 @@
+{
+  "issue": 56,
+  "base": "03ecc75482a2b842def096859cf9bc020adf5243",
+  "code": "57f215c9425cb18307a16b01e56fcf93af1a3d5a",
+  "reviewer": "Codex",
+  "date": "2026-11-03",
+  "node": "v24.15.0",
+  "browser": "156.0.8078.80",
+  "tests": {
+    "focused": 85,
+    "firstFull": {
+      "pass": 814,
+      "fail": 1,
+      "failure": "HTTP interrupted stream is removed without damaging an accepted report",
+      "actual": 1,
+      "expected": 0,
+      "line": "tests/bug-reporting.test.mjs:152"
+    },
+    "isolatedFailure": {
+      "pass": 1,
+      "fail": 0
+    },
+    "repeatedFull": {
+      "pass": 815,
+      "fail": 0,
+      "skip": 0
+    },
+    "existingBrowser": 16,
+    "check": "pass"
+  },
+  "before": {
+    "date": "2026-11-03T12:18:26.420Z",
+    "browser": "156.0.8078.80",
+    "before": true,
+    "checks": [
+      "再起動後、旧接続先の登録待ちは自動付替え・GitHub呼出しなし",
+      "幅800px：登録待ちの接続先・操作・横あふれなし",
+      "幅390px：登録待ちの接続先・操作・横あふれなし",
+      "結果未確認：照合は接続先不一致で失敗",
+      "結果未確認のAPI操作を409で拒否し、GitHub呼出しなし",
+      "幅390px：接続先変更・DB再読込み後の作成中は作成中に残る",
+      "ブラウザ例外なし"
+    ]
+  },
+  "after": {
+    "date": "2026-11-03T12:19:29.648Z",
+    "browser": "156.0.8078.80",
+    "before": false,
+    "checks": [
+      "再起動後、旧接続先の登録待ちは自動付替え・GitHub呼出しなし",
+      "幅800px：登録待ちの接続先・操作・横あふれなし",
+      "幅390px：登録待ちの接続先・操作・横あふれなし",
+      "結果未確認：元の接続先を示し、照合・再試行を出さない",
+      "結果未確認のAPI操作を409で拒否し、GitHub呼出しなし",
+      "幅390px：接続先変更・DB再読込み後の作成中は結果未確認へ復旧",
+      "Enterによる手動登録だけで新しい接続先へ1件作成し、登録済み・Issueリンクを表示",
+      "再読込み後も登録済み・新しい接続先を保持し、再作成なし",
+      "元の接続先へ戻した後、復旧した報告を既存のIssueへ照合し、元のIssue数18件を維持",
+      "ブラウザ例外なし"
+    ]
+  },
+  "manual": [
+    "変更前の結果未確認で照合ボタンを押すと接続先不一致の409を表示",
+    "変更後の登録待ちでEnterを押し、新しい接続先のIssue #201を表示",
+    "Enterで一覧に戻ると、登録した報告行へフォーカスを戻す"
+  ],
+  "limits": [
+    "模擬GitHubのみ。実際のGitHubで接続先を変更する運用と利用者による受入はリリース時に確認",
+    "作成前のバックアップでは失われた送信履歴を判別できない"
+  ]
+}

@@ -13,9 +13,10 @@ export function registrationMark(report,githubEnabled) {
 }
 // 前回のカテゴリを表示していても、最新のタグを確認できていない報告を区別する。
 export const tagAcquisitionFailed=report=>report.github.state==='registered'&&report.github.tags.state==='error';
-// A failed report registers to the configured repository on retry, so show that one before the operation.
+// 手動登録で付け替える報告は、操作前に現在と変更前の接続先を示す。
 export function registrationTarget(github,configured) {
   if(github.state==='failed'&&configured&&github.repository&&github.repository!==configured)return '登録先：'+configured+'（失敗した登録先：'+github.repository+'）';
+  if(github.state==='pending'&&configured&&github.repository&&github.repository!==configured)return '登録先：'+configured+'（変更前：'+github.repository+'）';
   return '登録先：'+(github.repository||configured||'未設定');
 }
 // カテゴリの絞り込み。割り当てた役割（メイン・サブ）は、GitHubのタグのidに付ける。使わないタグと、未設定のタグは、カテゴリに数えない。

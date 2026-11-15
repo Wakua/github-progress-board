@@ -141,3 +141,9 @@ test('a failed report shows the repository the retry will use before the operati
   assert.equal(registrationTarget({state:'registered',repository:'example/old'},'example/fixed'),'登録先：example/old');
   assert.equal(registrationTarget({state:'pending',repository:null},null),'登録先：未設定');
 });
+
+test('a pending report shows the new target and previous repository before retargeting',()=>{
+  assert.equal(registrationTarget({state:'pending',repository:'example/old'},'example/new'),'登録先：example/new（変更前：example/old）');
+  assert.equal(registrationTarget({state:'unknown',repository:'example/old'},'example/new'),'登録先：example/old');
+  assert.equal(registrationTarget({state:'pending',repository:'example/old'},null),'登録先：example/old');
+});
