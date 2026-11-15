@@ -359,6 +359,7 @@ function render() {
   const status = store.status();
   $('#storage-label').textContent = cloudMode ? (status.readOnly ? '保存を停止' : 'クラウド保存') : 'ブラウザ保存';
   $('#bug-reporting-link').hidden = cloudMode;
+  $('#test-management-link').hidden = cloudMode;
   $('#migrate-workspace').hidden = !cloudMode;
   $('#prepared-workspace').hidden = !cloudMode;
   $('#prepared-estimates').hidden = !cloudMode;
