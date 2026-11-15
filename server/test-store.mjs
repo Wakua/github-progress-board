@@ -3,10 +3,10 @@ import { mkdirSync } from 'node:fs';
 import path from 'node:path';
 import { createHash } from 'node:crypto';
 import { CASE_FIELDS, caseValues, validateCase } from '../dist/testing/case-editor.mjs';
+import { TestStoreError } from './test-errors.mjs';
+import { createPlanSchema, loadPlans, newPlan, savePlan } from './test-plan-store.mjs';
 
-export class TestStoreError extends Error {
-  constructor(status, code, current) { super(code); this.status = status; this.code = code; this.current = current; }
-}
+export { TestStoreError } from './test-errors.mjs';
 const invalid = () => new TestStoreError(400, 'invalid_case');
 const object = value => value && typeof value === 'object' && !Array.isArray(value);
 const limits = { id: 32, title: 500, category: 120, priority: 32, type: 32, status: 32, reference: 2000 };
@@ -30,11 +30,12 @@ export class TestStore {
     try {
       this.db.exec('PRAGMA foreign_keys=ON;');
       const version = this.db.prepare('PRAGMA user_version').get().user_version;
-      if (version !== 0 && version !== 1) throw new Error('Unsupported test database version');
+      if (![0,1,2].includes(version)) throw new Error('Unsupported test database version');
       if (version === 0 && this.db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'").get()) throw new Error('Unrecognized test database');
       this.db.exec('PRAGMA journal_mode=WAL; PRAGMA synchronous=FULL;');
       this.db.exec('BEGIN IMMEDIATE');
       try {
+        if (![0,1,2].includes(this.db.prepare('PRAGMA user_version').get().user_version)) throw new Error('Unsupported test database version');
         // 別接続の初期化が先に終わっていても、同じスキーマで安全に開始する。
         this.db.exec(`CREATE TABLE IF NOT EXISTS case_ids (id INTEGER PRIMARY KEY AUTOINCREMENT);
           CREATE TABLE IF NOT EXISTS cases (
@@ -44,12 +45,16 @@ export class TestStore {
             created_at TEXT NOT NULL, updated_at TEXT NOT NULL);
           CREATE TABLE IF NOT EXISTS case_receipts (
             request_id TEXT PRIMARY KEY, fingerprint TEXT NOT NULL,
-            response_json TEXT NOT NULL CHECK(json_valid(response_json)));
-          PRAGMA user_version=1; COMMIT;`);
+            response_json TEXT NOT NULL CHECK(json_valid(response_json)));`);
+        createPlanSchema(this.db);
+        this.db.exec('PRAGMA user_version=2; COMMIT;');
       } catch (error) { this.db.exec('ROLLBACK'); throw error; }
     } catch (error) { this.db.close(); throw error; }
   }
   close() { this.db.close(); }
+  loadPlans() { return loadPlans(this.db); }
+  newPlan() { return newPlan(this.db); }
+  savePlan(input) { return savePlan(this.db,input); }
   record(row) { return row ? { ...JSON.parse(row.values_json), revision: row.revision } : null; }
   load() {
     const cases = this.db.prepare('SELECT values_json,revision FROM cases ORDER BY id').all().map(row => this.record(row));
