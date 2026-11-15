@@ -29,7 +29,14 @@ export async function handleTestApi(req, res, pathname, getStore) {
       send(201, getStore().newCase()); return;
     }
     if (pathname === '/api/testing/cases' && req.method === 'PUT') { const body = await readJson(req); send(200, getStore().save(body)); return; }
-    throw new TestStoreError(['/api/testing/cases','/api/testing/case-ids'].includes(pathname) ? 405 : 404, 'invalid_request');
+    if (pathname === '/api/testing/plans' && req.method === 'GET') { send(200, getStore().loadPlans()); return; }
+    if (pathname === '/api/testing/plan-ids' && req.method === 'POST') {
+      const body = await readJson(req);
+      if (!body || Array.isArray(body) || typeof body !== 'object' || Object.keys(body).length) throw new TestStoreError(400, 'invalid_request');
+      send(201,getStore().newPlan()); return;
+    }
+    if (pathname === '/api/testing/plans' && req.method === 'PUT') { const body = await readJson(req); send(200,getStore().savePlan(body)); return; }
+    throw new TestStoreError(['/api/testing/cases','/api/testing/case-ids','/api/testing/plans','/api/testing/plan-ids'].includes(pathname) ? 405 : 404, 'invalid_request');
   } catch (error) {
     if (!res.headersSent && !res.destroyed) send(error instanceof TestStoreError ? error.status : 503,
       { error: error instanceof TestStoreError ? error.code : 'store_unavailable', ...(error.current ? { current: error.current } : {}) });
