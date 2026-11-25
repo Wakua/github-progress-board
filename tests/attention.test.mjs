@@ -32,15 +32,15 @@ test('期限切れの古い作業を上に並べ、期限超過に当たらな�
   assert.equal(manualEndedOn(['待ち：なにか'], TODAY), null);
 });
 
-test('GitHubの計画では、要対応だけを期限切れの古い順に並べ、前提待ちを含めない', () => {
+test('GitHubの計画では、要対応だけを期限切れの古い順に並べ、他の作業待ちを含めない', () => {
   const items = githubAttentionItems(snapshot, TODAY);
   const numbers = orderAttention(items).map(i => Number(/data-id="issue:(\d+)"/.exec(i.nameHtml)[1]));
   assert.equal(numbers[0], 6, '期限超過の #6 が先頭');
   assert.deepEqual([...numbers].sort((a, b) => a - b), [5, 6, 9, 12]);
-  for (const waiting of [4, 10]) assert.ok(!numbers.includes(waiting), `前提待ちの #${waiting} は含めない`);
+  for (const waiting of [4, 10]) assert.ok(!numbers.includes(waiting), `他の作業待ちの #${waiting} は含めない`);
 });
 
-test('あなたの担当は、未完了の作業を取り出し、要対応と前提待ちを重ねて出さない', () => {
+test('あなたの担当は、未完了の作業を取り出し、要対応と他の作業待ちを重ねて出さない', () => {
   const names = githubMineItems(snapshot, 'Wakua', TODAY).map(item => Number(/data-id="issue:(\d+)"/.exec(item.nameHtml)[1]));
   assert.deepEqual(names.sort((x, y) => x - y), [8, 16]);
   assert.ok(!names.includes(9), '要対応の #9 は、要対応に出す');

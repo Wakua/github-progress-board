@@ -697,7 +697,7 @@ test('今の期間は進行中の期間、なければ次に始まる期間と�
   assert.equal(currentIteration({ ...state, iterations: [{ id: 'x', title: 'X', startDate: null, durationDays: null }] }, '2026-10-01'), null);
 });
 
-test('作業は要対応 → 確認待ち → 作業中 → 前提待ち → 着手可能の順に一つだけに分類する', () => {
+test('作業は要対応 → 確認待ち → 作業中 → 他の作業待ち → 着手可能の順に一つだけに分類する', () => {
   const state = createSample();
   const today = '2026-09-20';
   assert.deepEqual(category(state, 'move', today), { group: 'active', reasons: [] });

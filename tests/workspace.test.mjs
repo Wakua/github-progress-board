@@ -256,11 +256,11 @@ test('全体一覧は進められる作業・要対応・確認待ちを分け�
   assert.equal(summary.total, 17);
 });
 
-test('全体一覧の要対応は前提待ちを数えない', () => {
+test('全体一覧の要対応は他の作業待ちを数えない', () => {
   const project = sampleProject('sample');
   const summary = projectSummary(project, '2026-09-20');
   const ids = summary.action.map(item => item.task.id);
-  assert.ok(!ids.includes('multi'), '前提が作業中で期間内なら前提待ちに入る');
+  assert.ok(!ids.includes('multi'), '前提が作業中で期間内なら他の作業待ちに入る');
   assert.ok(ids.includes('format'), '判断待ちは要対応に入る');
   assert.deepEqual(summary.review.map(task => task.id), ['delete']);
 });
@@ -297,7 +297,7 @@ test('過度に深いJSONを保存せず、既存の保存と通常のmetadata�
   assert.deepEqual(createWorkspaceStore(storage).snapshot().extraMetadata, { note: '無害な追加情報', numericList: [1, 2, 3] });
 });
 
-test('判断待ちの登録は判断作業を前提に置き、判断する人の要対応・担当者の前提待ちに分ける', () => {
+test('判断待ちの登録は判断作業を前提に置き、判断する人の要対応・担当者の他の作業待ちに分ける', () => {
   const { store } = twoProjects();
   store.transact(workspace => updateProject(workspace, 'alpha', data => {
     data.tasks[0].owner = 'Claude';
@@ -324,7 +324,7 @@ test('判断待ちの登録は判断作業を前提に置き、判断する人�
   assert.deepEqual([resolved.resolved, resolved.choice, resolved.reason], [true, 'ブラウザに保存', '共有はまだ不要なため']);
 });
 
-test('判断待ちを登録すると作業中・確認待ちの元の作業は未着手に戻り前提待ちに入る', () => {
+test('判断待ちを登録すると作業中・確認待ちの元の作業は未着手に戻り他の作業待ちに入る', () => {
   for (const [status, label] of [['active', '作業中'], ['review', '確認待ち']]) {
     const { store } = twoProjects();
     store.transact(workspace => updateProject(workspace, 'alpha', data => {

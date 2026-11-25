@@ -366,7 +366,7 @@ try {
   await capture(workPage, '10-cloud-my-work-claude-phone.jpg');
   assert.deepEqual((await cloud(workPage)).workspace.projects, workFixture.projects);
   assert.equal((await cloud(workPage)).version, 1);
-  checks.push('共有保存の手動計画をCodexの要対応・Claudeの前提待ちへ分け、担当絞り込み・390px表示でversionと手入力を保持する');
+  checks.push('共有保存の手動計画をCodexの要対応・Claudeの他の作業待ちへ分け、担当絞り込み・390px表示でversionと手入力を保持する');
 
   const seedDecisionPage = async (page, workspace) => {
     const result = await page.evaluate(async workspace => {
@@ -406,7 +406,7 @@ try {
     await decisionPage.locator('[data-my-work-section="waiting"] summary').click();
     assert.equal(await decisionPage.evaluate(() => Math.max(0, document.documentElement.scrollWidth - innerWidth)), 0);
     await capture(decisionPage, `14-decision-${status}-waiting.jpg`);
-    checks.push(`共有保存の${status}作業へ判断待ちを登録すると未着手へ戻り、判断担当の要対応と元担当の前提待ちに分かれる。既存見積・完了条件・別projectを保ち、PC/390pxに収まる`);
+    checks.push(`共有保存の${status}作業へ判断待ちを登録すると未着手へ戻り、判断担当の要対応と元担当の他の作業待ちに分かれる。既存見積・完了条件・別projectを保ち、PC/390pxに収まる`);
 
     const secondContext = await makeContext(user), second = await secondContext.newPage(); await second.goto(preview.origin); await ready(second); await select(second, 'project-one');
     assert.deepEqual((await cloud(second)).workspace.projects, registered.workspace.projects);
