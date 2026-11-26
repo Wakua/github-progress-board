@@ -71,6 +71,48 @@ try {
     assert.equal(await page.evaluate(key => localStorage.getItem(key), STORAGE_KEY), raw);
     assert.ok(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth));
     checks.push(`${width}px: source metadata is read-only; owner/view changes preserve module disclosure, manual data and snapshot; no horizontal overflow`);
+    await page.clock.setFixedTime(new Date('2026-10-15T03:00:00Z'));
+    await page.getByRole('tab', { name: '自分の作業', exact: true }).click();
+    const nextAction = number => page.getByRole('combobox', { name: `#${number}の次にすること`, exact: true });
+    const nextFilter = label => page.getByRole('button', { name: label, exact: true });
+    const saved = () => page.waitForFunction(() => !document.querySelector('main').hasAttribute('aria-busy'));
+
+    await nextAction(3).selectOption('ai');
+    await saved();
+    await nextFilter('AIに渡す 1件').click();
+    await nextAction(3).selectOption('');
+    await saved();
+    await nextAction(4).selectOption('ai');
+    await saved();
+    assert.equal(await nextFilter('すべて 2件').getAttribute('aria-pressed'), 'true');
+    assert.equal(await nextAction(3).isVisible(), true);
+    checks.push(`${width}px: 対象がなくなった絞り込みは、別の作業に同じ区分を付けても戻らない`);
+
+    const locker = await context.newPage();
+    try {
+      await locker.goto(base);
+      await locker.evaluate(key => {
+        navigator.locks.request(key, () => new Promise(resolve => { window.qaRelease = resolve; }));
+      }, STORAGE_KEY);
+      await locker.waitForFunction(() => typeof window.qaRelease === 'function');
+      await nextAction(3).selectOption('ai');
+      await page.locator('main[aria-busy="true"]').waitFor();
+      assert.equal(await nextAction(3).isDisabled(), true);
+      assert.equal(await nextAction(4).isDisabled(), true);
+      await locker.evaluate(() => window.qaRelease());
+      await saved();
+      assert.equal(await nextAction(3).inputValue(), 'ai');
+      assert.equal(await nextAction(4).isEnabled(), true);
+    } finally { await locker.close(); }
+    checks.push(`${width}px: 保存中は区分の選択を無効にし、保存後に選択を再開できる`);
+
+    await nextFilter('AIに渡す 2件').press('Enter');
+    await nextAction(3).press('ArrowUp');
+    await saved();
+    assert.equal(await nextAction(3).count(), 0);
+    assert.equal(await nextFilter('仕様を決める 1件').isVisible(), true);
+    assert.equal(await nextFilter('AIに渡す 1件').evaluate(button => button === document.activeElement), true);
+    checks.push(`${width}px: キーボードで区分を変更して行が消えると、絞り込みボタンにフォーカスが移る`);
     await context.close();
   }
   assert.deepEqual(errors, []);
