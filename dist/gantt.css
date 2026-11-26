@@ -81,6 +81,7 @@
 .gantt .chart[data-fit] { --axis-width:0px; overflow:clip; }
 .gantt .chart[data-fit] .dates { min-height:2em; }
 .gantt .chart[data-fit] .dates > span { position:relative; white-space:nowrap; }
+.gantt .chart[data-fit][data-scale="month"] .dates > span:empty { border-left-color:transparent; }
 .gantt .dates .month-label { position:absolute; left:3px; }
 .gantt .chart[data-fit] .due-marker { z-index:2; }
 @container (max-width:380px) {

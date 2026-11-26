@@ -331,7 +331,8 @@ function renderScale() {
     bar.setAttribute('aria-label', description); bar.title = description;
   }
   for (const button of root.querySelectorAll('.scale-buttons button')) button.setAttribute('aria-pressed', String(button.dataset.scale === scale));
-  $('#visible-range').textContent = `${axis.start.getUTCFullYear()}/${monthDay(axis.start)}–${axis.end.getUTCFullYear()}/${monthDay(addDays(axis.end,-1))}`;
+  const lastDay = addDays(axis.end, -1);
+  $('#visible-range').textContent = `${axis.start.getUTCFullYear()}/${monthDay(axis.start)}–${lastDay.getUTCFullYear()}/${monthDay(lastDay)}`;
   const due = $('#due-marker');
   due.hidden = !milestone.dueDate || !milestone.taskKeys.length;
   $('#due-legend').hidden = due.hidden;

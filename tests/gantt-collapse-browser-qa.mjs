@@ -162,8 +162,9 @@ try {
   fitWorkspace.projects = fitWorkspace.projects.slice(0, 1);
   fitWorkspace.projects[0].repositoryUrl = repositoryUrl;
   attachSnapshot(fitWorkspace.projects[0], fitSnapshot);
+  const saveWorkspace = () => fitPage.evaluate(([key,data]) => localStorage.setItem(key, JSON.stringify(data)), [STORAGE_KEY,fitWorkspace]);
   await fitPage.goto(process.env.QA_BASE_URL || 'http://127.0.0.1:4340/');
-  await fitPage.evaluate(([key,data]) => localStorage.setItem(key, JSON.stringify(data)), [STORAGE_KEY,fitWorkspace]);
+  await saveWorkspace();
   await fitPage.reload();
   const openRelease = name => fitPage.getByRole('button', {name: name + 'の詳細', exact: true}).click();
   const fitCard = fitPage.locator('.gantt[data-milestone]');
@@ -190,6 +191,11 @@ try {
   await checkFit('month');
   await openRelease('リリースA');
   await checkFit('month');
+  const headerBorders = await fitCard.locator('.dates > span:empty').evaluateAll(
+    cells => cells.map(cell => getComputedStyle(cell).borderLeftColor),
+  );
+  assert.ok(headerBorders.length > 0);
+  assert.ok(headerBorders.every(color => color === 'rgba(0, 0, 0, 0)'));
   await fitCard.locator('button[data-scale="day"]').press('Enter');
   await scale('day').waitFor();
   assert.equal((await inspectTimeline()).fits, false);
@@ -200,5 +206,14 @@ try {
   await fitPage.reload();
   await openRelease('リリースA');
   await checkFit('month');
-  console.log('初期表示の週・月の選択、狭い画面での期日、手動切替と再読み込みを確認した。');
+
+  fitSnapshot.planning.milestones[0].dueOn = '2026-10-15T00:00:00Z';
+  fitWorkspace.projects[0].githubSnapshot = null;
+  attachSnapshot(fitWorkspace.projects[0], fitSnapshot);
+  await saveWorkspace();
+  await fitPage.reload();
+  await openRelease('リリースA');
+  await checkFit('month');
+  assert.equal(await fitCard.locator('[data-gantt="visible-range"]').innerText(), '2026/10/1–2026/12/31');
+  console.log('初期表示、目盛り、期日、手動切替、再読み込みと年末の表示期間を確認した。');
 } finally { await browser.close(); }
