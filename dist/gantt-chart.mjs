@@ -290,8 +290,9 @@ dialog.addEventListener('keydown', event => {
   else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
 });
 function renderScale() {
-  const fitToDeadline = !selectedScale && Boolean(milestone.dueDate);
+  const fitToDeadline = Boolean(milestone.dueDate) && (!selectedScale || selectedScale === 'month');
   chart.toggleAttribute('data-fit', fitToDeadline);
+  if (fitToDeadline) chart.style.removeProperty('--axis-width');
   const width = fitToDeadline ? dates.clientWidth : null;
   if (width === 0) return;
   fittedWidth = width;

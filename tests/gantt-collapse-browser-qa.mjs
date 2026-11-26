@@ -182,9 +182,21 @@ try {
     await scale(unit).waitFor();
     assert.deepEqual(await inspectTimeline(), { fits: true, dueVisible: true, scroll: 0 });
   }
+  async function returnToMonth() {
+    const timeline = fitCard.locator('.timeline-scroll');
+    const scroll = await timeline.evaluate(el => {
+      el.scrollLeft = el.scrollWidth - el.clientWidth;
+      return el.scrollLeft;
+    });
+    assert.ok(scroll > 0);
+    await fitCard.locator('button[data-scale="month"]').press('Enter');
+    await checkFit('month');
+  }
   await fitPage.getByRole('tab', {name:'リリース', exact:true}).click();
   await openRelease('リリースA');
   await checkFit('month');
+  await fitCard.locator('button[data-scale="day"]').press('Enter');
+  await returnToMonth();
   await openRelease('リリースB');
   await checkFit('week');
   await fitPage.setViewportSize({width: 320, height: 720});
@@ -203,6 +215,8 @@ try {
   await checkFit('month');
   await openRelease('リリースA');
   await scale('day').waitFor();
+  await returnToMonth();
+  await fitCard.locator('button[data-scale="day"]').press('Enter');
   await fitPage.reload();
   await openRelease('リリースA');
   await checkFit('month');
@@ -215,5 +229,5 @@ try {
   await openRelease('リリースA');
   await checkFit('month');
   assert.equal(await fitCard.locator('[data-gantt="visible-range"]').innerText(), '2026/10/1–2026/12/31');
-  console.log('初期表示、目盛り、期日、手動切替、再読み込みと年末の表示期間を確認した。');
+  console.log('初期表示、目盛り、期日、800px・320pxでの日から月への切替、再読み込みと年末の表示期間を確認した。');
 } finally { await browser.close(); }
