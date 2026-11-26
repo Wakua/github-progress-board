@@ -130,14 +130,16 @@ export function renderGithubWork(snapshot, filter = { all: true }, today = undef
   const work = githubMyWork(snapshot, filter, today, { urgentFirst: true, include: nextActionMatches(nextActions, selected) });
   if (!work) return '<p class="empty-message">親子Issue・Projectの計画情報は未取得です。</p>';
   const owners = githubOwners(snapshot), choices = [[{ all: true }, '全員'], ...owners.filter(v => v !== null).sort().map(owner => [{ owner }, owner]), ...(owners.includes(null) ? [[{ owner: null }, '担当未設定']] : [])];
-  const count = selected === null ? total : counts.get(selected);
+  const count = work.sections.filter(section => section.id !== 'done').reduce((sum, section) => sum + section.tasks.length, 0);
   // 今の期間はProjectごとに決まる。Projectが複数あるときはProject名を添える。
   const period = work.currents.length ? '今の期間：' + work.currents.map(c => `${work.currents.length > 1 ? esc(c.project.title) + ' ' : ''}${esc(c.iteration.title)}（${shortDate(c.iteration.startDate)}–${shortDate(c.lastDay)}）`).join('、') : '今の期間：なし（Iterationが未設定）';
   const collapsed = nextActionOf(selected) ? new Set() : new Set(['ready-later', 'waiting', 'done']);
   const row = (item, section) => {
     const { task: t, reasons } = item;
     const shown = section === 'waiting' ? reasons.slice(0, 1) : reasons;
-    const reasonList = section === 'urgent' ? `<span class="urgent-label">${esc(urgentLabel(item, snapshot.repositoryUrl))}</span>`
+    const reasonList = section === 'done' && selected === null && awaitingAcceptance(t)
+      ? '<span class="my-work-more">受入待ち</span>'
+      : section === 'urgent' ? `<span class="urgent-label">${esc(urgentLabel(item, snapshot.repositoryUrl))}</span>`
       : shown.length ? `<ul class="my-work-reasons">${shown.map(r => `<li>${esc(r)}</li>`).join('')}${reasons.length > shown.length ? `<li class="my-work-more">ほか${reasons.length - shown.length}件</li>` : ''}</ul>` : '';
     // 一覧は作業名と理由、担当・期限だけにする。モジュール・目標・Estimateは詳細で見る。
     const owners = t.projects.length ? t.projects.map(p => `${t.projects.length > 1 ? esc(p.title) + '：' : ''}${esc(p.owner ?? '担当未設定')}`).join(' / ') : 'Project未登録';
@@ -147,17 +149,10 @@ export function renderGithubWork(snapshot, filter = { all: true }, today = undef
     const status = section === 'action' ? `<span class="badge unknown">${esc([...new Set(t.projects.map(p => p.status ?? 'Status未設定'))].join(' / ') || 'Project未登録')}</span>` : '';
     return `<li class="my-work-row" data-github-task="${t.number}"><div class="my-work-main">${itemButton(t)}${reasonList}</div><div class="my-work-meta"><span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span>${status}<span class="task-deadline ${overdue ? 'overdue' : iteration ? '' : 'unknown'}">${deadline}</span></div>${canSetNextAction(t) ? nextActionSelect(t, nextActions) : ''}</li>`;
   };
-  const sections = work.sections.flatMap(section => {
-    if (section.id !== 'done') return [section];
-    const pending = section.tasks.filter(({ task }) => awaitingAcceptance(task));
-    const done = section.tasks.filter(({ task }) => !awaitingAcceptance(task));
-    return [
-      { id: 'acceptance', title: '受入待ち', tasks: pending },
-      { ...section, tasks: done },
-    ].filter(({ tasks }) => tasks.length);
-  }).map(section => {
+  const sections = work.sections.map(section => {
     const list = `<ul class="my-work-list">${section.tasks.map(item => row(item, section.id)).join('')}</ul>`;
-    const heading = `${esc(section.title)} <span class="my-work-count">${section.tasks.length}件</span>`;
+    const title = section.id === 'done' && selected !== null ? '受入待ち' : section.title;
+    const heading = `${esc(title)} <span class="my-work-count">${section.tasks.length}件</span>`;
     return collapsed.has(section.id)
       ? `<details class="my-work-section" data-github-disclosure="work:${section.id}" data-my-work-section="${section.id}"><summary><h3>${heading}</h3></summary>${list}</details>`
       : `<section class="my-work-section ${section.id === 'urgent' ? 'urgent' : section.id === 'action' ? 'needs-action' : ''}" data-my-work-section="${section.id}"><h3>${heading}</h3>${list}</section>`;

@@ -140,8 +140,16 @@ test('完了・Closedでも受入待ちの記録があれば区分を付けて�
   closed.notPlanned = true;
   const nextActions = { 2: 'accept', 11: 'accept' };
 
+  const unclassified = renderGithubWork(snapshot, everyone, TODAY);
+  assert.match(unclassified, /未完了 13件/);
+  assert.doesNotMatch(unclassified, /next-action-filter/);
   const all = renderGithubWork(snapshot, everyone, TODAY, { nextActions });
-  assert.match(all, /<section[^>]*data-my-work-section="acceptance"[^>]*>.*受入待ち .*<li[^>]*data-github-task="11"/);
+  assert.match(all, /未完了 13件/);
+  assert.match(all, /<details[^>]*data-my-work-section="done"[^>]*>.*完了・Closed.*<li[^>]*data-github-task="11".*受入待ち/);
+  const filtered = renderGithubWork(snapshot, everyone, TODAY, { nextActions, nextFilter: 'accept' });
+  assert.match(filtered, /未完了 0件/);
+  assert.match(filtered, /<section[^>]*data-my-work-section="done"[^>]*>.*受入待ち .*<li[^>]*data-github-task="11"/);
+  assert.match(filtered, /data-next-action-copy="accept">1件をコピー/);
   assert.match(all, /data-id="11" aria-label="#11の次にすること"/);
   assert.doesNotMatch(all, /data-id="2" aria-label="#2の次にすること"/);
   assert.equal(githubNextActionCounts(snapshot, everyone, TODAY, nextActions).counts.get('accept'), 1);

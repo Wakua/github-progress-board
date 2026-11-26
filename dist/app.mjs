@@ -343,7 +343,10 @@ function renderViewTabs(project) {
   $('#release-panel').hidden = viewTab !== 'release';
   releaseGantt.update(hasRelease ? project.githubSnapshot : null, project.id, viewTab === 'release', () => localGithubMarkup(project));
   $('#approval-queue').hidden = viewTab === 'attention';
-  $('#my-work-panel').innerHTML = renderMyWork(project);
+  const workPanel = $('#my-work-panel');
+  workPanel.innerHTML = renderMyWork(project);
+  const selectedNextAction = workPanel.querySelector('[data-next-action-filter][aria-pressed="true"]');
+  if (!selectedNextAction?.dataset.nextActionFilter) nextActionFilters.delete(project.id);
   const attention = attentionView(project);
   const reasons = attention.model ? attentionReasons(attention.model) : [];
   if (reasons.length < 2 || !reasons.includes(attentionReasonFilters.get(project.id))) attentionReasonFilters.delete(project.id);
@@ -419,6 +422,10 @@ function disableEditing() {
   const readOnly = store.status().readOnly;
   document.querySelectorAll('[data-action]').forEach(element => {
     if (!editingActions.has(element.dataset.action)) return;
+    if (element.dataset.action === 'next-action') {
+      element.disabled = readOnly || busy;
+      return;
+    }
     if (readOnly && !element.disabled) { element.dataset.storageDisabled = 'true'; element.disabled = true; }
     else if (!readOnly && element.dataset.storageDisabled) { element.disabled = false; delete element.dataset.storageDisabled; }
   });
@@ -482,6 +489,7 @@ function error(message) {
 async function commitWorkspace(action, message, afterSave = null, rerenderPanel = true, savedInputs = []) {
   if (busy) return false;
   busy = true; $('main').setAttribute('aria-busy', 'true');
+  disableEditing();
   const heldInputs = [...$('#drawer-body').querySelectorAll('input, textarea, select')].map(input => ({ input, disabled: input.disabled }));
   try {
     capturePanelDrafts();
@@ -507,6 +515,7 @@ async function commitWorkspace(action, message, afterSave = null, rerenderPanel 
   finally {
     heldInputs.forEach(({ input, disabled }) => { if (input.isConnected) input.disabled = disabled || store.status().readOnly; });
     busy = false; $('main').removeAttribute('aria-busy');
+    disableEditing();
   }
 }
 function mutate(action, message, rerenderPanel = true, savedInputs = []) {
@@ -1043,11 +1052,12 @@ $('#reload-workspace').addEventListener('click', reloadWorkspace);
 async function recover(replacement) {
   if (busy) return;
   busy = true;
+  disableEditing();
   try {
     await exclusive(() => store.recover(replacement));
     viewProjectId = undefined; closePanel(); expandedIterations.clear(); collapsedPeriodGoals.clear(); render(); notify('元データを退避し、復旧しました');
   } catch (e) { render(); error(e.message); }
-  finally { busy = false; }
+  finally { busy = false; disableEditing(); }
 }
 $('#recover-backup').addEventListener('click', () => recover());
 $('#recovery-file').addEventListener('change', async event => {
@@ -1125,7 +1135,11 @@ $('#my-work-panel').addEventListener('change', async event => {
   const projectId = workspace.selectedProjectId, number = Number(select.dataset.id), value = select.value || null;
   if (store.status().readOnly) { render(); error(store.status().problem); return; }
   await commitWorkspace(draft => setNextAction(draft, projectId, number, value), '', null, false);
-  document.querySelector(`.next-action-select[data-id="${number}"]`)?.focus();
+  const rowSelect = $(`.next-action-select[data-id="${number}"]`);
+  const selectedFilter = $('#my-work-panel [data-next-action-filter][aria-pressed="true"]');
+  const selectedOwner = $('#my-work-panel [data-github-owner-filter][aria-pressed="true"]');
+  const focusTarget = rowSelect?.getClientRects().length && !rowSelect.disabled ? rowSelect : selectedFilter || selectedOwner;
+  focusTarget?.focus();
 });
 $('#my-work-panel').addEventListener('click', event => {
   if (busy || !state) return;
