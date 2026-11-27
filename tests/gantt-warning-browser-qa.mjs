@@ -117,12 +117,32 @@ try {
   await basis.press('Enter');
   assert.match(await details.innerText(), /期日までに完了できるかは未確定/);
   await forecastPage.keyboard.press('Escape');
-  snapshot.planning.schedule.issues.find(issue => issue.key.endsWith('/202')).projects[0].owner.value = null;
-  snapshot.planning.issues.find(issue => issue.number === 202).projects[0].owner = null;
+  function setOwner(number, owner) {
+    snapshot.planning.schedule.issues.find(issue => issue.key.endsWith('/' + number)).projects[0].owner.value = owner;
+    snapshot.planning.issues.find(issue => issue.number === number).projects[0].owner = owner;
+  }
+  setOwner(202, null);
   await showForecast('2026-11-06');
-  assert.match(await summary.innerText(), /完了まで少なくとも4平日.*担当別の下限は未算出/);
+  assert.match(await summary.innerText(), /完了まで少なくとも4平日.*依存関係と開始条件/);
   await basis.press('Enter');
+  assert.match(await details.innerText(), /担当者の作業量（判明分）\s+2平日（担当A）/);
   assert.match(await details.innerText(), /実装B\s+担当不明/);
+  await forecastPage.keyboard.press('Escape');
+  setOwner(202, '担当A');
+  setOwner(210, null);
+  await showForecast('2026-11-05');
+  assert.match(await summary.innerText(), /完了まで少なくとも5平日.*担当者の作業量（判明分）.*期日超過/s);
+  await basis.press('Enter');
+  assert.match(await details.innerText(), /担当者の作業量（判明分）\s+5平日（担当A）/);
+  assert.match(await details.innerText(), /集計できなかった作業\s+#210 結合確認\s+担当不明/);
+  await forecastPage.keyboard.press('Escape');
+  setOwner(210, '結合確認');
+  snapshot.planning.schedule.issues.find(issue => issue.key.endsWith('/210')).projects[0].workProgressPercent.value = null;
+  await showForecast('2026-11-05');
+  assert.match(await summary.innerText(), /少なくとも5平日.*期日超過/s);
+  await basis.press('Enter');
+  assert.match(await details.innerText(), /依存関係と開始条件\s+未算出/);
+  assert.match(await details.innerText(), /結合確認\s+残作業量未算出/);
   await forecastPage.keyboard.press('Escape');
   for (const issue of snapshot.planning.schedule.issues) {
     issue.projects[0].workProgressPercent.value = 100;

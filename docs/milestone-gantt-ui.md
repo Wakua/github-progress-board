@@ -84,7 +84,7 @@ Codexが同じ基本fixtureの60%を表示した `http://127.0.0.1:4402/` で、
 | --- | --- |
 | `milestones` | 開いたMilestoneを表示し、閉じたものを除く。作業未登録と全作業完了を分け、将来の完了日を推定しない |
 | リリースと親Issueの開閉 | 表示するリリースを一つ選ぶと目標を表示する。子作業は初期非表示。リリース名で日程表を、親Issue名で配下の表示を切り替える。完了までの下限・期日・警告・計算根拠は折りたたんだリリースにも残す |
-| `completionBounds`、`dueDate` | 一覧に完了まで少なくとも必要な平日の日数と期日を表示する。下限を決める要因と、下限から確認できる期日超過を示す。二つの下限、担当の未確認やProject外の作業は「計算根拠」で確認する |
+| `completionBounds`、`dueDate` | 一覧に完了まで少なくとも必要な平日の日数と期日を表示する。判明分の下限だけで期日を過ぎる場合も期日超過を示す。二つの下限、判明分の表示、集計できなかった作業と理由は「計算根拠」で確認する |
 | `earliestStart`、`earliestFinish`、`durationDisplay` | 暦上の位置に棒を置く。0日は点、短い棒の日数は作業名の側、正確な開始・完了は詳細に置く。日内の端数を時刻へ換算しない |
 | `criticalTaskKeys`、`criticalEdgeIds` | ◆、太い枠、依存線で識別する。複数経路も保持し、色だけに意味を持たせない |
 | `relations`、`edges.evidence`、`hierarchy` | 登録された親と配下を詳細で表示する。親がClosedでも待つ子を確認でき、子・前提・後続を選ぶとその詳細へ移る |
@@ -162,6 +162,10 @@ Codexが同じ基本fixtureの60%を表示した `http://127.0.0.1:4402/` で、
 [800pxの変更前](screens/187/before-01-forecast.jpg)・[変更後](screens/187/after-01-forecast.jpg)、
 [320pxの変更前](screens/187/before-02-narrow.jpg)・[変更後](screens/187/after-02-narrow.jpg)、
 [計算根拠の変更前](screens/187/before-03-calculation.jpg)・[変更後](screens/187/after-03-calculation.jpg)。
+
+結合確認の担当を未入力にしたサンプルでは、判明している担当者の作業量の下限が5平日のため、期日超過を確認できた。
+「計算根拠」を開き、判明分の下限と、集計できなかった結合確認の理由が「担当不明」であることを確認した。
+[担当不明の場合の変更前](screens/187/before-04-partial-workload.jpg)・[変更後](screens/187/after-04-partial-workload.jpg)。
 
 ### 初期の組込み検証
 

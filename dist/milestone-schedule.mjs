@@ -28,6 +28,8 @@ function completionBounds(active, finish, due, selectedProjectId, math) {
     if (node.duration === 0n) continue;
     const planning = node.issue.planning;
     const reasons = ownerPlanningGaps(planning, selectedProjectId);
+    if (node.issue.completion.value === 'unknown') reasons.push('completion-unknown');
+    if (node.duration === null) reasons.push('remaining-work-unknown');
     if (reasons.length) gaps.push({ key: node.key, reasons });
     else {
       const owner = planning.owner.value;
@@ -35,10 +37,12 @@ function completionBounds(active, finish, due, selectedProjectId, math) {
     }
   }
   const maxPoints = max([...totals.values()]);
-  const workload = gaps.length ? null : maxPoints / BigInt(POINTS_PER_WORKDAY);
-  const bound = workload !== null && workload > finish ? workload : finish;
+  const workloadPartial = finish === null || gaps.length > 0;
+  const workload = workloadPartial && maxPoints === 0n ? null : maxPoints / BigInt(POINTS_PER_WORKDAY);
+  const bound = finish === null ? workload : workload !== null && workload > finish ? workload : finish;
   const hundredth = math.unit / 100n;
   const describe = value => {
+    if (value === null) return null;
     const roundedDown = value / hundredth * hundredth;
     return {
       days: math.number(value),
@@ -47,10 +51,11 @@ function completionBounds(active, finish, due, selectedProjectId, math) {
   };
   return {
     dependencies: describe(finish),
-    workload: workload === null ? null : describe(workload),
+    workload: describe(workload),
+    workloadPartial,
     bound: describe(bound),
-    factor: workload === null ? null : workload === finish ? 'both' : workload > finish ? 'workload' : 'dependencies',
-    overdue: due !== null && bound > due ? describe(bound - due) : null,
+    factor: workload === null ? null : workload === finish ? 'both' : finish === null || workload > finish ? 'workload' : 'dependencies',
+    overdue: due !== null && bound !== null && bound > due ? describe(bound - due) : null,
     owners: workload === null || maxPoints === 0n ? [] : sorted([...totals.keys()].filter(owner => totals.get(owner) === maxPoints)),
     gaps: gaps.sort((a, b) => a.key.localeCompare(b.key)),
   };
@@ -329,12 +334,12 @@ export function calculateMilestoneSchedule(input) {
       tasks: [], criticalTaskKeys: [], criticalEdgeIds: [],
     };
     const dueDay = dateDay(milestone.dueDate);
+    const due = dueDay === null ? null : BigInt(endCoordinate(origin, dueDay)) * math.unit;
     if (milestone.dueDate !== null && dueDay === null) output.diagnosticIds.push(diagnose(milestone.key, 'dueDate', 'invalid-date'));
     if (state === 'calculated') {
       const finish = max([...work.targets].map(k => nodes.get(k)).filter(n => !n.done).map(n => n.ef));
       const finishDuration = [...work.targets].map(k => nodes.get(k)).some(n => n.ef === finish && n.duration > 0n) ? 1n : 0n;
       output.finish = at(finish, true, finishDuration);
-      const due = dueDay === null ? null : BigInt(endCoordinate(origin, dueDay)) * math.unit;
       output.completionBounds = completionBounds(active.map(key => nodes.get(key)), finish, due, input.selectedProjectId, math);
       if (due !== null) {
         const difference = due - finish;
@@ -366,6 +371,9 @@ export function calculateMilestoneSchedule(input) {
         if (critical) output.criticalEdgeIds.push(edge.id);
       }
     } else {
+      if (state === 'incomplete') {
+        output.completionBounds = completionBounds(active.map(key => nodes.get(key)), null, due, input.selectedProjectId, math);
+      }
       output.tasks = sorted(reachable).map(key => ({ key, latestStart: null, latestFinish: null, slackDays: null, slackDisplay: null, critical: null, diagnosticIds: sorted(work.causes) }));
       for (const edge of edges.values()) if (reachable.has(edge.from) && reachable.has(edge.to)) edge.criticalByMilestone[milestone.key] = state === 'incomplete' ? null : false;
     }

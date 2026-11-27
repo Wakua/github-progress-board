@@ -329,10 +329,13 @@ IssueとMilestoneのキーは大文字小文字を同一視し、末尾のスラ
 期日が未設定または不正なら `dueDifference` は `null` とし、不正な期日は診断に残す。
 `iterationOverflow` は終了日を超える場合の `{ days, display }`、超えない場合は `null` とする。
 
-`completionBounds` は `state: calculated` のマイルストーンで返す。
+`completionBounds` は `state: calculated` または `state: incomplete` のマイルストーンで返す。
 `dependencies`、`workload`、`bound` は、基準日から数えた日数の `{ days, display }` とする。
-`dependencies` は `finish.coordinate` に対応し、`workload` は前提を含む末端作業の残量を担当者別に足した最大値に対応する。
+`dependencies` は `finish.coordinate` に対応し、日程が未算出なら `null` とする。
+`workload` は前提を含む末端作業で判明した残量を担当者別に足した最大値に対応する。
+`workloadPartial` は集計できない作業があるか日程を算出できない場合に `true` とし、そのとき判明した正の残量がなければ `workload` を `null` とする。
 `bound` は判明した下限の最大値、`overdue` は下限から期日までの平日座標を引いた正の値とする。
+`bound` を算出できない場合、または期日との差を判定できない場合は、対応する値を `null` とする。
 `factor` は `dependencies`、`workload`、`both` のいずれかで、担当者の下限を算出できない場合は `null` とする。
 `owners` は最大の残量を持つ担当者名、`gaps` は担当者の集計に必要な情報がない作業のキーと理由を持つ。
 表示と集計の規則は[完了までの下限と期日](milestone-gantt.md#完了までの下限と期日)に従う。

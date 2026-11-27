@@ -6,7 +6,10 @@ import { incompleteForecast } from './gantt-forecast-judgment.mjs';
 import { goalTaskCounts } from './release-task-counts.mjs';
 
 const boundFactors = { dependencies: '依存関係と開始条件', workload: '担当者の作業量', both: '依存関係と担当者の作業量' };
-const planningGapLabels = { 'source-unavailable':'出典Project未確定', 'outside-project':'対象Project外', 'owner-unknown':'担当不明', 'schedule-unknown':'日程未算出' };
+const planningGapLabels = {
+  'source-unavailable':'出典Project未確定', 'outside-project':'対象Project外', 'owner-unknown':'担当不明',
+  'schedule-unknown':'日程未算出', 'completion-unknown':'完了状態未確認', 'remaining-work-unknown':'残作業量未算出',
+};
 
 function completionCount({total, remaining}, counts) {
   const done = counts ? counts.done.length : total - remaining;
@@ -93,11 +96,15 @@ function load() {
   const forecast = incompleteForecast(result, milestone, sources);
   const bounds = milestone.completionBounds;
   let summary = ({ incomplete:forecast?.label, empty:'作業未登録', completed:'全作業完了' })[milestone.state];
-  if (bounds) {
+  if (bounds?.bound && (!forecast || bounds.overdue)) {
     summary = bounds.bound.display.endsWith('未満')
       ? '完了まで残作業あり'
       : `完了まで少なくとも<strong>${bounds.bound.display}</strong>`;
-    if (bounds.bound.days > 0) summary += ` <span class="hint">${boundFactors[bounds.factor] ?? '担当別の下限は未算出'}</span>`;
+    if (bounds.bound.days > 0) {
+      const factor = boundFactors[bounds.factor] ?? '担当別の下限は未算出';
+      const partial = bounds.workload && bounds.workloadPartial && bounds.factor !== 'dependencies' ? '（判明分）' : '';
+      summary += ` <span class="hint">${factor}${partial}</span>`;
+    }
     if (bounds.overdue) summary += ' <span class="warn">期日超過</span>';
   }
   $('#release-name').textContent = releaseName;
@@ -106,7 +113,7 @@ function load() {
   if (forecast) {
     const facts = [...forecast.causes, forecast.allocation].filter(Boolean);
     const evidence = facts.length ? '<p class="forecast-evidence">' + facts.map(escape).join(' ／ ') + '</p>' : '';
-    if (options.allAcceptancePending) {
+    if (options.allAcceptancePending && !bounds?.overdue) {
       $('#summary').innerHTML = '<span>受入待ち</span><span>'+due+'</span>';
       $('#summary').insertAdjacentHTML('afterend', '<details class="forecast-details"><summary>日程の内訳</summary><p>'+escape(forecast.label)+'</p>'+evidence+'</details>');
     } else if (evidence) {
@@ -213,10 +220,13 @@ function showDetails(key) {
     heading = input.milestones.find(item => item.key === milestone.key).title;
     const bounds = milestone.completionBounds;
     body = '<dl class="facts completion-facts">' + fact('基準日', input.baseDate) + fact('取得時点', input.fetchedAt)
-      + fact('完了までの下限', bounds?.bound.display ?? '未算出');
+      + fact('完了までの下限', bounds?.bound?.display ?? '未算出');
     if (bounds) {
-      body += fact('依存関係と開始条件', bounds.dependencies.display)
-        + fact('担当者の作業量', bounds.workload ? bounds.workload.display + (bounds.owners.length ? '（' + escape(bounds.owners.join('、')) + '）' : '') : '未算出');
+      const { workload, workloadPartial, owners } = bounds;
+      const label = workload && workloadPartial ? '担当者の作業量（判明分）' : '担当者の作業量';
+      const ownerNames = owners.length ? '（' + escape(owners.join('、')) + '）' : '';
+      body += fact('依存関係と開始条件', bounds.dependencies?.display ?? '未算出')
+        + fact(label, workload ? workload.display + ownerNames : '未算出');
       if (bounds.overdue) {
         const excess = bounds.overdue.display.endsWith('未満') ? '期日超過' : '少なくとも' + bounds.overdue.display + '超過';
         body += fact('期日との差', excess);
@@ -224,11 +234,11 @@ function showDetails(key) {
     }
     body += '</dl>';
     if (bounds?.gaps.length) {
-      body += '<h3>担当別の下限を算出できない作業</h3>' + planningGapList(bounds.gaps);
+      body += '<h3>担当別に集計できなかった作業</h3>' + planningGapList(bounds.gaps);
     }
     if (bounds) {
       body += '<p>このリリースと前提の残作業を、担当者1人あたり1平日1ポイントで計算する。</p>';
-      if (milestone.dueDifference && !bounds.overdue) body += '<p>期日までに完了できるかは未確定。</p>';
+      if (milestone.dueDate && bounds.bound && !bounds.overdue) body += '<p>期日までに完了できるかは未確定。</p>';
     }
     body += '<p>棒・クリティカルパス・余裕は、依存関係と開始条件で計算する。</p>'
       + '<p>親の件数は、このリリースに属する末端作業のうち完了した件数と総数。取り下げ・終了理由が不明な作業は、完了に含めず別に示す。</p>';
