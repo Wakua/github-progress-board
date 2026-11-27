@@ -97,7 +97,7 @@ function load() {
     summary = bounds.bound.display.endsWith('未満')
       ? '完了まで残作業あり'
       : `完了まで少なくとも<strong>${bounds.bound.display}</strong>`;
-    summary += ` <span class="hint">${boundFactors[bounds.factor] ?? '担当別の下限は未算出'}</span>`;
+    if (bounds.bound.days > 0) summary += ` <span class="hint">${boundFactors[bounds.factor] ?? '担当別の下限は未算出'}</span>`;
     if (bounds.overdue) summary += ' <span class="warn">期日超過</span>';
   }
   $('#release-name').textContent = releaseName;

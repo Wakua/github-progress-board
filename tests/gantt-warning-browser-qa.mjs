@@ -123,7 +123,14 @@ try {
   assert.match(await summary.innerText(), /完了まで少なくとも4平日.*担当別の下限は未算出/);
   await basis.press('Enter');
   assert.match(await details.innerText(), /実装B\s+担当不明/);
-  console.log('担当者の下限、期日超過と未確定の区別、担当不明の作業を実画面で確認した。');
+  await forecastPage.keyboard.press('Escape');
+  for (const issue of snapshot.planning.schedule.issues) {
+    issue.projects[0].workProgressPercent.value = 100;
+  }
+  await showForecast('2026-11-06');
+  assert.match(await summary.innerText(), /完了まで少なくとも0平日/);
+  assert.doesNotMatch(await summary.innerText(), /依存関係|担当者の作業量|担当別の下限/);
+  console.log('担当者の下限、期日超過と未確定、担当不明、残量0平日の表示を実画面で確認した。');
 } finally {
   await browser.close();
 }
