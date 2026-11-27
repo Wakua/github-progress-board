@@ -1,9 +1,12 @@
-import { axisFor, calendarPosition, positionText, dueText, diagnosticText, diagnosticReason, parseDate, monthDay, addDays } from './gantt-axis.mjs';
+import { axisFor, calendarPosition, positionText, diagnosticText, diagnosticReason, parseDate, monthDay, addDays } from './gantt-axis.mjs';
 import { goalSchedule } from './gantt-groups.mjs';
 import { releaseDependencies, projectDependencies } from './gantt-dependencies.mjs';
 import { validWorkProgress } from './milestone-schedule.mjs';
 import { incompleteForecast } from './gantt-forecast-judgment.mjs';
 import { goalTaskCounts } from './release-task-counts.mjs';
+
+const boundFactors = { dependencies: '依存関係と開始条件', workload: '担当者の作業量', both: '依存関係と担当者の作業量' };
+const planningGapLabels = { 'source-unavailable':'出典Project未確定', 'outside-project':'対象Project外', 'owner-unknown':'担当不明', 'schedule-unknown':'日程未算出' };
 
 function completionCount({total, remaining}, counts) {
   const done = counts ? counts.done.length : total - remaining;
@@ -38,6 +41,7 @@ const sources = new Map(input.issues.map(issue => [issue.key, issue]));
 const source = key => sources.get(key);
 const title = key => source(key)?.title || key;
 const taskLink = key => `<button class="plain-action" data-follow="${escape(key)}">${escape(title(key))}</button>`;
+const planningGapList = items => `<ul>${items.map(item => `<li>${taskLink(item.key)}<p>${item.reasons.map(reason => planningGapLabels[reason]).join('・')}</p></li>`).join('')}</ul>`;
 function shortName(key) {
   const issue = source(key);
   if (!issue) return key.replace('https://github.com/','').replace('/issues/','#');
@@ -87,9 +91,18 @@ function load() {
   const due = milestone.dueDate ? `期日 ${milestone.dueDate.replaceAll('-', '/')}` : '期日未設定';
   const releaseName = input.milestones.find(item => item.key === milestone.key).title;
   const forecast = incompleteForecast(result, milestone, sources);
+  const bounds = milestone.completionBounds;
+  let summary = ({ incomplete:forecast?.label, empty:'作業未登録', completed:'全作業完了' })[milestone.state];
+  if (bounds) {
+    summary = bounds.bound.display.endsWith('未満')
+      ? '完了まで残作業あり'
+      : `完了まで少なくとも<strong>${bounds.bound.display}</strong>`;
+    summary += ` <span class="hint">${boundFactors[bounds.factor] ?? '担当別の下限は未算出'}</span>`;
+    if (bounds.overdue) summary += ' <span class="warn">期日超過</span>';
+  }
   $('#release-name').textContent = releaseName;
   $('#release-details').setAttribute('aria-label', releaseName + 'の計算根拠');
-  $('#summary').innerHTML = `<span>${milestone.finish ? `見込み <strong>${monthDay(parseDate(milestone.finish.date))}</strong>${milestone.dueDate ? ` <span class="warn">${dueText(milestone.dueDifference)}</span>` : ''}` : ({ incomplete:forecast?.label, empty:'作業未登録', completed:'全作業完了' })[milestone.state]}</span><span>${due}</span>`;
+  $('#summary').innerHTML = `<span>${summary}</span><span>${due}</span>`;
   if (forecast) {
     const facts = [...forecast.causes, forecast.allocation].filter(Boolean);
     const evidence = facts.length ? '<p class="forecast-evidence">' + facts.map(escape).join(' ／ ') + '</p>' : '';
@@ -198,7 +211,27 @@ function showDetails(key) {
   let heading, body;
   if (key === 'release') {
     heading = input.milestones.find(item => item.key === milestone.key).title;
-    body = `<dl class="facts">${fact('基準日', input.baseDate)}${fact('取得時点', input.fetchedAt)}${fact('完了見込み', positionText(milestone.finish))}${fact('期日差', dueText(milestone.dueDifference))}</dl><p>親の件数は、このリリースに属する末端作業のうち完了した件数と総数。取り下げ・終了理由が不明な作業は、完了に含めず別に示す。</p><p>日程は登録済みの前提が終わり次第、着手する計算。</p><p>余裕は、完了見込みを遅らせずに開始を延ばせる日数。担当の競合は日程に反映しない。</p>`;
+    const bounds = milestone.completionBounds;
+    body = '<dl class="facts completion-facts">' + fact('基準日', input.baseDate) + fact('取得時点', input.fetchedAt)
+      + fact('完了までの下限', bounds?.bound.display ?? '未算出');
+    if (bounds) {
+      body += fact('依存関係と開始条件', bounds.dependencies.display)
+        + fact('担当者の作業量', bounds.workload ? bounds.workload.display + (bounds.owners.length ? '（' + escape(bounds.owners.join('、')) + '）' : '') : '未算出');
+      if (bounds.overdue) {
+        const excess = bounds.overdue.display.endsWith('未満') ? '期日超過' : '少なくとも' + bounds.overdue.display + '超過';
+        body += fact('期日との差', excess);
+      }
+    }
+    body += '</dl>';
+    if (bounds?.gaps.length) {
+      body += '<h3>担当別の下限を算出できない作業</h3>' + planningGapList(bounds.gaps);
+    }
+    if (bounds) {
+      body += '<p>このリリースと前提の残作業を、担当者1人あたり1平日1ポイントで計算する。</p>';
+      if (milestone.dueDifference && !bounds.overdue) body += '<p>期日までに完了できるかは未確定。</p>';
+    }
+    body += '<p>棒・クリティカルパス・余裕は、依存関係と開始条件で計算する。</p>'
+      + '<p>親の件数は、このリリースに属する末端作業のうち完了した件数と総数。取り下げ・終了理由が不明な作業は、完了に含めず別に示す。</p>';
     const summary = options.releaseSummary;
     if (summary) {
       body += '<dl class="facts">'+fact('残りの期間', summary.iterations+'期間')+fact('未完了Estimate', summary.remainingPoints+'pt')+'</dl>';
@@ -223,8 +256,7 @@ function showDetails(key) {
     body = diagnosticsHtml(milestone.diagnosticIds);
   } else if (key === 'unchecked') {
     heading = '重複を確認できない作業';
-    const reasons = { 'source-unavailable':'出典Project未確定', 'outside-project':'対象Project外', 'owner-unknown':'担当不明', 'schedule-unknown':'日程未算出' };
-    body = `<ul>${unchecked.map(item => `<li>${taskLink(item.key)}<p>${item.reasons.map(reason => reasons[reason]).join('・')}</p></li>`).join('')}</ul>`;
+    body = planningGapList(unchecked);
   } else {
     const item = task(key), original = source(key);
     heading = title(key);
