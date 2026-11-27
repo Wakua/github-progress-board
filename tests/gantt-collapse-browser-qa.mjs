@@ -63,6 +63,7 @@ try {
   assert.deepEqual([...otherRows].sort(),[201,401]);
   await showA();
   for (const toggle of [parent,button(a,'#300 通知'),button(a,'その他の作業')]) await toggle.press('Enter');
+  await a.locator('[data-scale="day"][aria-pressed]').click();
   assert.match(await a.locator('.goal-issue:visible').first().getAttribute('href'),/\/issues\/200$/);
   const initialA = await facts(a), initialLines = await lines();
   assert.deepEqual((await visibleTasks(a)).sort(),[201,202,210,301]);
@@ -150,4 +151,83 @@ try {
   assert.match(ax,/button "リリースA" \[expanded\]/);
   await writeFile(path.join(artifacts,'results.json'),JSON.stringify({initialA,initialB,otherRows,initialLines,ax},null,2));
   console.log('親・リリースの独立開閉、計算結果、依存線、再取得・タブ復帰とキーボード操作を確認した。');
+
+  const fitPage = await browser.newPage({ viewport: { width: 800, height: 820 } });
+  await fitPage.clock.setFixedTime(new Date('2026-11-27T12:00:00+09:00'));
+  await fitPage.route('**/api/**', route => route.fulfill({ status: 503 }));
+  const fitSnapshot = ganttSnapshot('collapse');
+  fitSnapshot.planning.milestones[0].dueOn = '2029-02-26T00:00:00Z';
+  fitSnapshot.planning.milestones[1].dueOn = '2026-12-11T00:00:00Z';
+  const fitWorkspace = qaWorkspace();
+  fitWorkspace.projects = fitWorkspace.projects.slice(0, 1);
+  fitWorkspace.projects[0].repositoryUrl = repositoryUrl;
+  attachSnapshot(fitWorkspace.projects[0], fitSnapshot);
+  const saveWorkspace = () => fitPage.evaluate(([key,data]) => localStorage.setItem(key, JSON.stringify(data)), [STORAGE_KEY,fitWorkspace]);
+  await fitPage.goto(process.env.QA_BASE_URL || 'http://127.0.0.1:4340/');
+  await saveWorkspace();
+  await fitPage.reload();
+  const openRelease = name => fitPage.getByRole('button', {name: name + 'の詳細', exact: true}).click();
+  const fitCard = fitPage.locator('.gantt[data-milestone]');
+  const scale = unit => fitCard.locator('[data-scale="'+unit+'"][aria-pressed="true"]');
+  const inspectTimeline = () => fitCard.locator('.timeline-scroll').evaluate(el => {
+    const viewport = el.getBoundingClientRect();
+    const due = el.querySelector('.due-marker').getBoundingClientRect();
+    return {
+      fits: el.scrollWidth === el.clientWidth,
+      dueVisible: due.left >= viewport.left && due.right <= viewport.right,
+      scroll: el.scrollLeft,
+    };
+  });
+  async function checkFit(unit) {
+    await scale(unit).waitFor();
+    assert.deepEqual(await inspectTimeline(), { fits: true, dueVisible: true, scroll: 0 });
+  }
+  async function returnToMonth() {
+    const timeline = fitCard.locator('.timeline-scroll');
+    const scroll = await timeline.evaluate(el => {
+      el.scrollLeft = el.scrollWidth - el.clientWidth;
+      return el.scrollLeft;
+    });
+    assert.ok(scroll > 0);
+    await fitCard.locator('button[data-scale="month"]').press('Enter');
+    await checkFit('month');
+  }
+  await fitPage.getByRole('tab', {name:'リリース', exact:true}).click();
+  await openRelease('リリースA');
+  await checkFit('month');
+  await fitCard.locator('button[data-scale="day"]').press('Enter');
+  await returnToMonth();
+  await openRelease('リリースB');
+  await checkFit('week');
+  await fitPage.setViewportSize({width: 320, height: 720});
+  await checkFit('month');
+  await openRelease('リリースA');
+  await checkFit('month');
+  const headerBorders = await fitCard.locator('.dates > span:empty').evaluateAll(
+    cells => cells.map(cell => getComputedStyle(cell).borderLeftColor),
+  );
+  assert.ok(headerBorders.length > 0);
+  assert.ok(headerBorders.every(color => color === 'rgba(0, 0, 0, 0)'));
+  await fitCard.locator('button[data-scale="day"]').press('Enter');
+  await scale('day').waitFor();
+  assert.equal((await inspectTimeline()).fits, false);
+  await openRelease('リリースB');
+  await checkFit('month');
+  await openRelease('リリースA');
+  await scale('day').waitFor();
+  await returnToMonth();
+  await fitCard.locator('button[data-scale="day"]').press('Enter');
+  await fitPage.reload();
+  await openRelease('リリースA');
+  await checkFit('month');
+
+  fitSnapshot.planning.milestones[0].dueOn = '2026-10-15T00:00:00Z';
+  fitWorkspace.projects[0].githubSnapshot = null;
+  attachSnapshot(fitWorkspace.projects[0], fitSnapshot);
+  await saveWorkspace();
+  await fitPage.reload();
+  await openRelease('リリースA');
+  await checkFit('month');
+  assert.equal(await fitCard.locator('[data-gantt="visible-range"]').innerText(), '2026/10/1–2026/12/31');
+  console.log('初期表示、目盛り、期日、800px・320pxでの日から月への切替、再読み込みと年末の表示期間を確認した。');
 } finally { await browser.close(); }
