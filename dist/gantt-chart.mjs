@@ -22,10 +22,11 @@ export function mountGanttChart(root, input, result, milestone, options = {}) {
 const $ = selector => root.querySelector(selector.startsWith('#') ? '[data-gantt="'+selector.slice(1)+'"]' : selector);
 const escape = value => String(value ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' })[c]);
 const fact = (name, value) => `<div><dt>${name}</dt><dd>${value}</dd></div>`;
-let scale = options.scale || 'day', opener, history = [];
+let selectedScale = options.scale, scale, fittedWidth, fittedFontSize, opener, history = [];
 const overlaps = result.overlaps.filter(item => item.taskKeys.some(key => milestone.taskKeys.includes(key)));
 const unchecked = result.overlapUnchecked.filter(item => milestone.taskKeys.includes(item.key));
 const dialog = $('#details'), chart = $('#chart');
+const dates = $('#dates'), timeline = $('.timeline-scroll');
 const fold = options.fold;
 const goalSchedules = new Map();
 const task = key => result.tasks.find(item => item.key === key);
@@ -183,9 +184,9 @@ function load() {
     schedule.hidden = empty || fold.collapsed;
     releaseToggle.setAttribute('aria-expanded', String(!schedule.hidden));
   }
-  releaseToggle.onclick = () => { fold.collapsed = !fold.collapsed; displayRelease(); drawDependencies(); };
+  releaseToggle.onclick = () => { fold.collapsed = !fold.collapsed; displayRelease(); redraw(); };
   displayRelease();
-  setScale(scale);
+  renderScale();
 }
 function openDetails(key, button) {
   opener = button; history = [];
@@ -288,16 +289,37 @@ dialog.addEventListener('keydown', event => {
   if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
   else if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
 });
-function setScale(nextScale) {
-  scale = nextScale; options.onScale?.(scale);
-  const axis = axisFor(result, milestone, scale), span = axis.end - axis.start;
+function renderScale() {
+  const fitToDeadline = Boolean(milestone.dueDate) && (!selectedScale || selectedScale === 'month');
+  chart.toggleAttribute('data-fit', fitToDeadline);
+  if (fitToDeadline) chart.style.removeProperty('--axis-width');
+  const width = fitToDeadline ? dates.clientWidth : null;
+  if (width === 0) return;
+  fittedWidth = width;
+  const fontSize = fitToDeadline ? parseFloat(getComputedStyle(dates).fontSize) : null;
+  fittedFontSize = fontSize;
+  const axis = axisFor(result, milestone, selectedScale ?? (fitToDeadline ? 'fit' : 'day'), { width, fontSize });
+  scale = axis.scale;
+  const span = axis.end - axis.start;
   const percentage = timestamp => (timestamp - axis.start.getTime()) / span * 100;
-  $('#dates').innerHTML = axis.ticks.map(({start, end}) => {
-    const label = scale === 'month' ? `${start.getUTCFullYear()}年${start.getUTCMonth()+1}月` : scale === 'week' ? `${monthDay(start)}–${monthDay(addDays(end,-1))}` : `${monthDay(start)}<span class="weekday">${'日月火水木金土'[start.getUTCDay()]}</span>`;
-    return `<span class="${scale === 'day' && [0,6].includes(start.getUTCDay()) ? 'weekend' : ''}" style="width:${(end-start)/span*100}%">${label}</span>`;
+  const labelSpacing = fontSize * 4.5;
+  let nextMonthLabel = 0;
+  dates.innerHTML = axis.ticks.map(({start, end}, index) => {
+    let label;
+    let monthLabel = false;
+    if (scale === 'month' && fitToDeadline) {
+      const left = percentage(start.getTime()) * width / 100;
+      monthLabel = index === 0 || (left >= nextMonthLabel && width - left >= labelSpacing);
+      if (monthLabel) nextMonthLabel = left + labelSpacing;
+      label = monthLabel ? `${start.getUTCFullYear()}/${start.getUTCMonth()+1}` : '';
+    } else if (scale === 'month') label = `${start.getUTCFullYear()}年${start.getUTCMonth()+1}月`;
+    else if (scale === 'week') label = `${monthDay(start)}–${monthDay(addDays(end,-1))}`;
+    else label = `${monthDay(start)}<span class="weekday">${'日月火水木金土'[start.getUTCDay()]}</span>`;
+    const weekend = scale === 'day' && [0,6].includes(start.getUTCDay());
+    return `<span class="${weekend ? 'weekend' : ''}" style="width:${(end-start)/span*100}%">${monthLabel ? `<span class="month-label">${label}</span>` : label}</span>`;
   }).join('');
   chart.dataset.scale = scale;
-  chart.style.setProperty('--axis-width', `${axis.width}px`);
+  if (!fitToDeadline) chart.style.setProperty('--axis-width', `${axis.width}px`);
   for (const bar of chart.querySelectorAll('[data-bar], [data-goal-bar]')) {
     const key = bar.dataset.goalBar ?? bar.dataset.bar;
     const range = goalSchedules.get(key);
@@ -310,13 +332,21 @@ function setScale(nextScale) {
     bar.setAttribute('aria-label', description); bar.title = description;
   }
   for (const button of root.querySelectorAll('.scale-buttons button')) button.setAttribute('aria-pressed', String(button.dataset.scale === scale));
-  $('#visible-range').textContent = `${axis.start.getUTCFullYear()}/${monthDay(axis.start)}–${axis.end.getUTCFullYear()}/${monthDay(addDays(axis.end,-1))}`;
+  const lastDay = addDays(axis.end, -1);
+  $('#visible-range').textContent = `${axis.start.getUTCFullYear()}/${monthDay(axis.start)}–${lastDay.getUTCFullYear()}/${monthDay(lastDay)}`;
   const due = $('#due-marker');
   due.hidden = !milestone.dueDate || !milestone.taskKeys.length;
   $('#due-legend').hidden = due.hidden;
-  if (milestone.dueDate) due.style.left = `calc(var(--name-width) + var(--column-gap) + (100% - var(--name-width) - var(--column-gap)) * ${percentage(parseDate(milestone.dueDate).getTime()+86400000)/100})`;
-  $('.timeline-scroll').scrollLeft = 0;
+  if (milestone.dueDate) {
+    const position = `calc(var(--name-width) + var(--column-gap) + (100% - var(--name-width) - var(--column-gap)) * ${percentage(parseDate(milestone.dueDate).getTime()+86400000)/100})`;
+    due.style.left = fitToDeadline ? `min(${position}, 100% - 1px)` : position;
+  }
   drawDependencies();
+}
+function redraw() {
+  if (chart.hasAttribute('data-fit') &&
+    (dates.clientWidth !== fittedWidth || parseFloat(getComputedStyle(dates).fontSize) !== fittedFontSize)) renderScale();
+  else drawDependencies();
 }
 function drawDependencies() {
   if ($('.card').hidden) return;
@@ -351,21 +381,27 @@ function drawDependencies() {
   $('#connections').innerHTML = `<defs><marker id="${options.arrowId}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M 0 0 L 10 5 L 0 10 Z"/></marker></defs>`+paths;
   $('#connections').setAttribute('aria-label', drawn.join('、') || 'この時間軸に描ける依存線なし');
 }
-const observer = new ResizeObserver(drawDependencies); observer.observe(chart);
-for (const button of root.querySelectorAll('.scale-buttons button')) button.onclick = () => setScale(button.dataset.scale);
+const observer = new ResizeObserver(redraw); observer.observe(chart);
+for (const button of root.querySelectorAll('.scale-buttons button')) button.onclick = () => {
+  if (scale === button.dataset.scale) return;
+  selectedScale = button.dataset.scale;
+  options.onScale?.(selectedScale);
+  renderScale();
+  timeline.scrollLeft = 0;
+};
 load();
 
 return {
-  redraw: drawDependencies,
+  redraw,
   capture: () => ({
-    scale, history: dialog.open ? [...history] : [], scroll: $('.timeline-scroll').scrollLeft,
+    scale, history: dialog.open ? [...history] : [], scroll: timeline.scrollLeft,
     opener: opener?.dataset.relation || opener?.dataset.task || opener?.dataset.panel || (opener ? 'release' : null),
     focusedRelation: root.contains(document.activeElement) ? document.activeElement.dataset.relation : null,
     focusedFold: root.contains(document.activeElement) ? document.activeElement.dataset.parent ||
       (document.activeElement === $('#release-toggle') ? 'release' : null) : null,
   }),
   restore: saved => {
-    $('.timeline-scroll').scrollLeft = saved.scroll;
+    timeline.scrollLeft = saved.scroll;
     if (saved.focusedRelation) {
       const links = [...$('#relations').querySelectorAll('[data-relation]')];
       (links.find(b=>b.dataset.relation===saved.focusedRelation) ?? links[0])?.focus({preventScroll:true});
