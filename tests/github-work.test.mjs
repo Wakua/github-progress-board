@@ -51,7 +51,7 @@ function inputs() {
 const snapshot = data => buildSnapshot({ ...data, planning: buildPlanning(data) });
 const groups = work => Object.fromEntries(work.sections.map(s => [s.id, s.tasks.map(({ task, reasons }) => [task.number, reasons])]));
 
-test('GitHubの作業を手動の作業と同じ順で、要対応・確認待ち・作業中・前提待ち・着手可能に分ける', () => {
+test('GitHubの作業を手動の作業と同じ順で、要対応・確認待ち・作業中・他の作業待ち・着手可能に分ける', () => {
   const value = snapshot(inputs());
   validateSnapshot(value, { now: Date.parse(at) });
   const work = githubMyWork(value, { all: true }, today);
@@ -162,7 +162,7 @@ const urgentData = () => {
   const data = inputs();
   setPriority(data, 1, '緊急');    // 作業中
   setPriority(data, 2, '緊急');    // 要対応（仕様待ち）
-  setPriority(data, 3, '通常');    // 前提待ち。通常なので先頭に出さない
+  setPriority(data, 3, '通常');    // 他の作業待ち。通常なので先頭に出さない
   setPriority(data, 12, '緊急');   // Done。完了した作業は先頭に出さない
   data.hierarchyPages[0].data.repository.issues.nodes[5].projectItems = connection([project(null, 'Todo', 'it1'), project('Claude', 'Todo', 'it1', 'P2')]);
   setPriority(data, 6, '緊急', 1); // 複数Projectのどれかが緊急なら緊急（着手可能）
@@ -256,7 +256,7 @@ test('緊急の行は1行のまま、確認する前提とPRの番号を残す',
   const html = renderGithubWork(snapshot(data), { all: true }, today);
   const section = html.slice(html.indexOf('data-my-work-section="urgent"'), html.indexOf('</section>', html.indexOf('data-my-work-section="urgent"')));
   assert.deepEqual([...section.matchAll(/<span class="urgent-label">([^<]*)<\/span>/g)].map(m => m[1]),
-    ['前提待ち #2・#7ほか1件', '前提待ち qa-fixture/spec#5', '確認待ち PR #102']);
+    ['他の作業待ち #2・#7ほか1件', '他の作業待ち qa-fixture/spec#5', '確認待ち PR #102']);
   assert.ok(!section.includes('my-work-reasons'));
 });
 

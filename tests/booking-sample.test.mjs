@@ -22,7 +22,7 @@ test('期日を持つMilestoneが2件あり、どちらも期日より後のイ�
   }
 });
 
-test('期日以内の割当、未割当、見積未設定、前提待ちも含み、はみ出しと区別できる', () => {
+test('期日以内の割当、未割当、見積未設定、他の作業待ちも含み、はみ出しと区別できる', () => {
   const [r1] = planning.milestones;
   const inR1 = planning.issues.filter(issue => issue.milestoneNumber === r1.number && issue.childCount === 0);
   const onTime = inR1.filter(issue => issue.projects.some(p => p.iteration && day(p.iteration.startDate) <= day(r1.dueOn)));

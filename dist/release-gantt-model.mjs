@@ -20,7 +20,7 @@ export function releaseGanttModel(snapshot, { selectedProjectId, sourceProjectId
   const records = new Map((snapshot.planning.schedule?.issues ?? []).map(i => [i.key,i]));
   const items = new Map(snapshot.items.filter(i => i.kind === 'issue').map(i => [i.url.toLowerCase(), i]));
   const tasks = new Map(plan.tasks.map(t => [t.item.url.toLowerCase(), t]));
-  const groups = { done:'完了・Closed', action:'要対応', active:'作業中', waiting:'前提待ち', review:'確認待ち', ready:'着手可能' };
+  const groups = { done:'完了・Closed', action:'要対応', active:'作業中', waiting:'他の作業待ち', review:'確認待ち', ready:'着手可能' };
   const localPrefix = snapshot.repositoryUrl.toLowerCase() + '/issues/';
   input.issues = input.issues.map(issue => {
     const metadata = records.get(issue.key), item = items.get(issue.key), task = tasks.get(issue.key);

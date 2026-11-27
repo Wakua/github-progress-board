@@ -363,8 +363,8 @@ export function resolveDecision(state, id, choice, reason) {
   task.evidence = `${choice}を採用。理由：${reason.trim()}`;
   record(state, `${task.title}：${choice}（${reason.trim()}）`, task.goalId);
 }
-// 自分の作業：一つの作業を要対応 → 確認待ち → 作業中 → 前提待ち → 着手可能の順に判定し、最初に当たったまとまりへ入れる。
-export const workGroupLabel = group => ({ action: '要対応', review: '確認待ち', active: '作業中', waiting: '前提待ち', ready: '着手可能' }[group]);
+// 自分の作業：一つの作業を要対応 → 確認待ち → 作業中 → 他の作業待ち → 着手可能の順に判定し、最初に当たったまとまりへ入れる。
+export const workGroupLabel = group => ({ action: '要対応', review: '確認待ち', active: '作業中', waiting: '他の作業待ち', ready: '着手可能' }[group]);
 export function currentIterations(state, today = todayInTokyo()) {
   const dated = state.iterations.map(iteration => ({ iteration, timing: iterationTiming(iteration, today) }));
   const active = dated.filter(({ timing }) => timing.phase === 'active');
@@ -398,7 +398,7 @@ export function workCategory(state, task, today = todayInTokyo()) {
 // owner: undefined は全員、null は未担当、文字列はその担当者。表示順は作業中を先頭に置く。
 export function myWork(state, owner, today = todayInTokyo()) {
   const current = currentIteration(state, today);
-  const sections = [['active', '作業中'], ['action', '要対応'], ['review', '確認待ち'], ['ready-now', '着手可能（今の期間）'], ['ready-later', '着手可能（先の期間・未割当・期間不明）'], ['waiting', '前提待ち']]
+  const sections = [['active', '作業中'], ['action', '要対応'], ['review', '確認待ち'], ['ready-now', '着手可能（今の期間）'], ['ready-later', '着手可能（先の期間・未割当・期間不明）'], ['waiting', '他の作業待ち']]
     .map(([id, title]) => ({ id, title, tasks: [] }));
   const byId = new Map(sections.map(section => [section.id, section]));
   for (const task of orderedTasks(state)) {
