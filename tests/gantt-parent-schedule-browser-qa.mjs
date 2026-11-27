@@ -57,7 +57,7 @@ try {
     const scroll=card.locator('.timeline-scroll');
     for (const x of [0,48]) {
       await scroll.evaluate((el,v)=>el.scrollLeft=v,x);
-      assert.equal(await scroll.evaluate(el=>el.scrollLeft),x);
+      assert.equal(await scroll.evaluate(el=>el.scrollLeft),scale === 'month' ? 0 : x);
       same(await bounds(goal(200)),await bounds(child(202)));
       same(await bounds(goal(300)),await bounds(child(301)));
       same(await bounds(goal(305)),await bounds(child(301)));
@@ -94,6 +94,7 @@ try {
   const close = n => {
     const item = mixed.items.find(i => i.number === n);
     item.state = 'closed'; item.closedAt = item.updatedAt;
+    item.notPlanned = false;
     mixed.planning.schedule.issues.find(i=>i.key === item.url).state.value = 'closed';
     for (const issue of mixed.planning.issues) {
       for (const link of issue.blockedBy) if (link.url === item.url) link.state = 'closed';

@@ -118,7 +118,7 @@ export function createReleaseGantt(root) {
       if (!fold.known.has(group.key)) { fold.known.add(group.key); fold.parents.add(group.key); }
     }
     controller = mountGanttChart(card,model.input,model.result,milestone,{ arrowId:'gantt-arrow-'+selected.number, releaseSummary:summary, groups, fold, allAcceptancePending:releaseTaskCounts(selected.tasks).allPending, tasksByKey:new Map(selected.tasks.map(task => [task.item.url.toLowerCase(),task])),
-      scale:selection.scales[milestone.key] || 'day', onScale:scale=>{selection.scales[milestone.key]=scale;},
+      scale:selection.scales[milestone.key], onScale:scale=>{selection.scales[milestone.key]=scale;},
       onSourceProject:(key,id)=>{ selection.sourceProjectIds[key] = id || null; draw(); } });
     mountedRelease = selected.url;
     if (previous) controller.restore(previous);
