@@ -57,6 +57,7 @@ npm run check
 | [クラウドの本番確認](docs/cloud-release-verification.md#本番で残る確認) | 公開前に必要な確認と未確認事項 |
 | [テスト計画の作成・変更](docs/test-plan-editor.md) | 対象版・実施条件とケースの選択、担当、完了・再開・履歴 |
 | [テストケースの登録・編集](docs/test-case-editor.md) | ローカルDBへのケース保存、カテゴリ絞込み、競合時の操作 |
+| [テストケース作成の方針](docs/test-case-design.md) | テストレベルごとの対象、良いケースの基準、観点から組み合わせを絞ってケースを導く手順 |
 | [バグ報告](docs/bug-reporting.md) | 報告の初期設定、GitHub登録、修正版の確認 |
 
 ## ライセンス
