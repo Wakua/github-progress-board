@@ -1,5 +1,5 @@
 import { githubPlan, githubProgress, githubModules } from './github-planning.mjs';
-import { githubMyWork, taskIteration, githubIterationLastDay, githubPeriodWorkload, blockerRef, githubProgressStates, PROGRESS_STATES, GROUP_TITLES, githubTaskDone } from './github-work.mjs';
+import { githubMyWork, taskIteration, githubIterationLastDay, githubNearDeadlineDays, githubPeriodWorkload, blockerRef, githubProgressStates, PROGRESS_STATES, GROUP_TITLES, githubTaskDone } from './github-work.mjs';
 import { NEXT_ACTIONS, nextActionOf, nextActionCopyText } from './next-action.mjs';
 import { workloadChipClass, workloadChipTitle, workloadChipLabel, workloadFigures } from './workload-view.mjs';
 import { todayInTokyo } from './engine.mjs';
@@ -95,7 +95,9 @@ const nextActionMatches = (nextActions, choice) => task => {
   return id === choice;
 };
 export function githubNextActionCounts(snapshot, filter, today, nextActions = {}) {
-  const work = githubMyWork(snapshot, filter, today, { urgentFirst: true });
+  return countNextActions(githubMyWork(snapshot, filter, today, { urgentFirst: true }), nextActions);
+}
+function countNextActions(work, nextActions) {
   const counts = new Map();
   let total = 0;
   for (const section of work?.sections ?? []) {
@@ -109,9 +111,9 @@ export function githubNextActionCounts(snapshot, filter, today, nextActions = {}
   return { total, counts };
 }
 
-function nextActionGroups(work, nextActions) {
+function nextActionGroups(sections, nextActions) {
   const byAction = new Map();
-  for (const section of work.sections) {
+  for (const section of sections) {
     for (const item of section.tasks) {
       const id = assigned(nextActions, item.task);
       if (!byAction.has(id)) byAction.set(id, []);
@@ -123,11 +125,11 @@ function nextActionGroups(work, nextActions) {
 }
 
 // AIへ渡す文。絞り込んだ作業を、番号・題名・状態・根拠つきで並べる。
-export function githubNextActionText(snapshot, filter, today, nextActions, actionId) {
+export function githubNextActionText(snapshot, filter, today, nextActions, actionId, { todayOnly = false } = {}) {
   if (actionId !== NEXT_ACTION_ASSIGNED && !nextActionOf(actionId)) return null;
-  const work = githubMyWork(snapshot, filter, today, { urgentFirst: true, include: nextActionMatches(nextActions, actionId) });
+  const work = githubMyWork(snapshot, filter, today, { urgentFirst: true, todayOnly, include: nextActionMatches(nextActions, actionId) });
   if (!work) return null;
-  const groups = nextActionGroups(work, nextActions);
+  const groups = nextActionGroups(work.sections, nextActions);
   if (!groups.length) return null;
   const repository = snapshot.repositoryUrl.replace('https://github.com/', '');
   return groups.map(({ action, items }, index) => {
@@ -143,28 +145,38 @@ const nextActionSelect = (task, nextActions) => {
   const value = assigned(nextActions, task);
   return `<select class="next-action-select${value ? ' set' : ''}" data-action="next-action" data-id="${task.number}" aria-label="#${task.number}の次にすること"><option value="">区分</option>${NEXT_ACTIONS.map(action => `<option value="${action.id}"${action.id === value ? ' selected' : ''}>${esc(action.label)}</option>`).join('')}</select>`;
 };
-function nextActionFilter(counts, total, selected, assignedCount, copyCount) {
+function nextActionFilter(counts, total, selected, assignedCount, copyCount, countsKnown) {
   const options = [
     ['', 'すべて', total],
     [NEXT_ACTION_ASSIGNED, '区分付きすべて', assignedCount],
     ...NEXT_ACTIONS.map(action => [action.id, action.label, counts.get(action.id) ?? 0]),
     [NEXT_ACTION_NONE, '区分なし', counts.get(NEXT_ACTION_NONE) ?? 0],
-  ].filter(([id, , count]) => !id || (assignedCount && count > 0));
-  const picker = `<label>表示する区分 <select data-next-action-filter${assignedCount ? '' : ' disabled'}>${options.map(([id, label, count]) => `<option value="${esc(id)}"${id === (selected ?? '') ? ' selected' : ''}>${esc(label)} ${count}件</option>`).join('')}</select></label>`;
+  ].filter(([id, , count]) => !id || id === selected || (assignedCount && count > 0));
+  const picker = `<label>表示する区分 <select data-next-action-filter${assignedCount || selected !== null ? '' : ' disabled'}>${options.map(([id, label, count]) => `<option value="${esc(id)}"${id === (selected ?? '') ? ' selected' : ''}>${esc(label)}${countsKnown ? ` ${count}件` : ''}</option>`).join('')}</select></label>`;
   const action = copyCount
     ? `<button type="button" class="button primary next-action-copy" data-next-action-copy="${esc(selected)}">${copyCount}件をコピー</button>`
-    : `<button type="button" class="button primary next-action-copy" data-next-action-review${assignedCount ? '' : ' disabled'}>区分付き${assignedCount}件を確認</button>`;
+    : countsKnown ? `<button type="button" class="button primary next-action-copy" data-next-action-review${assignedCount ? '' : ' disabled'}>区分付き${assignedCount}件を確認</button>` : '';
   return `<div class="next-action-filter">${picker}${action}<span class="next-action-copy-status" role="status"></span></div>`;
 }
-export function renderGithubWork(snapshot, filter = { all: true }, today = undefined, { nextActions = {}, nextFilter = null } = {}) {
-  const { counts, total } = githubNextActionCounts(snapshot, filter, today, nextActions);
+export function renderGithubWork(snapshot, filter = { all: true }, today = todayInTokyo(), { nextActions = {}, nextFilter = null, todayOnly = false } = {}) {
+  const candidates = githubMyWork(snapshot, filter, today, { urgentFirst: true, todayOnly: true });
+  if (!candidates) return '<p class="empty-message">親子Issue・Projectの計画情報は未取得です。</p>';
+  const allWork = githubMyWork(snapshot, filter, today, { urgentFirst: true });
+  const allActions = countNextActions(allWork, nextActions);
+  const work = todayOnly ? candidates : allWork;
+  const { counts, total } = todayOnly ? countNextActions(candidates, nextActions) : allActions;
   const assignedCount = total - (counts.get(NEXT_ACTION_NONE) ?? 0);
-  const selected = assignedCount && (nextFilter === NEXT_ACTION_ASSIGNED || counts.has(nextFilter)) ? nextFilter : null;
-  const copyCount = selected === NEXT_ACTION_ASSIGNED ? assignedCount : nextActionOf(selected) ? counts.get(selected) : 0;
-  const work = githubMyWork(snapshot, filter, today, { urgentFirst: true, include: nextActionMatches(nextActions, selected) });
-  if (!work) return '<p class="empty-message">親子Issue・Projectの計画情報は未取得です。</p>';
+  // 担当者の一覧に区分がある間、今日の候補を表示しても選択を保つ。
+  const hasAssigned = allActions.total > (allActions.counts.get(NEXT_ACTION_NONE) ?? 0);
+  const selected = hasAssigned && (nextFilter === NEXT_ACTION_ASSIGNED || allActions.counts.has(nextFilter)) ? nextFilter : null;
+  const copyCount = selected === NEXT_ACTION_ASSIGNED ? assignedCount : nextActionOf(selected) ? counts.get(selected) ?? 0 : 0;
+  const matches = nextActionMatches(nextActions, selected);
+  const visible = work.sections.map(section => ({ ...section, tasks: section.tasks.filter(({ task }) => matches(task)) }))
+    .filter(section => section.tasks.length);
   const owners = githubOwners(snapshot), choices = [[{ all: true }, '全員'], ...owners.filter(v => v !== null).sort().map(owner => [{ owner }, owner]), ...(owners.includes(null) ? [[{ owner: null }, '担当未設定']] : [])];
-  const count = work.sections.filter(section => section.id !== 'done').reduce((sum, section) => sum + section.tasks.length, 0);
+  const unfinished = todayOnly ? '' : ` · 未完了 ${visible.filter(section => section.id !== 'done').reduce((sum, section) => sum + section.tasks.length, 0)}件`;
+  const candidateCount = candidates.sections.reduce((sum, section) => sum + section.tasks.length, 0);
+  const todayButton = `<button type="button" class="owner-choice" data-today-candidates aria-pressed="${todayOnly}">今日の候補${candidates.dependenciesFetched ? ` ${candidateCount}件` : ''}</button>`;
   // 今の期間はProjectごとに決まる。Projectが複数あるときはProject名を添える。
   const period = work.currents.length ? '今の期間：' + work.currents.map(c => `${work.currents.length > 1 ? esc(c.project.title) + ' ' : ''}${esc(c.iteration.title)}（${shortDate(c.iteration.startDate)}–${shortDate(c.lastDay)}）`).join('、') : '今の期間：なし（Iterationが未設定）';
   const collapsed = copyCount ? new Set() : new Set(['ready-later', 'waiting', 'done']);
@@ -178,16 +190,18 @@ export function renderGithubWork(snapshot, filter = { all: true }, today = undef
     // 一覧は作業名と理由、担当・期限だけにする。モジュール・目標・Estimateは詳細で見る。
     const owners = t.projects.length ? t.projects.map(p => `${t.projects.length > 1 ? esc(p.title) + '：' : ''}${esc(p.owner ?? '担当未設定')}`).join(' / ') : 'Project未登録';
     const iteration = taskIteration(t), end = iteration && githubIterationLastDay(iteration);
-    const overdue = end && t.item.state !== 'closed' && end < (today ?? todayInTokyo());
-    const deadline = iteration ? `${esc(iteration.title)} · ${shortDate(end)}まで` : '期間未設定';
+    const overdue = end && t.item.state !== 'closed' && end < today;
+    const days = item.group === 'ready' || item.group === 'active' ? githubNearDeadlineDays(end, today) : null;
+    const countdown = days === null ? '' : days === 0 ? ' · 今日まで' : ` · あと${days}日`;
+    const deadline = iteration ? `${esc(iteration.title)} · ${shortDate(end)}まで${countdown}` : '期間未設定';
     const status = section === 'action' ? `<span class="badge unknown">${esc([...new Set(t.projects.map(p => p.status ?? 'Status未設定'))].join(' / ') || 'Project未登録')}</span>` : '';
     return `<li class="my-work-row" data-github-task="${t.number}"><div class="my-work-main">${itemButton(t)}${reasonList}</div><div class="my-work-meta"><span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span>${status}<span class="task-deadline ${overdue ? 'overdue' : iteration ? '' : 'unknown'}">${deadline}</span></div>${canSetNextAction(t) ? nextActionSelect(t, nextActions) : ''}</li>`;
   };
   const sections = selected === NEXT_ACTION_ASSIGNED
-    ? nextActionGroups(work, nextActions).map(({ action, items }) =>
+    ? nextActionGroups(visible, nextActions).map(({ action, items }) =>
       `<section class="my-work-section"><h3>${esc(action.label)} <span class="my-work-count">${items.length}件</span></h3><ul class="my-work-list">${items.map(item => row(item, item.section)).join('')}</ul></section>`,
     ).join('')
-    : work.sections.map(section => {
+    : visible.map(section => {
       const list = `<ul class="my-work-list">${section.tasks.map(item => row(item, section.id)).join('')}</ul>`;
       const title = section.id === 'done' && selected !== null ? '受入待ち' : section.title;
       const heading = `${esc(title)} <span class="my-work-count">${section.tasks.length}件</span>`;
@@ -195,7 +209,10 @@ export function renderGithubWork(snapshot, filter = { all: true }, today = undef
         ? `<details class="my-work-section" data-github-disclosure="work:${section.id}" data-my-work-section="${section.id}"><summary><h3>${heading}</h3></summary>${list}</details>`
         : `<section class="my-work-section ${section.id === 'urgent' ? 'urgent' : section.id === 'action' ? 'needs-action' : ''}" data-my-work-section="${section.id}"><h3>${heading}</h3>${list}</section>`;
     }).join('');
-  return `<div class="owner-filter" role="group" aria-label="GitHubの担当者で絞り込む">${choices.map(([value, label]) => `<button class="owner-choice" data-action="github-owner" data-github-owner-filter="${value.all ? 'all' : value.owner === null ? 'none' : 'owner'}"${typeof value.owner === 'string' ? ` data-owner-name="${esc(value.owner)}"` : ''} aria-pressed="${value.all ? !!filter.all : !filter.all && value.owner === filter.owner}">${esc(label)}</button>`).join('')}</div>${total ? nextActionFilter(counts, total, selected, assignedCount, copyCount) : ''}<p class="footnote my-work-period">${period} · 未完了 ${count}件 · 末端Issueのみ。${selected === null ? 'Closed・Doneの受入完了は未確認。' : ''}${work.dependenciesFetched ? '' : '前提とPRは未取得のため、再取得すると他の作業待ち・確認待ちを判定します。'}</p>${sections || '<p class="empty-message">この担当者の作業はありません。</p>'}`;
+  const empty = todayOnly && !work.dependenciesFetched ? '今日の候補は未確認です。'
+    : todayOnly && selected !== null && candidateCount > 0 ? '選んだ区分に今日の候補はありません。'
+    : todayOnly ? '今日の候補はありません。' : 'この担当者の作業はありません。';
+  return `<div class="owner-filter"><div class="owner-filter" role="group" aria-label="GitHubの担当者で絞り込む">${choices.map(([value, label]) => `<button class="owner-choice" data-action="github-owner" data-github-owner-filter="${value.all ? 'all' : value.owner === null ? 'none' : 'owner'}"${typeof value.owner === 'string' ? ` data-owner-name="${esc(value.owner)}"` : ''} aria-pressed="${value.all ? !!filter.all : !filter.all && value.owner === filter.owner}">${esc(label)}</button>`).join('')}</div>${todayButton}</div>${(total || selected !== null) ? nextActionFilter(counts, total, selected, assignedCount, copyCount, !todayOnly || work.dependenciesFetched) : ''}<p class="footnote my-work-period">${period}${unfinished} · 末端Issueのみ。${selected === null ? 'Closed・Doneの受入完了は未確認。' : ''}${work.dependenciesFetched ? '' : '前提とPRは未取得のため、再取得すると他の作業待ち・確認待ちを判定します。'}</p>${sections || `<p class="empty-message">${empty}</p>`}`;
 }
 export function githubGoalTree(snapshot, selectedNumber = null, taskNumbers = null) {
   const plan = githubPlan(snapshot);

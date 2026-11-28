@@ -88,6 +88,50 @@ test('区分で絞った作業を、番号・題名・状態・根拠つきで�
   assert.equal(githubNextActionText(snapshot, everyone, TODAY, {}, 'unknown'), null);
 });
 
+test('今日の候補を選ぶと、区分で表示・コピーする作業と件数も候補に絞る', () => {
+  const { githubSnapshot: snapshot } = sample().projects[0];
+  const today = '2026-10-22';
+  const nextActions = { 3: 'ai', 8: 'verify', 14: 'ai', 15: 'ai' };
+  const options = { todayOnly: true, nextActions, nextFilter: 'ai' };
+  const html = renderGithubWork(snapshot, everyone, today, options);
+  assert.match(html, /今日の候補 2件/);
+  assert.doesNotMatch(html, /未完了 \d+件/);
+  assert.match(html, /1件をコピー/);
+  assert.deepEqual([...html.matchAll(/data-github-task="(\d+)"/g)].map(match => match[1]), ['14']);
+  const copied = githubNextActionText(snapshot, everyone, today, nextActions, 'ai', options);
+  assert.deepEqual([...copied.matchAll(/^- #(\d+)/gm)].map(match => match[1]), ['14']);
+  const all = renderGithubWork(snapshot, everyone, today, { ...options, nextFilter: NEXT_ACTION_ASSIGNED });
+  assert.match(all, /data-next-action-copy="assigned">2件をコピー/);
+  const allCopied = githubNextActionText(snapshot, everyone, today, nextActions, NEXT_ACTION_ASSIGNED, options);
+  assert.deepEqual([...all.matchAll(/data-github-task="(\d+)"/g)].map(match => match[1]), ['8', '14']);
+  assert.deepEqual([...allCopied.matchAll(/^- #(\d+)/gm)].map(match => match[1]), ['8', '14']);
+});
+
+test('今日の候補が0件でも、担当者の未完了件数として0件を表示しない', () => {
+  const { githubSnapshot: snapshot } = sample().projects[0];
+  const owner = { owner: 'Codex' }, today = '2026-10-22';
+  assert.match(renderGithubWork(snapshot, owner, today), /未完了 4件/);
+  const candidates = renderGithubWork(snapshot, owner, today, { todayOnly: true });
+  assert.match(candidates, /今日の候補 0件/);
+  assert.match(candidates, /今日の候補はありません/);
+  assert.doesNotMatch(candidates, /未完了 \d+件/);
+});
+
+test('今日の候補と選んだ区分の両方に当たる作業が0件でも区分を保つ', () => {
+  const { githubSnapshot: snapshot } = sample().projects[0];
+  const today = '2026-10-22', nextActions = { 3: 'spec' };
+  const html = renderGithubWork(snapshot, everyone, today, { todayOnly: true, nextActions, nextFilter: 'spec' });
+  assert.match(html, /今日の候補 2件/);
+  assert.match(html, /<option value="spec" selected>仕様を決める 0件/);
+  assert.match(html, /選んだ区分に今日の候補はありません/);
+  assert.doesNotMatch(html, /data-next-action-copy=|data-github-task=/);
+  assert.equal(githubNextActionText(snapshot, everyone, today, nextActions, 'spec', { todayOnly: true }), null);
+  const all = renderGithubWork(snapshot, everyone, today, { todayOnly: true, nextActions, nextFilter: NEXT_ACTION_ASSIGNED });
+  assert.match(all, /<option value="assigned" selected>区分付きすべて 0件/);
+  assert.doesNotMatch(all, /data-next-action-copy=|data-github-task=/);
+  assert.equal(githubNextActionText(snapshot, everyone, today, nextActions, NEXT_ACTION_ASSIGNED, { todayOnly: true }), null);
+});
+
 test('担当者の絞り込みの外にある作業はコピーしない', () => {
   const { githubSnapshot: snapshot } = sample().projects[0];
   const text = githubNextActionText(snapshot, { owner: 'Claude' }, TODAY, { 9: 'ai', 14: 'ai' }, 'ai');
