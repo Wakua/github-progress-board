@@ -88,6 +88,19 @@ test('区分で絞った作業を、番号・題名・状態・根拠つきで�
   assert.equal(githubNextActionText(snapshot, everyone, TODAY, {}, 'unknown'), null);
 });
 
+test('今日の候補を選ぶと、区分で表示・コピーする作業と件数も候補に絞る', () => {
+  const { githubSnapshot: snapshot } = sample().projects[0];
+  const today = '2026-10-22';
+  const nextActions = { 3: 'ai', 14: 'ai', 15: 'ai' };
+  const options = { todayOnly: true, nextActions, nextFilter: 'ai' };
+  const html = renderGithubWork(snapshot, everyone, today, options);
+  assert.match(html, /今日の候補 2件/);
+  assert.match(html, /1件をコピー/);
+  assert.deepEqual([...html.matchAll(/data-github-task="(\d+)"/g)].map(match => match[1]), ['14']);
+  const copied = githubNextActionText(snapshot, everyone, today, nextActions, 'ai', options);
+  assert.deepEqual([...copied.matchAll(/^- #(\d+)/gm)].map(match => match[1]), ['14']);
+});
+
 test('担当者の絞り込みの外にある作業はコピーしない', () => {
   const { githubSnapshot: snapshot } = sample().projects[0];
   const text = githubNextActionText(snapshot, { owner: 'Claude' }, TODAY, { 9: 'ai', 14: 'ai' }, 'ai');

@@ -4,6 +4,7 @@ import { todayInTokyo } from './engine.mjs';
 import { capacityLimit, sumEstimates, assessLoad } from './capacity.mjs';
 
 const DAY = 86400000;
+const TODAY_DEADLINE_DAYS = 3;
 const lastDay = iteration => new Date(Date.parse(iteration.startDate + 'T00:00:00Z') + (iteration.duration - 1) * DAY).toISOString().slice(0, 10);
 const shortDate = date => `${Number(date.slice(5, 7))}/${Number(date.slice(8, 10))}`;
 // 作業の本来のまとまり（githubWorkCategory の group）の名前。緊急の行も、この名前で本来のまとまりを示す。
@@ -26,6 +27,11 @@ export function githubCurrentIterations(plan, today = todayInTokyo()) {
 }
 // 一覧の並びと期限の表示には、最も早く終わるIterationを使う。
 export const taskIteration = task => task.projects.map(p => p.iteration).filter(Boolean).sort((a, b) => lastDay(a).localeCompare(lastDay(b)))[0] || null;
+export function githubNearDeadlineDays(end, today) {
+  if (!end) return null;
+  const days = (Date.parse(end) - Date.parse(today)) / DAY;
+  return days >= 0 && days <= TODAY_DEADLINE_DAYS ? days : null;
+}
 // 期限超過は、どれか1つのProjectのIterationが終わっていれば当たる。
 const endedIteration = (issue, today) => issue.projects.map(p => p.iteration).filter(i => i && lastDay(i) < today).sort((a, b) => lastDay(a).localeCompare(lastDay(b)))[0] || null;
 export const taskOwners = task => [...new Set(task.projects.map(p => p.owner))];
@@ -91,11 +97,14 @@ export function githubProgressStates(plan, tasks, repositoryUrl, today = todayIn
 // filter は { all: true } か { owner: 担当者名 | null（担当未設定） }。
 // urgentFirst：緊急の未完了の作業を、ほかのまとまりへ重ねず先頭の「緊急」に集める。各項目の group は、本来のまとまり。
 // include：作業を表示に含めるかを返す関数（区分での絞り込みに使う）。
-export function githubMyWork(snapshot, filter = { all: true }, today = todayInTokyo(), { urgentFirst = false, include = null } = {}) {
+// todayOnly：前提とPRを取得済みの場合に、今着手できる作業と期限の近い作業中の項目を表示する。
+export function githubMyWork(snapshot, filter = { all: true }, today = todayInTokyo(), { urgentFirst = false, include = null, todayOnly = false } = {}) {
   const plan = githubPlan(snapshot);
   if (!plan) return null;
   const currents = githubCurrentIterations(plan, today);
-  const isCurrent = task => task.projects.some(p => p.iteration && currents.some(c => c.project.id === p.id && c.iteration.id === p.iteration.id));
+  const dependenciesFetched = plan.issues.every(i => Object.hasOwn(i, 'spec'));
+  const isCurrent = (task, started = false) => task.projects.some(p => p.iteration
+    && currents.some(c => c.project.id === p.id && c.iteration.id === p.iteration.id && (!started || c.iteration.startDate <= today)));
   const sections = SECTIONS.map(([id, title]) => ({ id, title, tasks: [] }));
   const byId = new Map(sections.map(section => [section.id, section]));
   const order = task => [taskIteration(task)?.startDate || '9999-99-99', task.number];
@@ -105,12 +114,17 @@ export function githubMyWork(snapshot, filter = { all: true }, today = todayInTo
     .sort((a, b) => { const [x, y] = [order(a), order(b)]; return x[0].localeCompare(y[0]) || x[1] - y[1]; });
   for (const task of tasks) {
     const category = githubWorkCategory(plan, task, snapshot.repositoryUrl, today);
+    if (todayOnly) {
+      const iteration = taskIteration(task);
+      const canStart = category.group === 'ready' && isCurrent(task, true);
+      const closeToDeadline = category.group === 'active' && githubNearDeadlineDays(iteration && lastDay(iteration), today) !== null;
+      if (!dependenciesFetched || (!canStart && !closeToDeadline)) continue;
+    }
     const id = urgentFirst && category.group !== 'done' && isUrgent(task) ? 'urgent'
       : category.group !== 'ready' ? category.group : isCurrent(task) ? 'ready-now' : 'ready-later';
     byId.get(id).tasks.push({ task, reasons: category.reasons, group: category.group });
   }
-  return { currents, dependenciesFetched: plan.issues.every(i => Object.hasOwn(i, 'spec')),
-    sections: sections.filter(section => section.tasks.length) };
+  return { currents, dependenciesFetched, sections: sections.filter(section => section.tasks.length) };
 }
 // 期間（GitHubのProject × Iteration）の担当別の負荷。そのProjectの担当・Estimate・Statusだけを使い、ClosedとDoneは除く。
 // 担当者は名前順に並べ、担当のない作業（未担当）は末尾に置く。未担当には上限を当てない。

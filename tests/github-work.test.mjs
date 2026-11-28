@@ -93,6 +93,34 @@ test('仕様待ちの前提が閉じると、止まっていた作業は着手�
   assert.deepEqual(groups(githubMyWork(snapshot(data), { owner: 'Claude' }, today))['ready-now'], [[3, []]]);
 });
 
+test('今日の候補は進行中の期間の着手可能な作業と期限3日以内の作業中だけを含む', () => {
+  const data = inputs(), value = snapshot(data);
+  const owner = { owner: 'Claude' };
+  const candidates = (day, filter = { all: true }, source = value) =>
+    groups(githubMyWork(source, filter, day, { urgentFirst: true, todayOnly: true }));
+  assert.deepEqual(candidates('2026-10-07'), { 'ready-now': [[6, []]] });
+  for (const day of ['2026-10-08', '2026-10-11']) {
+    assert.deepEqual(candidates(day, owner), { active: [[1, ['Draft PR #101']]] });
+  }
+  assert.deepEqual(candidates('2026-10-11'), { active: [[1, ['Draft PR #101']]], 'ready-now': [[6, []]] });
+  assert.deepEqual(candidates('2026-10-04'), {});
+  assert.deepEqual(candidates('2026-10-12', owner), {});
+  data.hierarchyPages[0].data.repository.issues.nodes[2].blockedBy = connection([blocker(2, { state: 'CLOSED' })]);
+  assert.deepEqual(candidates('2026-10-07', owner, snapshot(data)), { 'ready-now': [[3, []]] });
+});
+
+test('期限欄は3日前から残り日数を出し、翌日から期限超過の表示に戻る', () => {
+  const value = snapshot(inputs());
+  const render = day => renderGithubWork(value, { owner: 'Claude' }, day);
+  assert.doesNotMatch(render('2026-10-07'), /あと4日/);
+  assert.match(render('2026-10-08'), /10\/11まで · あと3日/);
+  assert.match(render('2026-10-09'), /10\/11まで · あと2日/);
+  assert.match(render('2026-10-10'), /10\/11まで · あと1日/);
+  assert.match(render('2026-10-11'), /10\/11まで · 今日まで/);
+  assert.match(render('2026-10-12'), /期限超過：it1/);
+  assert.doesNotMatch(render('2026-10-12'), /今日まで/);
+});
+
 test('前提・PRを取得していない古いsnapshotでも表示し、未取得と示す', () => {
   const value = snapshot(inputs());
   for (const issue of value.planning.issues) { delete issue.blockedBy; delete issue.pullRequests; delete issue.spec; }
@@ -100,6 +128,7 @@ test('前提・PRを取得していない古いsnapshotでも表示し、未取�
   const work = githubMyWork(value, { all: true }, today);
   assert.equal(work.dependenciesFetched, false);
   assert.ok(renderGithubWork(value, { all: true }, today).includes('前提とPRは未取得'));
+  assert.match(renderGithubWork(value, { all: true }, today, { todayOnly: true }), /今日の候補は未確認です/);
 });
 
 test('前提・PR・仕様ラベルの一部だけの保存や不正な値を拒否する', () => {
