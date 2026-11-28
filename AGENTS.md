@@ -71,7 +71,8 @@ UI変更の必須レビューと提出条件は、[UI/UXレビューの手順](d
   紐づけは `gh api -X POST repos/<owner>/<repo>/issues/<親の番号>/sub_issues -F sub_issue_id=<子のid>` で行う。`sub_issue_id` には、Issueの番号ではなく、`gh api repos/<owner>/<repo>/issues/<子の番号> --jq .id` で得るidを渡す。
 - 着手の前提がある作業のIssueには、依存関係（blocked by）を登録する。
 - Claude・CodexはGitHubのユーザーではないため、担当はAssigneeではなくProjectの「担当」フィールド（Wakua・Claude・Codex）で示す。
-- ガント用の初期設定後は、作業Issueの登録時と作業の区切りに、[作業進捗率の入力・更新](docs/milestone-gantt.md#正本と更新の範囲)を行う。
+- ガント用の初期設定後は、作業Issueの登録時に[作業進捗率を入力する](docs/milestone-gantt.md#正本と更新の範囲)。
+- オーケストレーターは、[ガントの初版と更新](docs/development-workflow.md#ガントの初版と更新)に従って並列に始める作業を決め、担当チャットの作業の区切りでガントへの反映を確認する。
 - IssueとPRの本文は「目的」から始め、誰が何をできるようになるかを書く。実装の手段は「手段」として分けて書く。
 - PRの「目的」の先頭に、対応するIssueを `- #番号` の箇条書きで置く。GitHubがIssueのタイトルを表示する。
 - PRの本文では、対応するIssueを `Closes #番号` か `Refs #番号` で示す。対応するIssueのないPRは作らない。
