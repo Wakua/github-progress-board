@@ -13,7 +13,8 @@
 | 対象Issue、集約Issue、依存関係 | [計算する作業と依存関係](milestone-gantt.md#計算する作業と依存関係) |
 | 完了判定、進捗率、残り作業量 | [作業進捗率](milestone-gantt.md#作業進捗率) |
 | 基準日、開始条件、日数換算 | [基準日と平日](milestone-gantt.md#基準日と平日) |
-| 最早・最遅日程、余裕、期日との差 | [クリティカルパスと余裕](milestone-gantt.md#クリティカルパスと余裕) |
+| 最早・最遅日程、余裕 | [クリティカルパスと余裕](milestone-gantt.md#クリティカルパスと余裕) |
+| 完了までの下限、期日との差 | [完了までの下限と期日](milestone-gantt.md#完了までの下限と期日) |
 | 担当の重複と確認範囲 | [担当の重複](milestone-gantt.md#担当の重複) |
 | Projectの出典、取得範囲 | [正本と更新の範囲](milestone-gantt.md#正本と更新の範囲) |
 | 情報不足、循環 | [情報不足と不整合](milestone-gantt.md#情報不足と不整合) |
@@ -109,7 +110,7 @@ type IssueInput = {
 Milestoneの `tasks` は、所属する末端Issueの一覧と取得完全性を表す。
 Issueの表示名など、日程を決めない表示情報は画面側がキーから参照する。
 
-`selectedProjectId` は担当重複を確認するProjectの範囲を示す。
+`selectedProjectId` は担当別の下限と重複を確認するProjectの範囲を示す。
 各Issueの `sourceProjectId` は、そのIssueの日程に使うフィールドの出典を示す。
 外部の前提にも出典を持たせ、複数Projectのフィールドを混ぜない。
 候補が複数あって利用者の指定を特定できない場合は `unselected` とし、先頭のProjectを選ばない。
@@ -300,7 +301,7 @@ Milestoneの内部計算状態は、`calculated`、`incomplete`、`empty`、`com
 | --- | --- |
 | `baseDate`, `calculationStartDate`, `fetchedAt`, `selectedProjectId` | 入力の基準日、平日へ調整した原点、取得日時、担当重複を調べるProject |
 | `tasks` | 展開した末端作業。`key`、`sourceProjectId`、adapter由来の `completion`、`remainingPoints`、`durationDays`、`durationDisplay`、`earliestStart`、`earliestFinish`、`iterationOverflow`、診断の参照を持つ |
-| `milestones` | `key`、`state`、`targetTaskKeys`、前提を含む `taskKeys`、`remainingPoints`、`finish`、`dueDate`、`dueDifference`、作業別の `tasks`、`criticalTaskKeys`、`criticalEdgeIds`、`diagnosticIds` を持つ |
+| `milestones` | `key`、`state`、`targetTaskKeys`、前提を含む `taskKeys`、`remainingPoints`、`finish`、`dueDate`、`dueDifference`、`completionBounds`、作業別の `tasks`、`criticalTaskKeys`、`criticalEdgeIds`、`diagnosticIds` を持つ |
 | `milestones[].tasks` | `key`、`latestStart`、`latestFinish`、`slackDays`、`slackDisplay`、`critical`、`diagnosticIds` を持つ。Milestoneが未確定なら逆方向日程とクリティカル判定は `null` |
 | `edges` | `id`、`from`、`to`、`evidence`、Milestoneキーから真偽値または未確定の `null` を引く `criticalByMilestone` を持つ |
 | `edges[].evidence` | `relationId`、前提側で展開した `prerequisiteAggregates`、後続側で継承した `successorAggregates` のキーを持つ |
@@ -327,6 +328,17 @@ IssueとMilestoneのキーは大文字小文字を同一視し、末尾のスラ
 `display` は絶対量を要件の丸め規則で表した文字列であり、符号やクリティカル判定へ再利用しない。
 期日が未設定または不正なら `dueDifference` は `null` とし、不正な期日は診断に残す。
 `iterationOverflow` は終了日を超える場合の `{ days, display }`、超えない場合は `null` とする。
+
+`completionBounds` は `state: calculated` または `state: incomplete` のマイルストーンで返す。
+`dependencies`、`workload`、`bound` は、基準日から数えた日数の `{ days, display }` とする。
+`dependencies` は `finish.coordinate` に対応し、日程が未算出なら `null` とする。
+`workload` は前提を含む末端作業で判明した残量を担当者別に足した最大値に対応する。
+`workloadPartial` は集計できない作業があるか日程を算出できない場合に `true` とし、そのとき判明した正の残量がなければ `workload` を `null` とする。
+`bound` は判明した下限の最大値、`overdue` は下限から期日までの平日座標を引いた正の値とする。
+`bound` を算出できない場合、または期日との差を判定できない場合は、対応する値を `null` とする。
+`factor` は `dependencies`、`workload`、`both` のいずれかで、担当者の下限を算出できない場合は `null` とする。
+`owners` は最大の残量を持つ担当者名、`gaps` は担当者の集計に必要な情報がない作業のキーと理由を持つ。
+表示と集計の規則は[完了までの下限と期日](milestone-gantt.md#完了までの下限と期日)に従う。
 
 Milestoneの `remainingPoints` は前提を含む未完了作業を一度ずつ足した値とする。
 対象または前提が未確定なら `null`、全作業完了なら0を返す。

@@ -7,6 +7,7 @@ const files = new Map([
   '/docs/prototypes/milestone-gantt.mjs',
   '/docs/prototypes/milestone-gantt-samples.mjs',
   '/docs/prototypes/milestone-gantt-view.mjs',
+  '/dist/capacity.mjs',
   '/dist/milestone-schedule.mjs',
   '/dist/milestone-schedule-math.mjs',
 ].map(path => [path, new URL(`..${path}`, import.meta.url)]));

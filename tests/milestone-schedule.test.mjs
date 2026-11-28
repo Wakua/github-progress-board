@@ -50,6 +50,91 @@ test('同じ長さの複数経路を列挙せず、作業と辺をすべて返�
   assert.equal(release(result).criticalEdgeIds.length, 1);
 });
 
+test('担当者の残量は共有する前提を一度ずつ数え、依存関係上の日程と別に期日超過を判定する', () => {
+  const result = calculate([
+    task('A', 4, { owner: '担当A', progress: 50 }),
+    task('B', 3, { owner: '担当A' }),
+    task('C', 1, { after: ['A', 'B'] }),
+    task('D', 0.5, { after: ['A', 'B'] }),
+    task('E', 99, { owner: '担当A' }),
+  ], [milestone(['C', 'D'], { due: '2026-10-08' })]);
+  const schedule = release(result);
+  assert.equal(finish(result), 4);
+  assert.equal(schedule.dueDifference.relation, 'on-time');
+  assert.equal(row(result, 'B').earliestStart.coordinate, 0);
+  assert.deepEqual(schedule.criticalTaskKeys, [key('B'), key('C')]);
+  assert.deepEqual(schedule.completionBounds, {
+    dependencies: { days: 4, display: '4平日' },
+    workload: { days: 5, display: '5平日' },
+    workloadPartial: false,
+    bound: { days: 5, display: '5平日' },
+    factor: 'workload',
+    overdue: { days: 1, display: '1平日' },
+    owners: ['担当A'],
+    gaps: [],
+  });
+});
+
+test('担当不明と別Projectの作業を示し、残量ゼロの作業は担当確認を要しない', () => {
+  const missing = task('A');
+  missing.planning.owner = read(null);
+  const other = task('B');
+  other.planning.sourceProjectId = 'project-b';
+  const zero = task('C', 3, { progress: 100 });
+  zero.planning.owner = read(null);
+  const bounds = release(calculate([missing, other, zero, task('D', 2)])).completionBounds;
+  assert.deepEqual(bounds.gaps, [
+    { key: key('A'), reasons: ['owner-unknown'] },
+    { key: key('B'), reasons: ['outside-project'] },
+  ]);
+  assert.equal(bounds.workload.days, 2);
+  assert.equal(bounds.workloadPartial, true);
+  assert.equal(bounds.factor, 'both');
+  assert.deepEqual(bounds.bound, bounds.dependencies);
+  assert.equal(bounds.bound.days, 2);
+});
+
+test('担当不明・対象Project外・残量不明の前提があっても、判明分だけで期日を超えると警告する', () => {
+  for (const [reason, change] of [
+    ['owner-unknown', planning => { planning.owner = read(null); }],
+    ['outside-project', planning => { planning.sourceProjectId = 'project-b'; }],
+    ['remaining-work-unknown', planning => { planning.workProgressPercent = read(null); }],
+  ]) {
+    const partial = task('C', 1);
+    change(partial.planning);
+    const result = calculate([
+      task('A', 2, { owner: '担当A' }),
+      task('B', 3, { owner: '担当A' }),
+      partial,
+      task('D', 1, { after: ['A', 'B', 'C'] }),
+    ], [milestone(['D'], { due: '2026-10-08' })]);
+    const bounds = release(result).completionBounds;
+    assert.equal(bounds.workloadPartial, true, reason);
+    assert.equal(bounds.workload.days, 5, reason);
+    assert.equal(bounds.bound.days, 5, reason);
+    assert.equal(bounds.factor, 'workload', reason);
+    assert.equal(bounds.overdue.days, 1, reason);
+    assert.equal(bounds.dependencies?.days ?? null, reason === 'remaining-work-unknown' ? null : 4, reason);
+    assert.deepEqual(bounds.gaps, [{ key: key('C'), reasons: [reason] }]);
+  }
+});
+
+test('下限の大小と超過は丸めず判定し、表示だけを切り捨てる', () => {
+  const tie = release(calculate([task('A', 0.5), task('B', 0.5)])).completionBounds;
+  assert.equal(tie.factor, 'both');
+  const delayed = release(calculate([task('A', 1.239, { start: '2026-10-06' })])).completionBounds;
+  assert.equal(delayed.factor, 'dependencies');
+  assert.deepEqual(delayed.bound, { days: 2.239, display: '2.23平日' });
+  const tiny = release(calculate([task('A', 1.004)], [milestone(['A'], { due: '2026-10-05' })])).completionBounds;
+  assert.equal(tiny.overdue.display, '0.01平日未満');
+  const missing = task('B');
+  missing.planning.workProgressPercent = read(null);
+  const unknown = release(calculate([missing])).completionBounds;
+  assert.equal(unknown.bound, null);
+  assert.equal(unknown.workload, null);
+  assert.equal(unknown.overdue, null);
+});
+
 test('見積5ptの60%完了は残り2日。再取得値で再計算できる', () => {
   const original = input([task('A', 5, { progress: 60 })]);
   const before = structuredClone(original);
