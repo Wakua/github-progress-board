@@ -1,6 +1,7 @@
 import {RESULT_STATES as statuses,statusNames,clone,emptyPlan,counts,recorded,canDelete,completion,validatePlan as validate,planValues} from './plan-model.mjs';
 import {createPlanRepository} from './plan-repository.mjs';
 import {createPlanSession} from './plan-session.mjs';
+import {canExportPlan,exportPlan} from './plan-export.mjs';
 const session=createPlanSession(createPlanRepository());
 let cases=[],busy=false,loadError='',saveError=null,retryAction=null;
 const app=document.querySelector('#app'),modal=document.querySelector('#modal');
@@ -69,7 +70,7 @@ function bindPicker(ids,update,excluded=[],redraw){
  on('select-visible','click',()=>{const visible=visibleCases(excluded).map(c=>c.id);update(visible.every(id=>ids.includes(id))?ids.filter(id=>!visible.includes(id)):[...new Set([...ids,...visible])]);focus('select-visible');});
 }
 function summaryTotals(p){const c=counts(p);return `<div class="totals">${statuses.map(s=>`<span class="total ${s==='Not Run'?'notrun':''}"><b>${c[s]}</b>${statusNames[s]}</span>`).join('')}<span class="total"><b>${c.retest}</b>再テスト待ち</span></div>`;}
-function detailView(p){const c=counts(p),done=['Completed','Archived'].includes(p.state);return `<div class="panel-head"><div><small>${p.id} · v${esc(p.version)}</small><h2 id="plan-title" tabindex="-1">${esc(p.name)}</h2></div><div class="right">${badge(p.state)}<button id="edit-plan">編集</button></div></div><div class="summary"><span>${p.caseIds.length}ケース × ${p.conditions.length}条件 <strong>全${p.results.length}件</strong></span><span>${done?'計画を完了':'未実施'} <strong>${done?`合格 ${c.Passed}件`:`${c['Not Run']}件`}</strong></span></div>${summaryTotals(p)}<div class="section-head"><h3>ケース</h3><button id="add-cases" ${done?'disabled':''}>＋ ケースを追加</button></div><table class="results"><thead><tr><th>ケース・担当</th><th>実施条件ごとの結果</th><th>計画から</th></tr></thead><tbody>${p.caseIds.map(id=>{const tc=findCase(id),locked=recorded(p,'case',id);return `<tr><td><small>${esc(id)} · ${esc(tc.category)}</small>${esc(tc.title)}<small><button class="quiet" id="assignee-${id}" data-assignee="${id}">${esc(p.assignees[id]||'担当を設定')}</button></small></td><td class="result-stack">${p.results.filter(r=>r.caseId===id).map(r=>`<div class="result-line"><span>${esc(envName(p.conditions.find(e=>e.id===r.envId)))}</span>${badge(r.status)}</div>`).join('')}</td><td><button data-remove-case="${id}" ${locked||done?'disabled':''}>外す</button>${locked?`<small class="lock">記録済み ${locked}件</small>`:''}</td></tr>`;}).join('')}</tbody></table><div class="section"><div class="section-head"><h3>実施条件 <span class="muted">${p.conditions.length}</span></h3><button id="manage-env" ${done?'disabled':''}>条件を編集</button></div><p class="muted">${p.conditions.map(envName).map(esc).join(' ／ ')}</p></div><details class="optional"><summary>履歴 ${p.history.length}件・実施記録</summary><ul class="history">${p.history.map(h=>`<li><time>${esc(new Date(h.at).toLocaleString('ja-JP'))}</time>${esc(h.text)}<details><summary>変更内容</summary><pre>${esc(historyDetails(h))}</pre></details></li>`).join('')}</ul><h3>実施者・実施日時</h3>${p.results.map(r=>`<p class="hint">${r.caseId} · ${esc(envName(p.conditions.find(e=>e.id===r.envId)))}：${r.recordedAt===null?'未実施（実施者・日時なし）':`${esc(r.performer)} · ${esc(r.date)}`}</p>`).join('')}</details><div class="admin">${canDelete(p)?'<button id="delete-plan" class="danger">下書きを削除</button>':`<span class="lock">${p.results.some(r=>r.recordedAt!==null)?'結果を記録した計画は削除できません':'削除できるのは結果のない下書きです'}</span>`}<div class="right">${done?`${p.state==='Completed'?'<button id="archive">保管する</button> <button id="reopen" class="primary">再開する</button>':''}`:`${p.state==='Draft'?'<button id="start-plan">実施を開始</button> ':''}<button id="complete" class="primary" ${c['Not Run']?'disabled':''}>計画を完了</button>${c['Not Run']?`<p class="hint">未実施 ${c['Not Run']}件が残っています</p>`:''}`}</div></div>`;}
+function detailView(p){const c=counts(p),done=['Completed','Archived'].includes(p.state);return `<div class="panel-head"><div><small>${p.id} · v${esc(p.version)}</small><h2 id="plan-title" tabindex="-1">${esc(p.name)}</h2></div><div class="right">${badge(p.state)}${canExportPlan(p)?'<button id="export-plan">書き出す</button>':''}<button id="edit-plan">編集</button></div></div><div class="summary"><span>${p.caseIds.length}ケース × ${p.conditions.length}条件 <strong>全${p.results.length}件</strong></span><span>${done?'計画を完了':'未実施'} <strong>${done?`合格 ${c.Passed}件`:`${c['Not Run']}件`}</strong></span></div>${summaryTotals(p)}<div class="section-head"><h3>ケース</h3><button id="add-cases" ${done?'disabled':''}>＋ ケースを追加</button></div><table class="results"><thead><tr><th>ケース・担当</th><th>実施条件ごとの結果</th><th>計画から</th></tr></thead><tbody>${p.caseIds.map(id=>{const tc=findCase(id),locked=recorded(p,'case',id);return `<tr><td><small>${esc(id)} · ${esc(tc.category)}</small>${esc(tc.title)}<small><button class="quiet" id="assignee-${id}" data-assignee="${id}">${esc(p.assignees[id]||'担当を設定')}</button></small></td><td class="result-stack">${p.results.filter(r=>r.caseId===id).map(r=>`<div class="result-line"><span>${esc(envName(p.conditions.find(e=>e.id===r.envId)))}</span>${badge(r.status)}</div>`).join('')}</td><td><button data-remove-case="${id}" ${locked||done?'disabled':''}>外す</button>${locked?`<small class="lock">記録済み ${locked}件</small>`:''}</td></tr>`;}).join('')}</tbody></table><div class="section"><div class="section-head"><h3>実施条件 <span class="muted">${p.conditions.length}</span></h3><button id="manage-env" ${done?'disabled':''}>条件を編集</button></div><p class="muted">${p.conditions.map(envName).map(esc).join(' ／ ')}</p></div><details class="optional"><summary>履歴 ${p.history.length}件・実施記録</summary><ul class="history">${p.history.map(h=>`<li><time>${esc(new Date(h.at).toLocaleString('ja-JP'))}</time>${esc(h.text)}<details><summary>変更内容</summary><pre>${esc(historyDetails(h))}</pre></details></li>`).join('')}</ul><h3>実施者・実施日時</h3>${p.results.map(r=>`<p class="hint">${r.caseId} · ${esc(envName(p.conditions.find(e=>e.id===r.envId)))}：${r.recordedAt===null?'未実施（実施者・日時なし）':`${esc(r.performer)} · ${esc(r.date)}`}</p>`).join('')}</details><div class="admin">${canDelete(p)?'<button id="delete-plan" class="danger">下書きを削除</button>':`<span class="lock">${p.results.some(r=>r.recordedAt!==null)?'結果を記録した計画は削除できません':'削除できるのは結果のない下書きです'}</span>`}<div class="right">${done?`${p.state==='Completed'?'<button id="archive">保管する</button> <button id="reopen" class="primary">再開する</button>':''}`:`${p.state==='Draft'?'<button id="start-plan">実施を開始</button> ':''}<button id="complete" class="primary" ${c['Not Run']?'disabled':''}>計画を完了</button>${c['Not Run']?`<p class="hint">未実施 ${c['Not Run']}件が残っています</p>`:''}`}</div></div>`;}
 
 // 保存に成功するまで一覧の値と入力欄を置き換えない。
 async function persist(proposal,after,{action='save',acknowledgeWarnings=false}={}) {
@@ -125,7 +126,37 @@ function saved(message,focusId='plan-title'){
 function changeState(p,state,acknowledgeWarnings=false){
  persist({...clone(p),state},saved(state==='Completed'?'計画を完了しました':state==='Archived'?'計画を保管しました':'実施中にしました'),{acknowledgeWarnings});
 }
+function showExport(p){
+ showDialog('計画を書き出す',`<p>${esc(p.name)}</p><p id="export-error" class="error" role="alert" hidden></p><div class="actions"><button data-close>閉じる</button><button id="export-md" autofocus>Markdown</button><button id="export-xlsx">Excel</button></div>`,()=>{
+  on('export-md','click',()=>downloadPlan(p.id,'md'));
+  on('export-xlsx','click',()=>downloadPlan(p.id,'xlsx'));
+ });
+}
+async function downloadPlan(id,format){
+ if(busy)return;
+ const failure=el('export-error');
+ failure.hidden=true;busy=true;setBusy();
+ let unavailable=false;
+ try{
+  const data=await session.load();
+  const plan=data.plans.find(item=>item.id===id);
+  unavailable=!canExportPlan(plan);
+  const file=exportPlan(plan,data.cases,format);
+  const url=URL.createObjectURL(file.blob);
+  const link=document.createElement('a');link.href=url;link.download=file.name;
+  try{document.body.append(link);link.click();}
+  finally{link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  modal.close();notify(`${format==='xlsx'?'Excel':'Markdown'}を書き出しました`);
+ }catch(cause){
+  failure.textContent=cause.message;failure.hidden=false;
+ }finally{
+  busy=false;setBusy();
+  if(unavailable){el('export-md').disabled=true;el('export-xlsx').disabled=true;modal.querySelector('[data-close]').focus();}
+  else if(modal.open)focus(format==='xlsx'?'export-xlsx':'export-md');
+ }
+}
 function bindDetail(p){
+ on('export-plan','click',()=>showExport(p));
  on('edit-plan','click',()=>editPlan(p));on('add-cases','click',()=>addCases(p));on('manage-env','click',()=>manageEnv(p));
  app.querySelectorAll('[data-remove-case]').forEach(b=>b.onclick=()=>confirmAction('計画から外しますか？',`<p>${esc(findCase(b.dataset.removeCase).title)}</p><p class="muted">ケース本体は残ります。</p>`,'外す',()=>{
   const next=clone(p),id=b.dataset.removeCase;next.caseIds=next.caseIds.filter(c=>c!==id);delete next.assignees[id];persist(next,saved('計画から外しました','add-cases'));
