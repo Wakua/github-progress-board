@@ -97,9 +97,17 @@ Issue本文からは[受入待ちの記録](#受入と公開版の記録)だけ�
 node --test --experimental-test-coverage --test-coverage-include='dist/bugs/view.mjs' --test-reporter=spec --test-reporter-destination=stdout --test-reporter=lcov --test-reporter-destination=<Git管理外のファイル> tests/bug-github-view.test.mjs
 ```
 
-lcovの `BRDA:<行>,<ブロック>,<分岐>,<通った回数>` のうち、通った回数が0または`-`のものが、通っていない分岐である。
-`BRDA` の行は分岐の範囲が始まる行であり、変えた行と一致しないことがある。
-そのため、差分の行番号で絞らず、変えた行を含む文の全体（複数行にまたがる条件式と、その分岐先のブロック）の範囲にある `BRDA` を見る。
+書き出したlcovで、次の順に確かめる。
+
+1. 変えたファイルが、lcovに含まれていることを確かめる。
+   含まれていなければ、測定に使った試験がそのファイルを読み込んでいないため、試験を選び直す。
+2. 変えた関数の実行回数（`FNDA:<回数>,<関数名>`）と、変えた行の実行回数（`DA:<行>,<回数>`）を確かめる。
+   一度も実行されていない関数の中の分岐は、`BRDA` に記録されない。
+   その場合は、関数の中で変えた分岐を、すべて通っていない分岐として書く。
+3. 関数が実行されていれば、`BRDA:<行>,<ブロック>,<分岐>,<通った回数>` のうち、通った回数が0または`-`のものを、通っていない分岐として書く。
+   `BRDA` の行は分岐の範囲が始まる行であり、変えた行と一致しないことがある。
+   そのため、差分の行番号で絞らず、変えた行を含む文の全体（複数行にまたがる条件式と、その分岐先のブロック）の範囲にある `BRDA` を見る。
+
 通っていない分岐には、試験を足すか、確かめない理由を書く。
 全体の網羅率にも、変えたコードの網羅率にも数値の目標を置かず、網羅率を上げるためだけの試験は足さない。
 網羅率では、書かれたコードを通ったかだけが分かり、仕様にあるのに実装されていない動作は見つからないためである。
@@ -108,9 +116,9 @@ lcovの `BRDA:<行>,<ブロック>,<分岐>,<通った回数>` のうち、通�
 
 | 資料 | この節で使った内容 |
 | --- | --- |
-| [The Practical Test Pyramid](https://martinfowler.com/articles/practical-test-pyramid.html)（Ham Vocke、「Avoid Test Duplication」の節） | 上の層の試験で誤りが見つかり、下の層の試験が失敗しないときは、下の層の試験を書く。試験はできるだけ下の層で書く。上の層の試験は、下の層で確かめられない部分に絞り、下の層で確かめた試験は消す |
+| [The Practical Test Pyramid](https://martinfowler.com/articles/practical-test-pyramid.html)（Ham Vocke、「Avoid Test Duplication」の節） | 上の層の試験で誤りが見つかり、下の層の試験が失敗しないときは、下の層の試験を書く。試験はできるだけ下の層で書く。上の層の試験は、下の層で確かめられない部分に絞る。下の層で確かめていて、上の層で追加の確認が得られない試験は消す |
 | [Test case quality criteria](https://trustedinstitute.com/concept/istqb-ctal-ta/test-analyst-in-the-test-process/test-case-quality-criteria-content/)（ISTQB Advanced Test Analyst の解説） | 重複した試験は、情報を増やさずに費用を増やすため、消すかまとめる |
-| [Code Coverage Best Practices](https://testing.googleblog.com/2020/08/code-coverage-best-practices.html)（Google Testing Blog） | すべての製品に当てはまる理想の網羅率はない。網羅されている部分より、網羅されていない部分に意味がある。網羅率を満たすためだけの価値の低い試験を足さない |
+| [Code Coverage Best Practices](https://testing.googleblog.com/2020/08/code-coverage-best-practices.html)（Google Testing Blog） | すべての製品に当てはまる理想の網羅率はない。網羅されている部分より、網羅されていない部分に意味がある。網羅率を満たすためだけの価値の低い試験を足さない。この記事は変更ごとの網羅率に数値の目安も示しているが、このプロジェクトでは数値の目標を置かないと決めた |
 
 ## 検証手順
 
