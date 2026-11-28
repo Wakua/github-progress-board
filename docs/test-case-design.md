@@ -24,7 +24,7 @@
 | 受入 | 利用者の業務 | 実際の運用で使えるか | 観点の案だけを出す |
 
 「結合テスト」と「統合テスト」は同じテストレベルとして扱う。
-ISTQB Foundation Level v4.0は、統合テストをコンポーネント統合テストとシステム統合テストに分けるが、このスキルでは両方を統合テストにまとめ、部品の間の接続と外部のシステムとの接続の両方を対象にする。
+JSTQBのFoundation Levelシラバス V4.0は、統合テストをコンポーネント統合テストとシステム統合テストに分けるが、このスキルでは両方を統合テストにまとめ、部品の間の接続と外部のシステムとの接続の両方を対象にする。
 同じ内容を複数のテストレベルで確かめない。
 ほかのテストレベルで確かめる観点は、どのレベルで確かめるかを書いて対象外にする。
 
@@ -173,8 +173,8 @@ ISTQB Foundation Level v4.0は、統合テストをコンポーネント統合�
 | [Quality attributes of test cases and test suites](https://arxiv.org/html/2507.06343v1)（Tran ほか） | 354件の回答で、不具合を見つける力が最も重視された。単純さと効率は、状況によって評価が分かれた |
 | [Interactions involved in software failures](https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures)（NIST） | 多くの不具合は1〜2因子の組み合わせで起き、確認された不具合は6因子以下の組み合わせで起きている |
 | [テストレベル](https://www.oreilly.com/library/view/che-di-gong-lue-jstqb-foundationjiao-ke-shu-wen-ti-ji/9784295017677/chapter-25.html)（徹底攻略 JSTQB Foundation 教科書、シラバス2018対応） | テストレベルは、コンポーネント、統合、システム、受け入れの4つで、統合テストは結合テストとも呼ぶ |
-| [2.2 Test Levels and Test Types](https://astqb.org/2-2-test-levels-and-test-types/)（ASTQB、ISTQB Foundation Level v4.0） | テストレベルは、コンポーネント、コンポーネント統合、システム、システム統合、受け入れの5つである |
-| [5.2 Risk Management](https://astqb.org/5-2-risk-management/)（ASTQB、ISTQB Foundation Level v4.0） | リスクの大きさは、起きやすさと、起きたときの影響の2つで表す |
+| [テスト技術者資格制度 Foundation Level シラバス V4.0](https://jstqb.jp/dl/JSTQB-SyllabusFoundation_VersionV40.J02.pdf)（JSTQB、2.2.1節） | テストレベルは、コンポーネント、コンポーネント統合、システム、システム統合、受け入れの5つである |
+| 同上（5.2.1節、5.2.3節） | リスクレベルは、リスクの可能性と、リスクの影響の2つで表す。プロダクトリスク分析の結果で、テストの範囲、達成すべきカバレッジ、テストの優先順位を決める |
 | [システム開発におけるテスト工程](https://shiftasia.com/community/test-process-in-system-development/)（SHIFT ASIA） | 結合テストで、基本設計書どおりに部品やシステムの間のやりとりが動くかを確かめる |
 | [V字モデルの全体像と実践的な活用方法](https://zenn.dev/hayato/articles/3e5728f17c3592)（Zenn） | 結合テストを詳細設計に対応させている。上の資料と対応が異なるため、この文書でテストレベルごとに確かめる仕様を決める |
 | [Test case quality criteria](https://trustedinstitute.com/concept/istqb-ctal-ta/test-analyst-in-the-test-process/test-case-quality-criteria-content/)（ISTQB Advanced Test Analyst の解説） | 各ケースを、テスト条件とテストベースに両方向で対応させる |
