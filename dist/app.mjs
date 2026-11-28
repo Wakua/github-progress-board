@@ -1,5 +1,5 @@
 import { githubPlan, snapshotItemTitle } from './github-planning.mjs';
-import { renderGithubWork, githubNextActionText, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems, githubMineItems, githubUrgentSummary } from './github-planning-view.mjs';
+import { renderGithubWork, githubNextActionText, githubOwners, renderGithubPeriods, githubItemPlanning, githubGoalTree, githubAttentionItems, githubMineItems, githubUrgentSummary, NEXT_ACTION_ASSIGNED } from './github-planning-view.mjs';
 import { createReleaseGantt } from './release-gantt.mjs';
 import { attentionPanelMarkup, attentionCount, attentionReasons, manualEndedOn, MINE_GROUPS } from './attention.mjs';
 import { findTask, findGoal, findParentIssue, issueChildren, issuePath, issueProgress, iterationTiming, taskTiming, periodGoalDeadline, currentIterations, iterationWork, groupTasksByGoal, iterationWorkload, workloadForTasks, taskOwner, setOwner, overdueTasks, setIteration, blockers, blockingTasks, statusLabel, orderedTasks, goalProgress, criteriaProgress, nextWork, descendants, directSuccessors, transition, setCriterion, setWait, setEstimate, reorder, resolveDecision, myWork, todayInTokyo } from './engine.mjs';
@@ -48,6 +48,7 @@ const validOwnerFilter = value => value && typeof value === 'object' && (value.a
 const githubDisclosures = new Map();
 // 「次にすること」の区分での絞り込み。開いているページ内でプロジェクトごとに保持する。
 const nextActionFilters = new Map();
+const nextActionListScroll = new Map();
 const githubOwnerFilters = new Map(Object.entries(readView().githubOwners || {}).filter(([, value]) => validOwnerFilter(value)));
 const ownerFilters = new Map(Object.entries(readView().owners || {}).filter(([, value]) => validOwnerFilter(value)));
 const sameOwnerFilter = (a, b) => a.all === true ? b.all === true : b.all !== true && a.owner === b.owner;
@@ -345,8 +346,7 @@ function renderViewTabs(project) {
   $('#approval-queue').hidden = viewTab === 'attention';
   const workPanel = $('#my-work-panel');
   workPanel.innerHTML = renderMyWork(project);
-  const selectedNextAction = workPanel.querySelector('[data-next-action-filter][aria-pressed="true"]');
-  if (!selectedNextAction?.dataset.nextActionFilter) nextActionFilters.delete(project.id);
+  if (!workPanel.querySelector('[data-next-action-filter]')?.value) nextActionFilters.delete(project.id);
   const attention = attentionView(project);
   const reasons = attention.model ? attentionReasons(attention.model) : [];
   if (reasons.length < 2 || !reasons.includes(attentionReasonFilters.get(project.id))) attentionReasonFilters.delete(project.id);
@@ -1116,10 +1116,11 @@ $('#attention-panel').addEventListener('click', event => {
   [...document.querySelectorAll('[data-attention-me]')].find(button => button.dataset.attentionMe === owner)?.focus();
 });
 // 絞り込んだ作業を、番号・題名・状態・根拠つきでコピーする。クリップボードを使えない環境では、一時的な入力欄で選んでコピーする。
-async function copyNextAction(actionId) {
+async function copyNextAction(button) {
   const project = findProject(workspace, workspace.selectedProjectId);
-  const text = githubNextActionText(project.githubSnapshot, githubFilterOf(project), undefined, project.nextActions ?? {}, actionId);
-  const status = message => { const element = $('.next-action-copy-status'); if (element) element.textContent = message; };
+  const text = githubNextActionText(project.githubSnapshot, githubFilterOf(project), undefined, project.nextActions ?? {}, button.dataset.nextActionCopy);
+  const statusElement = button.parentElement.querySelector('.next-action-copy-status');
+  const status = message => { statusElement.textContent = message; };
   if (!text) { status('コピーする作業がありません'); return; }
   try { await navigator.clipboard.writeText(text); status('コピーしました'); return; } catch { /* 下の方法で試す */ }
   const area = document.createElement('textarea');
@@ -1128,30 +1129,50 @@ async function copyNextAction(actionId) {
   let copied = false;
   try { copied = document.execCommand('copy'); } catch { /* 失敗として扱う */ }
   area.remove();
+  button.focus({ preventScroll: true });
   status(copied ? 'コピーしました' : 'コピーできませんでした');
 }
+
+function selectNextActionFilter(value, focusSelector) {
+  const projectId = workspace.selectedProjectId;
+  if (!nextActionFilters.has(projectId) && value) nextActionListScroll.set(projectId, window.scrollY);
+  nextActionFilters.set(projectId, value || null);
+  render();
+  const listScroll = nextActionListScroll.get(projectId);
+  if (!value && listScroll !== undefined) {
+    nextActionListScroll.delete(projectId);
+    window.scrollTo({ top: listScroll });
+  } else {
+    $('#my-work-panel .github-work')?.scrollIntoView({ block: 'start' });
+  }
+  $(focusSelector)?.focus({ preventScroll: true });
+}
+
 $('#my-work-panel').addEventListener('change', async event => {
-  const select = event.target.closest('.next-action-select'); if (!select || busy || !state) return;
+  if (busy || !state) return;
+  const filter = event.target.closest('[data-next-action-filter]');
+  if (filter) {
+    selectNextActionFilter(filter.value, '[data-next-action-filter]');
+    return;
+  }
+  const select = event.target.closest('.next-action-select'); if (!select) return;
   const projectId = workspace.selectedProjectId, number = Number(select.dataset.id), value = select.value || null;
   if (store.status().readOnly) { render(); error(store.status().problem); return; }
   await commitWorkspace(draft => setNextAction(draft, projectId, number, value), '', null, false);
   const rowSelect = $(`.next-action-select[data-id="${number}"]`);
-  const selectedFilter = $('#my-work-panel [data-next-action-filter][aria-pressed="true"]');
+  const selectedFilter = $('#my-work-panel [data-next-action-filter]:enabled');
   const selectedOwner = $('#my-work-panel [data-github-owner-filter][aria-pressed="true"]');
   const focusTarget = rowSelect?.getClientRects().length && !rowSelect.disabled ? rowSelect : selectedFilter || selectedOwner;
-  focusTarget?.focus();
+  focusTarget?.focus({ preventScroll: true });
 });
 $('#my-work-panel').addEventListener('click', event => {
   if (busy || !state) return;
-  const nextChoice = event.target.closest('[data-next-action-filter]');
-  if (nextChoice) {
-    const id = nextChoice.dataset.nextActionFilter || null;
-    nextActionFilters.set(workspace.selectedProjectId, id); render();
-    [...document.querySelectorAll('[data-next-action-filter]')].find(button => (button.dataset.nextActionFilter || null) === id)?.focus();
+  if (event.target.closest('[data-next-action-review]')) {
+    selectNextActionFilter(NEXT_ACTION_ASSIGNED, '[data-next-action-copy]');
     return;
   }
   const copy = event.target.closest('[data-next-action-copy]');
-  if (copy) { copyNextAction(copy.dataset.nextActionCopy); return; }
+  if (copy) { void copyNextAction(copy); return; }
   const choice = event.target.closest('[data-owner-filter]'); if (!choice) return;
   const selected = ownerFilterFromButton(choice);
   ownerFilters.set(workspace.selectedProjectId, selected);

@@ -10,7 +10,7 @@ const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright')
 const artifacts = path.join(process.env.QA_ARTIFACT_DIR || 'node_modules/.qa-planning', 'planning');
 await mkdir(artifacts, { recursive: true });
 const testedHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const sourceFiles = ['dist/app.mjs', 'dist/github-planning.mjs', 'dist/github-planning-view.mjs', 'dist/github-planning.css', 'dist/github-snapshot.mjs', 'dist/workspace.mjs', 'dist/index.html', 'tests/planning-browser-qa.mjs'];
+const sourceFiles = ['dist/app.mjs', 'dist/github-planning.mjs', 'dist/github-planning-view.mjs', 'dist/github-planning.css', 'dist/github-snapshot.mjs', 'dist/workspace.mjs', 'dist/index.html', 'dist/my-work.css', 'dist/next-action.mjs', 'tests/planning-browser-qa.mjs'];
 const testedBlobs = Object.fromEntries(execFileSync('git', ['hash-object', ...sourceFiles], { encoding: 'utf8' }).trim().split('\n').map((hash, i) => [sourceFiles[i], hash]));
 const repo = QA_REPOSITORIES[2], at = '2026-10-03T12:00:00Z';
 const records = [1, 2, 3, 4].map(number => ({ number, html_url: `${repo}/issues/${number}`, title: `QA計画 ${number}`, state: number === 2 ? 'closed' : 'open', updated_at: at, closed_at: number === 2 ? at : null, labels: number === 1 ? [{ name: 'module:QAモジュール' }] : [], milestone: { number: 1 } }));
@@ -74,17 +74,17 @@ try {
     await page.clock.setFixedTime(new Date('2026-10-15T03:00:00Z'));
     await page.getByRole('tab', { name: '自分の作業', exact: true }).click();
     const nextAction = number => page.getByRole('combobox', { name: `#${number}の次にすること`, exact: true });
-    const nextFilter = label => page.getByRole('button', { name: label, exact: true });
+    const nextFilter = page.getByRole('combobox', { name: '表示する区分', exact: true });
     const saved = () => page.waitForFunction(() => !document.querySelector('main').hasAttribute('aria-busy'));
 
     await nextAction(3).selectOption('ai');
     await saved();
-    await nextFilter('AIに渡す 1件').click();
+    await nextFilter.selectOption({ label: 'AIに渡す 1件' });
     await nextAction(3).selectOption('');
     await saved();
     await nextAction(4).selectOption('ai');
     await saved();
-    assert.equal(await nextFilter('すべて 2件').getAttribute('aria-pressed'), 'true');
+    assert.equal(await nextFilter.inputValue(), '');
     assert.equal(await nextAction(3).isVisible(), true);
     checks.push(`${width}px: 対象がなくなった絞り込みは、別の作業に同じ区分を付けても戻らない`);
 
@@ -106,13 +106,25 @@ try {
     } finally { await locker.close(); }
     checks.push(`${width}px: 保存中は区分の選択を無効にし、保存後に選択を再開できる`);
 
-    await nextFilter('AIに渡す 2件').press('Enter');
+    await nextFilter.press('End');
+    assert.equal(await nextFilter.inputValue(), 'ai');
     await nextAction(3).press('ArrowUp');
     await saved();
     assert.equal(await nextAction(3).count(), 0);
-    assert.equal(await nextFilter('仕様を決める 1件').isVisible(), true);
-    assert.equal(await nextFilter('AIに渡す 1件').evaluate(button => button === document.activeElement), true);
-    checks.push(`${width}px: キーボードで区分を変更して行が消えると、絞り込みボタンにフォーカスが移る`);
+    assert.equal(await nextFilter.locator('option[value="spec"]').textContent(), '仕様を決める 1件');
+    assert.equal(await nextFilter.inputValue(), 'ai');
+    assert.equal(await nextFilter.evaluate(select => select === document.activeElement), true);
+    checks.push(`${width}px: キーボードで区分を変更して行が消えると、区分の選択欄にフォーカスが移る`);
+
+    await nextFilter.selectOption('');
+    await page.getByRole('button', { name: '区分付き2件を確認', exact: true }).press('Enter');
+    const copy = page.getByRole('button', { name: '2件をコピー', exact: true });
+    await copy.waitFor();
+    assert.equal(await nextFilter.inputValue(), 'assigned');
+    assert.equal(await page.getByRole('heading', { name: '仕様を決める 1件', exact: true }).count(), 1);
+    assert.equal(await page.getByRole('heading', { name: 'AIに渡す 1件', exact: true }).count(), 1);
+    assert.equal(await copy.evaluate(button => button === document.activeElement), true);
+    checks.push(`${width}px: 区分付き全件を区分ごとに確認でき、コピーの合計件数が一致する`);
     await context.close();
   }
   assert.deepEqual(errors, []);
