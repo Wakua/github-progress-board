@@ -16,6 +16,7 @@
 - 公開対象の条件は [公開対象](docs/development.md#公開対象) に従う。
 - 仕様は [進捗管理の仕様](docs/specification.md)、実装状況は [開発と検証](docs/development.md#実装状況) を読む。
 - 内部構造は [開発と検証](docs/development.md#内部構造)、起動と必須検証は [README.md](README.md#起動と検証) に従う。GitHub取得の設定は [取得手順](docs/github-integration.md) を読む。
+- 試験を足す・変える・消すときは、[試験の分担](docs/development.md#試験の分担)に従う。
 - 実際のGitHubデータを変更する機能は、接続先と操作範囲をユーザーが決めてから実装する。
 
 ## 報告する範囲
