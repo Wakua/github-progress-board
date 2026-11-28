@@ -4,13 +4,14 @@ import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import { buildSnapshot, attachSnapshot } from '../dist/github-snapshot.mjs';
 import { buildPlanning } from '../scripts/github-planning-fetch.mjs';
+import { bookingSampleWorkspace } from '../scripts/make-booking-sample.mjs';
 import { hierarchyFixture, qaWorkspace, QA_REPOSITORIES } from './local-github-fixture.mjs';
 import { STORAGE_KEY } from '../dist/workspace.mjs';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE || 'playwright');
 const artifacts = path.join(process.env.QA_ARTIFACT_DIR || 'node_modules/.qa-planning', 'planning');
 await mkdir(artifacts, { recursive: true });
 const testedHead = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
-const sourceFiles = ['dist/app.mjs', 'dist/github-planning.mjs', 'dist/github-planning-view.mjs', 'dist/github-planning.css', 'dist/github-snapshot.mjs', 'dist/workspace.mjs', 'dist/index.html', 'dist/my-work.css', 'dist/next-action.mjs', 'tests/planning-browser-qa.mjs'];
+const sourceFiles = ['dist/app.mjs', 'dist/github-planning.mjs', 'dist/github-planning-view.mjs', 'dist/github-planning.css', 'dist/github-snapshot.mjs', 'dist/workspace.mjs', 'dist/index.html', 'dist/my-work.css', 'dist/next-action.mjs', 'scripts/make-booking-sample.mjs', 'tests/planning-browser-qa.mjs'];
 const testedBlobs = Object.fromEntries(execFileSync('git', ['hash-object', ...sourceFiles], { encoding: 'utf8' }).trim().split('\n').map((hash, i) => [sourceFiles[i], hash]));
 const repo = QA_REPOSITORIES[2], at = '2026-10-03T12:00:00Z';
 const records = [1, 2, 3, 4].map(number => ({ number, html_url: `${repo}/issues/${number}`, title: `QA計画 ${number}`, state: number === 2 ? 'closed' : 'open', updated_at: at, closed_at: number === 2 ? at : null, labels: number === 1 ? [{ name: 'module:QAモジュール' }] : [], milestone: { number: 1 } }));
@@ -125,6 +126,46 @@ try {
     assert.equal(await page.getByRole('heading', { name: 'AIに渡す 1件', exact: true }).count(), 1);
     assert.equal(await copy.evaluate(button => button === document.activeElement), true);
     checks.push(`${width}px: 区分付き全件を区分ごとに確認でき、コピーの合計件数が一致する`);
+
+    const bookingDate = new Date('2026-10-13T00:30:00Z');
+    const booking = bookingSampleWorkspace(bookingDate);
+    booking.projects[0].nextActions = {
+      3: 'ai', 4: 'ai', 6: 'ai', 7: 'ai', 8: 'ai', 9: 'verify', 10: 'ai',
+      11: 'ai', 12: 'ai', 14: 'ai', 15: 'verify', 16: 'ai', 17: 'ai',
+    };
+    await page.clock.setFixedTime(bookingDate);
+    await page.setViewportSize({ width, height: 620 });
+    await page.evaluate(({ key, booking }) => localStorage.setItem(key, JSON.stringify(booking)), { key: STORAGE_KEY, booking });
+    await page.reload();
+    const work = page.locator('#my-work-panel .github-work');
+    const toolbar = work.locator('.next-action-filter');
+    const review = work.getByRole('button', { name: '区分付き13件を確認', exact: true });
+    await work.locator('[data-my-work-section="waiting"] > summary').click();
+    await nextAction(15).evaluate(select => window.scrollBy(0, select.getBoundingClientRect().top - 260));
+    const initialScroll = await page.evaluate(() => window.scrollY);
+    assert.ok(initialScroll > 400, '一覧の途中までスクロールしている');
+    assert.ok(Math.abs((await toolbar.boundingBox()).y) < 2, '操作欄が画面の上端に残る');
+    await review.press('Enter');
+    await nextAction(9).focus();
+    await nextAction(9).selectOption('later');
+    await saved();
+    assert.equal(await nextAction(9).evaluate(select => select === document.activeElement), true);
+    assert.ok(await nextAction(9).evaluate(select => {
+      const row = select.getBoundingClientRect();
+      const toolbar = document.querySelector('#my-work-panel .next-action-filter').getBoundingClientRect();
+      return row.top >= toolbar.bottom && row.bottom <= window.innerHeight;
+    }), '移動した行の選択欄が操作欄と重ならず画面内にある');
+    await nextFilter.selectOption('');
+    assert.ok(Math.abs(await page.evaluate(() => window.scrollY) - initialScroll) < 3, '同じ担当者の一覧では元の位置に戻る');
+    await review.press('Enter');
+    await work.getByRole('button', { name: 'Claude', exact: true }).click();
+    await nextFilter.selectOption('');
+    assert.ok(await work.evaluate(section => {
+      const sectionTop = section.getBoundingClientRect().top + window.scrollY;
+      const maximum = document.documentElement.scrollHeight - window.innerHeight;
+      return Math.abs(window.scrollY - Math.min(sectionTop, maximum)) < 3;
+    }), '担当者を変えると絞り込み解除後は新しい一覧の先頭を表示する');
+    checks.push(`${width}px: 一覧の上部固定、行の移動後のフォーカス、絞り込み解除と担当者切替後の表示位置を確認した`);
     await context.close();
   }
   assert.deepEqual(errors, []);

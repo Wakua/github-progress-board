@@ -171,7 +171,7 @@ export function renderGithubWork(snapshot, filter = { all: true }, today = undef
   const row = (item, section) => {
     const { task: t, reasons } = item;
     const shown = section === 'waiting' ? reasons.slice(0, 1) : reasons;
-    const reasonList = section === 'done' && awaitingAcceptance(t)
+    const reasonList = section === 'done' && (selected === null || selected === NEXT_ACTION_ASSIGNED) && awaitingAcceptance(t)
       ? '<span class="my-work-more">受入待ち</span>'
       : section === 'urgent' ? `<span class="urgent-label">${esc(urgentLabel(item, snapshot.repositoryUrl))}</span>`
       : shown.length ? `<ul class="my-work-reasons">${shown.map(r => `<li>${esc(r)}</li>`).join('')}${reasons.length > shown.length ? `<li class="my-work-more">ほか${reasons.length - shown.length}件</li>` : ''}</ul>` : '';

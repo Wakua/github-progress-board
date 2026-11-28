@@ -130,6 +130,7 @@ test('区分を付けた作業があれば絞り込みを出し、選んだ区�
   const none = renderGithubWork(snapshot, everyone, TODAY, { nextActions, nextFilter: 'none' });
   assert.equal([...none.matchAll(/data-github-task="/g)].length, 11, '区分なしの未完了11件だけで、完了・Closedは出さない');
   assert.doesNotMatch(none, /data-next-action-copy/);
+  assert.match(none, /<details[^>]*data-my-work-section="ready-later"/);
 });
 
 test('完了・Closedでも受入待ちの記録があれば区分を付けてコピーできる', () => {
@@ -151,6 +152,7 @@ test('完了・Closedでも受入待ちの記録があれば区分を付けて�
   const filtered = renderGithubWork(snapshot, everyone, TODAY, { nextActions, nextFilter: 'accept' });
   assert.match(filtered, /未完了 0件/);
   assert.match(filtered, /<section[^>]*data-my-work-section="done"[^>]*>.*受入待ち .*<li[^>]*data-github-task="11"/);
+  assert.equal([...filtered.matchAll(/受入待ち/g)].length, 1, '単独区分では見出しだけに表示する');
   assert.match(filtered, /data-next-action-copy="accept">1件をコピー/);
   assert.match(all, /data-id="11" aria-label="#11の次にすること"/);
   assert.doesNotMatch(all, /data-id="2" aria-label="#2の次にすること"/);
@@ -196,6 +198,7 @@ test('区分付きすべての一覧とコピー文は、区分なしと対象�
   assert.match(html, /data-next-action-copy="assigned">4件をコピー/);
   assert.match(html, /やったはず <span class="my-work-count">2件/);
   assert.match(html, /受入確認する <span class="my-work-count">1件/);
+  assert.match(html, /data-github-task="2".*<span class="my-work-more">受入待ち<\/span>/);
   assert.match(html, /AIに渡す <span class="my-work-count">1件/);
   assert.doesNotMatch(html, /<details/);
   assert.deepEqual([...html.matchAll(/data-github-task="(\d+)"/g)].map(match => Number(match[1])), [8, 15, 2, 3]);

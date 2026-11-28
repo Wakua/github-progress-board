@@ -847,8 +847,10 @@ document.addEventListener('click', async event => {
   if (goalSummary) event.preventDefault();
   if (['manage', 'github-item', 'github-goals', 'task', 'reason', 'decision', 'overview', 'issue', 'iteration', 'overdue', 'order', 'blockers', 'blocker', 'workload', 'approval-limit'].includes(action)) { openPanel(action, id, element.dataset.goalId, element.dataset.owner || null); return; }
   if (action === 'github-owner') {
+    const project = findProject(workspace, workspace.selectedProjectId);
     const filter = element.dataset.githubOwnerFilter === 'all' ? { all: true } : { owner: element.dataset.githubOwnerFilter === 'none' ? null : element.dataset.ownerName };
-    githubOwnerFilters.set(workspace.selectedProjectId, filter);
+    if (!sameOwnerFilter(githubFilterOf(project), filter)) nextActionListScroll.delete(project.id);
+    githubOwnerFilters.set(project.id, filter);
     writeView({ githubOwners: Object.fromEntries(githubOwnerFilters) }); render(); return;
   }
   if (action === 'import-snapshot') { if (!store.status().readOnly) openPanel(action); return; }
@@ -1163,7 +1165,7 @@ $('#my-work-panel').addEventListener('change', async event => {
   const selectedFilter = $('#my-work-panel [data-next-action-filter]:enabled');
   const selectedOwner = $('#my-work-panel [data-github-owner-filter][aria-pressed="true"]');
   const focusTarget = rowSelect?.getClientRects().length && !rowSelect.disabled ? rowSelect : selectedFilter || selectedOwner;
-  focusTarget?.focus({ preventScroll: true });
+  focusTarget?.focus();
 });
 $('#my-work-panel').addEventListener('click', event => {
   if (busy || !state) return;
