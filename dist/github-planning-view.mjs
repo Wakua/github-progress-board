@@ -1,5 +1,6 @@
 import { githubPlan, githubProgress, githubModules } from './github-planning.mjs';
-import { githubMyWork, taskIteration, githubIterationLastDay, githubPeriodWorkload, blockerRef, githubProgressStates, PROGRESS_STATES } from './github-work.mjs';
+import { githubMyWork, taskIteration, githubIterationLastDay, githubPeriodWorkload, blockerRef, githubProgressStates, PROGRESS_STATES, GROUP_TITLES, githubTaskDone } from './github-work.mjs';
+import { NEXT_ACTIONS, nextActionOf, nextActionCopyText } from './next-action.mjs';
 import { workloadChipClass, workloadChipTitle, workloadChipLabel, workloadFigures } from './workload-view.mjs';
 import { todayInTokyo } from './engine.mjs';
 import { MINE_GROUPS, labelFor } from './attention.mjs';
@@ -55,7 +56,7 @@ export function githubAttentionItems(snapshot, today = todayInTokyo()) {
     endedOn: t.projects.map(p => p.iteration).filter(i => i && githubIterationLastDay(i) < today).map(githubIterationLastDay).sort()[0] || null,
   }));
 }
-// ③ あなたの担当：担当者が owner の未完了の作業（要対応と前提待ちを除く）。
+// ③ あなたの担当：担当者が owner の未完了の作業（要対応と他の作業待ちを除く）。
 export function githubMineItems(snapshot, owner, today = todayInTokyo()) {
   const work = githubMyWork(snapshot, { owner }, today);
   if (!work) return [];
@@ -75,23 +76,70 @@ const refList = (refs, max = 2) => refs.slice(0, max).join('・') + (refs.length
 const urgentLabel = ({ task, group, reasons }, repositoryUrl) => {
   const open = (task.blockedBy || []).filter(b => b.state === 'open'), pulls = task.pullRequests || [];
   if (group === 'action') return [...new Set(reasons.map(labelFor))].join('・');
-  if (group === 'waiting') return `前提待ち ${refList(open.map(b => blockerRef(b, repositoryUrl)))}`;
+  if (group === 'waiting') return `他の作業待ち ${refList(open.map(b => blockerRef(b, repositoryUrl)))}`;
   if (group === 'review') return `確認待ち PR ${refList(pulls.filter(pr => !pr.draft).map(pr => '#' + pr.number))}`;
   if (group === 'active') return pulls.length ? `作業中 Draft PR ${refList(pulls.map(pr => '#' + pr.number))}` : '作業中';
   return '着手可能';
 };
-export function renderGithubWork(snapshot, filter = { all: true }, today = undefined) {
+// 区分の絞り込み：null は「すべて」、'none' は区分なし、それ以外は区分のid。
+export const NEXT_ACTION_NONE = 'none';
+const assigned = (nextActions, task) => nextActions[task.number] ?? null;
+const awaitingAcceptance = task => task.item.acceptancePending === true && task.item.notPlanned !== true;
+const canSetNextAction = task => !githubTaskDone(task) || awaitingAcceptance(task);
+const nextActionMatches = (nextActions, choice) => task => choice === null || (canSetNextAction(task) && (choice === NEXT_ACTION_NONE ? assigned(nextActions, task) === null : assigned(nextActions, task) === choice));
+export function githubNextActionCounts(snapshot, filter, today, nextActions = {}) {
   const work = githubMyWork(snapshot, filter, today, { urgentFirst: true });
+  const counts = new Map();
+  let total = 0;
+  for (const section of work?.sections ?? []) {
+    for (const { task } of section.tasks) {
+      if (!canSetNextAction(task)) continue;
+      total++;
+      const id = assigned(nextActions, task) ?? NEXT_ACTION_NONE;
+      counts.set(id, (counts.get(id) ?? 0) + 1);
+    }
+  }
+  return { total, counts };
+}
+// AIへ渡す文。絞り込んだ作業を、番号・題名・状態・根拠つきで並べる。
+export function githubNextActionText(snapshot, filter, today, nextActions, actionId) {
+  const action = nextActionOf(actionId), work = githubMyWork(snapshot, filter, today, { urgentFirst: true, include: nextActionMatches(nextActions, actionId) });
+  if (!action || !work) return null;
+  const items = work.sections.flatMap(section => section.tasks.map(({ task, reasons, group }) => ({
+    number: task.number, title: task.item.title,
+    status: [...new Set(task.projects.map(p => p.status ?? 'Status未設定'))].join(' / ') || 'Project未登録',
+    basis: (group === 'done' ? '受入待ち' : GROUP_TITLES[group]) + (reasons.length ? '：' + reasons.join('、') : ''),
+  })));
+  return nextActionCopyText(snapshot.repositoryUrl.replace('https://github.com/', ''), action, items);
+}
+const nextActionSelect = (task, nextActions) => {
+  const value = assigned(nextActions, task);
+  return `<select class="next-action-select${value ? ' set' : ''}" data-action="next-action" data-id="${task.number}" aria-label="#${task.number}の次にすること"><option value="">区分</option>${NEXT_ACTIONS.map(action => `<option value="${action.id}"${action.id === value ? ' selected' : ''}>${esc(action.label)}</option>`).join('')}</select>`;
+};
+function nextActionFilter(counts, total, selected) {
+  const buttons = [[null, 'すべて', total], ...NEXT_ACTIONS.map(action => [action.id, action.label, counts.get(action.id) ?? 0]), [NEXT_ACTION_NONE, '区分なし', counts.get(NEXT_ACTION_NONE) ?? 0]]
+    .filter(([id, , count]) => id === null || count > 0);
+  const copy = nextActionOf(selected) ? `<button type="button" class="button secondary next-action-copy" data-next-action-copy="${esc(selected)}">${counts.get(selected)}件をコピー</button><span class="next-action-copy-status" role="status"></span>` : '';
+  return `<div class="owner-filter next-action-filter" role="group" aria-label="次にすることで絞り込む"><span class="attention-control-label">区分：</span>${buttons.map(([id, label, count]) => `<button type="button" class="owner-choice" data-next-action-filter="${esc(id ?? '')}" aria-pressed="${id === selected}">${esc(label)} ${count}件</button>`).join('')}${copy}</div>`;
+}
+export function renderGithubWork(snapshot, filter = { all: true }, today = undefined, { nextActions = {}, nextFilter = null } = {}) {
+  const { counts, total } = githubNextActionCounts(snapshot, filter, today, nextActions);
+  // 区分が一つも付いていなければ絞り込みを出さない。選んだ区分の作業がなくなれば「すべて」に戻す。
+  const hasAssigned = [...counts.keys()].some(id => id !== NEXT_ACTION_NONE);
+  const selected = hasAssigned && (nextFilter === null || counts.has(nextFilter)) ? nextFilter : null;
+  const work = githubMyWork(snapshot, filter, today, { urgentFirst: true, include: nextActionMatches(nextActions, selected) });
   if (!work) return '<p class="empty-message">親子Issue・Projectの計画情報は未取得です。</p>';
   const owners = githubOwners(snapshot), choices = [[{ all: true }, '全員'], ...owners.filter(v => v !== null).sort().map(owner => [{ owner }, owner]), ...(owners.includes(null) ? [[{ owner: null }, '担当未設定']] : [])];
-  const count = work.sections.filter(s => s.id !== 'done').reduce((n, s) => n + s.tasks.length, 0);
+  const count = work.sections.filter(section => section.id !== 'done').reduce((sum, section) => sum + section.tasks.length, 0);
   // 今の期間はProjectごとに決まる。Projectが複数あるときはProject名を添える。
   const period = work.currents.length ? '今の期間：' + work.currents.map(c => `${work.currents.length > 1 ? esc(c.project.title) + ' ' : ''}${esc(c.iteration.title)}（${shortDate(c.iteration.startDate)}–${shortDate(c.lastDay)}）`).join('、') : '今の期間：なし（Iterationが未設定）';
-  const collapsed = new Set(['ready-later', 'waiting', 'done']);
+  const collapsed = nextActionOf(selected) ? new Set() : new Set(['ready-later', 'waiting', 'done']);
   const row = (item, section) => {
     const { task: t, reasons } = item;
     const shown = section === 'waiting' ? reasons.slice(0, 1) : reasons;
-    const reasonList = section === 'urgent' ? `<span class="urgent-label">${esc(urgentLabel(item, snapshot.repositoryUrl))}</span>`
+    const reasonList = section === 'done' && selected === null && awaitingAcceptance(t)
+      ? '<span class="my-work-more">受入待ち</span>'
+      : section === 'urgent' ? `<span class="urgent-label">${esc(urgentLabel(item, snapshot.repositoryUrl))}</span>`
       : shown.length ? `<ul class="my-work-reasons">${shown.map(r => `<li>${esc(r)}</li>`).join('')}${reasons.length > shown.length ? `<li class="my-work-more">ほか${reasons.length - shown.length}件</li>` : ''}</ul>` : '';
     // 一覧は作業名と理由、担当・期限だけにする。モジュール・目標・Estimateは詳細で見る。
     const owners = t.projects.length ? t.projects.map(p => `${t.projects.length > 1 ? esc(p.title) + '：' : ''}${esc(p.owner ?? '担当未設定')}`).join(' / ') : 'Project未登録';
@@ -99,16 +147,17 @@ export function renderGithubWork(snapshot, filter = { all: true }, today = undef
     const overdue = end && t.item.state !== 'closed' && end < (today ?? todayInTokyo());
     const deadline = iteration ? `${esc(iteration.title)} · ${shortDate(end)}まで` : '期間未設定';
     const status = section === 'action' ? `<span class="badge unknown">${esc([...new Set(t.projects.map(p => p.status ?? 'Status未設定'))].join(' / ') || 'Project未登録')}</span>` : '';
-    return `<li class="my-work-row" data-github-task="${t.number}"><div class="my-work-main">${itemButton(t)}${reasonList}</div><div class="my-work-meta"><span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span>${status}<span class="task-deadline ${overdue ? 'overdue' : iteration ? '' : 'unknown'}">${deadline}</span></div></li>`;
+    return `<li class="my-work-row" data-github-task="${t.number}"><div class="my-work-main">${itemButton(t)}${reasonList}</div><div class="my-work-meta"><span class="my-work-owner ${t.projects.some(p => p.owner) ? '' : 'missing'}">${owners}</span>${status}<span class="task-deadline ${overdue ? 'overdue' : iteration ? '' : 'unknown'}">${deadline}</span></div>${canSetNextAction(t) ? nextActionSelect(t, nextActions) : ''}</li>`;
   };
   const sections = work.sections.map(section => {
     const list = `<ul class="my-work-list">${section.tasks.map(item => row(item, section.id)).join('')}</ul>`;
-    const heading = `${esc(section.title)} <span class="my-work-count">${section.tasks.length}件</span>`;
+    const title = section.id === 'done' && selected !== null ? '受入待ち' : section.title;
+    const heading = `${esc(title)} <span class="my-work-count">${section.tasks.length}件</span>`;
     return collapsed.has(section.id)
       ? `<details class="my-work-section" data-github-disclosure="work:${section.id}" data-my-work-section="${section.id}"><summary><h3>${heading}</h3></summary>${list}</details>`
       : `<section class="my-work-section ${section.id === 'urgent' ? 'urgent' : section.id === 'action' ? 'needs-action' : ''}" data-my-work-section="${section.id}"><h3>${heading}</h3>${list}</section>`;
   }).join('');
-  return `<div class="owner-filter" role="group" aria-label="GitHubの担当者で絞り込む">${choices.map(([value, label]) => `<button class="owner-choice" data-action="github-owner" data-github-owner-filter="${value.all ? 'all' : value.owner === null ? 'none' : 'owner'}"${typeof value.owner === 'string' ? ` data-owner-name="${esc(value.owner)}"` : ''} aria-pressed="${value.all ? !!filter.all : !filter.all && value.owner === filter.owner}">${esc(label)}</button>`).join('')}</div><p class="footnote my-work-period">${period} · 未完了 ${count}件 · 末端Issueのみ。Closed・Doneの受入完了は未確認。${work.dependenciesFetched ? '' : '前提とPRは未取得のため、再取得すると前提待ち・確認待ちを判定します。'}</p>${sections || '<p class="empty-message">この担当者の作業はありません。</p>'}`;
+  return `<div class="owner-filter" role="group" aria-label="GitHubの担当者で絞り込む">${choices.map(([value, label]) => `<button class="owner-choice" data-action="github-owner" data-github-owner-filter="${value.all ? 'all' : value.owner === null ? 'none' : 'owner'}"${typeof value.owner === 'string' ? ` data-owner-name="${esc(value.owner)}"` : ''} aria-pressed="${value.all ? !!filter.all : !filter.all && value.owner === filter.owner}">${esc(label)}</button>`).join('')}</div>${hasAssigned ? nextActionFilter(counts, total, selected) : ''}<p class="footnote my-work-period">${period} · 未完了 ${count}件 · 末端Issueのみ。${selected === null ? 'Closed・Doneの受入完了は未確認。' : ''}${work.dependenciesFetched ? '' : '前提とPRは未取得のため、再取得すると他の作業待ち・確認待ちを判定します。'}</p>${sections || '<p class="empty-message">この担当者の作業はありません。</p>'}`;
 }
 export function githubGoalTree(snapshot, selectedNumber = null, taskNumbers = null) {
   const plan = githubPlan(snapshot);

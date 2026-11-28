@@ -1,5 +1,6 @@
 import { orderedTasks, issuePath, iterationTiming, myWork, todayInTokyo } from './engine.mjs';
 import { validateSnapshot, attachSnapshot, repositoryKey, isApprovalLimit, APPROVAL_LIMIT_MAX } from './github-snapshot.mjs';
+import { isNextActions, isNextActionId, isIssueNumber, MAX_NEXT_ACTIONS } from './next-action.mjs';
 
 export const SCHEMA_VERSION = 1;
 export const STORAGE_KEY = 'progress-tool.workspace.v1';
@@ -66,6 +67,7 @@ function validateProject(project) {
   if (normalizeRepositoryUrl(project.repositoryUrl) !== project.repositoryUrl) fail('repository URLを確認してください。');
   if (project.githubSnapshot !== undefined) validateSnapshot(project.githubSnapshot, { projectId: project.id, repositoryUrl: project.repositoryUrl });
   if (project.approvalLimit !== undefined && !isApprovalLimit(project.approvalLimit)) fail('承認待ちの上限を確認してください。');
+  if (project.nextActions !== undefined && !isNextActions(project.nextActions)) fail('次にすることの区分を確認してください。');
   const data = project.data;
   if (!object(data) || data.project !== project.name) fail('プロジェクトのデータを確認してください。');
   for (const key of ['goals', 'parentIssues', 'tasks', 'iterations', 'decisions', 'history', 'order']) array(data[key], key);
@@ -167,6 +169,20 @@ export function setApprovalLimit(workspace, projectId, limit) {
   findProject(workspace, projectId).approvalLimit = limit;
 }
 
+// 作業に付ける「次にすること」の区分はプロジェクトごとの設定で、GitHub snapshotの取得では変更しない。actionId が null なら区分を外す。
+export function setNextAction(workspace, projectId, number, actionId) {
+  if (!isIssueNumber(number)) fail('Issue番号を確認してください。');
+  if (actionId !== null && !isNextActionId(actionId)) fail('次にすることの区分を確認してください。');
+  const project = findProject(workspace, projectId), key = String(number);
+  if (actionId === null) {
+    if (project.nextActions) { delete project.nextActions[key]; if (!Object.keys(project.nextActions).length) delete project.nextActions; }
+    return;
+  }
+  if (!project.nextActions) project.nextActions = {};
+  if (!Object.hasOwn(project.nextActions, key) && Object.keys(project.nextActions).length >= MAX_NEXT_ACTIONS) fail('区分を付けた作業が多すぎます。');
+  project.nextActions[key] = actionId;
+}
+
 // Targets are chosen in the preview. The store validates/saves the entire batch atomically.
 export function importSnapshots(workspace, snapshots, targets, makeId = () => crypto.randomUUID()) {
   if (!Array.isArray(snapshots) || !snapshots.length || !Array.isArray(targets) || targets.length !== snapshots.length) fail('snapshotの取込先を確認してください。');
@@ -237,7 +253,7 @@ export function addDecision(data, projectId, taskId, { title, options, evidence 
   data.tasks.push(decisionTask); data.decisions.push(decision);
   data.order.splice(Math.max(0, data.order.indexOf(task.id)), 0, decisionTask.id);
   task.deps.push(decisionTask.id);
-  // 判断が済むまで元の作業は進められないため、作業中・確認待ちは未着手に戻し、前提待ちに入れる。
+  // 判断が済むまで元の作業は進められないため、作業中・確認待ちは未着手に戻し、他の作業待ちに入れる。
   const paused = { active: '作業中', review: '確認待ち' }[task.status];
   if (paused) task.status = 'todo';
   data.history.unshift({ text: `${task.title}：判断待ち「${decisionTask.title}」を登録（判断する人：${decisionTask.owner || '未担当'}）${paused ? `。${paused}から未着手に戻した` : ''}`, goalId: task.goalId, at: new Date().toISOString() });

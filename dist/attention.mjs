@@ -16,7 +16,7 @@ const LABELS = [
   [/^作業中なのに前提が未完了/, '前提が未完了'],
 ];
 export const FALLBACK_LABEL = '要確認';
-// 「あなたの担当」に入れる作業のまとまり。要対応と前提待ち、完了は入れない（要対応は別のまとまりに出す）。
+// 「あなたの担当」に入れる作業のまとまり。要対応と他の作業待ち、完了は入れない（要対応は別のまとまりに出す）。
 export const MINE_GROUPS = ['active', 'review', 'ready-now', 'ready-later'];
 
 export function labelFor(reason) {
