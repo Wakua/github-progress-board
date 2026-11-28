@@ -128,7 +128,9 @@ test('前提・PRを取得していない古いsnapshotでも表示し、未取�
   const work = githubMyWork(value, { all: true }, today);
   assert.equal(work.dependenciesFetched, false);
   assert.ok(renderGithubWork(value, { all: true }, today).includes('前提とPRは未取得'));
-  assert.match(renderGithubWork(value, { all: true }, today, { todayOnly: true }), /今日の候補は未確認です/);
+  const candidates = renderGithubWork(value, { all: true }, today, { todayOnly: true });
+  assert.match(candidates, /今日の候補は未確認です/);
+  assert.doesNotMatch(candidates, /今日の候補 0件|未完了 \d+件/);
 });
 
 test('前提・PR・仕様ラベルの一部だけの保存や不正な値を拒否する', () => {
