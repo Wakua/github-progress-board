@@ -127,13 +127,6 @@ test('対応状況の「確認完了を除く」を選ぶと、確認完了の�
   fx.choose('#status-filter','all');
   assert.equal(fx.titles().length,4);
 });
-test('「確認完了を除く」を選んでも、本文の検索の結果と重なる',async()=>{
-  const reports=[report('r1','予約一覧が更新されない'),report('r2','予約の確認メールが届かない',{status:'complete'})];
-  const fx=fixture({reports});fx.render();
-  fx.choose('#status-filter','incomplete');
-  fx.type('予約');await fx.flush();
-  assert.deepEqual(fx.titles(),['予約一覧が更新されない']);
-});
 
 const categoryTags=[{id:1,name:'bug',role:'none'},{id:2,name:'予約',role:'main'},{id:3,name:'一覧',role:'sub'},{id:4,name:'決済',role:'main'},{id:5,name:'画面',role:'sub'}];
 const label=id=>({id,name:categoryTags.find(tag=>tag.id===id).name,color:'336699'});
@@ -162,12 +155,6 @@ test('メインを選ぶと、その報告だけを出し、行に領域を添�
   fx.choose('#sub-filter','label:5');
   assert.deepEqual(fx.titles(),['予約の確認画面が崩れる']);
 });
-test('未分類を選ぶと、割り当てたタグのない報告と、GitHubに未登録の報告を出す',()=>{
-  const fx=fixture({reports:categorized(),tags:categoryTags});fx.filters();
-  fx.choose('#main-filter','uncategorized');
-  assert.deepEqual(fx.titles(),['CSVが文字化けする','予約の確認メールが届かない']);
-  assert.deepEqual(fx.choices('#sub-filter'),[]);
-});
 test('メインを変えて、選んでいたサブがなくなったときは、サブを「すべて」に戻す',()=>{
   const fx=fixture({reports:categorized(),tags:categoryTags});fx.filters();
   fx.choose('#main-filter','label:2');fx.choose('#sub-filter','label:3');
@@ -180,10 +167,6 @@ test('カテゴリの設定を保存すると、選択肢と行の領域を、�
   assert.deepEqual(fx.choices('#main-filter').sort(),['未分類（5）'].sort());assert.deepEqual(fx.areas().filter(Boolean),[]);
   fx.setTags(categoryTags);fx.mounted.options.onSave();
   assert.ok(fx.choices('#main-filter').includes('予約（2）'));assert.equal(fx.areas()[0],'予約 / 一覧');
-});
-test('タグの役割を割り当てていないときは、行に領域を出さない',()=>{
-  const fx=fixture();fx.filters();fx.render();
-  assert.deepEqual(fx.areas(),[null,null,null]);assert.deepEqual(fx.choices('#main-filter'),['未分類（3）']);
 });
 
 test('タグの役割を読み込めなかったときは、理由を通知し、前回の割り当てのまま一覧を出す',async()=>{

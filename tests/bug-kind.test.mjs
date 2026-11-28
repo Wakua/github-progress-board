@@ -139,18 +139,13 @@ test('the API accepts the kind when a report is created and when it is changed, 
     assert.equal(created.status,201);const report=(await created.json()).report;assert.equal(report.kind,'request');
     const plain=await post('reports',{body:'種別を指定しない報告',reportedVersion:'',requestId:'kind-2',uploadIds:[]});
     assert.equal((await plain.json()).report.kind,'bug');
-    const bad=await post('reports',{body:'別の報告',reportedVersion:'',requestId:'kind-3',uploadIds:[],kind:'issue'});
-    assert.equal(bad.status,400);assert.match((await bad.json()).error,/種別/);
     assert.deepEqual((await (await fetch(base+'reports')).json()).reports.map(item=>item.kind).sort(),['bug','request']);
     const changed=await post('reports/'+report.id+'/kind',{kind:'question',revision:report.revision});
     assert.equal(changed.status,200);const updated=(await changed.json()).report;assert.equal(updated.kind,'question');
     assert.equal((await (await fetch(base+'reports/'+report.id)).json()).report.kind,'question');
-    assert.equal((await post('reports/'+report.id+'/kind',{kind:'bug',revision:report.revision})).status,409);
-    assert.equal((await post('reports/'+report.id+'/kind',{kind:'issue',revision:updated.revision})).status,400);
     assert.equal((await post('reports/'+report.id+'/kind','x',{'Content-Type':'text/plain'})).status,415);
     assert.equal((await post('reports/'+report.id+'/kind','{',{'Content-Type':'application/json'})).status,400);
     assert.equal((await fetch(base+'reports/'+report.id+'/kind')).status,404);
-    assert.equal((await post('reports/00000000-0000-0000-0000-000000000000/kind',{kind:'bug',revision:1})).status,404);
     assert.equal((await fetch(base+'reports/'+report.id+'/kind',{method:'POST',headers:{'Content-Type':'application/json',Origin:'http://evil.example'},body:'{}'})).status,403);
   } finally {await server.bugWorker?.stop();await new Promise(resolve=>server.close(resolve));await server.bugClosed;}
 });

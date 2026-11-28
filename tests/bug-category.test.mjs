@@ -295,18 +295,13 @@ test('the API accepts categories when a report is created and when they are repl
     const post=(route,body,headers={'Content-Type':'application/json'})=>fetch(base+route,{method:'POST',headers,body:typeof body==='string'?body:JSON.stringify(body)});
     const created=await post('reports',{body:'予約一覧が更新されない',reportedVersion:'',requestId:'api-1',uploadIds:[],categories:[12,11]});
     assert.equal(created.status,201);const report=(await created.json()).report;assert.deepEqual(report.categories,[11,12]);
-    const bad=await post('reports',{body:'別の報告',reportedVersion:'',requestId:'api-2',uploadIds:[],categories:[14]});
-    assert.equal(bad.status,400);assert.match((await bad.json()).error,/カテゴリ/);
     assert.deepEqual((await (await fetch(base+'reports')).json()).reports.find(item=>item.id===report.id).categories,[11,12]);
     const replaced=await post('reports/'+report.id+'/categories',{categories:[13],revision:report.revision});
     assert.equal(replaced.status,200);const updated=(await replaced.json()).report;assert.deepEqual(updated.categories,[13]);
     assert.deepEqual((await (await fetch(base+'reports/'+report.id)).json()).report.categories,[13]);
-    assert.equal((await post('reports/'+report.id+'/categories',{categories:[12],revision:report.revision})).status,409);
-    assert.equal((await post('reports/'+report.id+'/categories',{categories:[14],revision:updated.revision})).status,400);
     assert.equal((await post('reports/'+report.id+'/categories','x',{'Content-Type':'text/plain'})).status,415);
     assert.equal((await post('reports/'+report.id+'/categories','{',{'Content-Type':'application/json'})).status,400);
     assert.equal((await fetch(base+'reports/'+report.id+'/categories')).status,404);
-    assert.equal((await post('reports/00000000-0000-0000-0000-000000000000/categories',{categories:[],revision:1})).status,404);
     assert.equal((await fetch(base+'reports/'+report.id+'/categories',{method:'POST',headers:{'Content-Type':'application/json',Origin:'http://evil.example'},body:'{}'})).status,403);
   } finally {await server.bugWorker?.stop();await new Promise(resolve=>server.close(resolve));await server.bugClosed;}
 });

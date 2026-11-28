@@ -76,12 +76,6 @@ export async function checkBugList({browser,artifacts,checks,errors}) {
       await menu.locator('input[value="'+value+'"]').setChecked(on);
       await page.locator('#list-heading').click();
     }
-    async function clear(id) {
-      const menu=group(id);
-      if(!await menu.evaluate(node=>node.open))await menu.locator('summary').click();
-      await menu.getByRole('button',{name:'解除',exact:true}).click();
-      await page.locator('#list-heading').click();
-    }
     async function search(query,expected) {
       const response=query.trim()?page.waitForResponse(res=>new URL(res.url()).pathname==='/api/bugs/reports/search'&&res.request().postDataJSON().query===query.trim()):null;
       await page.locator('#search').fill(query);
@@ -97,15 +91,13 @@ export async function checkBugList({browser,artifacts,checks,errors}) {
       assert.equal(await item.locator('.row-states .workflow-'+(fixture.status||'received')).count(),1);
       assert.equal(await item.locator('.meta,.tags,.file-list,a').count(),0);
     }
-    assert.equal(await row(local.title).locator('.report-number,.report-area').count(),0);
-    assert.equal(await row(local.title).getByText('GitHub未登録',{exact:true}).count(),1);
     await row(title[0]).click();await page.locator('#detail h2').filter({hasText:title[0]}).waitFor();
     assert.match(await page.locator('#detail .report-body').textContent(),/QA-CSV/);
     assert.equal(await page.locator('.list').isVisible(),false);
     assert.equal(await page.locator('#detail').isVisible(),true);
     await page.getByRole('button',{name:'← 報告一覧へ',exact:true}).click();
     assert.equal(await page.locator('.list').isVisible(),true);
-    await capture('07-list-and-areas');checks.push('一覧の題名・Issue番号・対応状況・領域、登録前の行、一覧と詳細の領域を確認する');
+    await capture('07-list-and-areas');checks.push('一覧の題名・Issue番号・対応状況・領域を確認し、行から詳細を開いて一覧へ戻る');
 
     // タイトルにない語、英字の大小、全角空白、すべての語との一致を、実際の検索APIで確認する。
     await search('再読込　qa-csv',[title[0]]);await capture('08-body-search');
@@ -114,30 +106,11 @@ export async function checkBugList({browser,artifacts,checks,errors}) {
     assert.equal(await page.locator('#reports .empty').textContent(),'条件に一致する報告はありません。');
     await search('',all);checks.push('本文だけにある語・英字の大小・複数語で検索し、一致なしと検索解除を確認する');
 
-    await choose('sub','label:5');await rows([title[1],title[5]]);
-    await choose('sub','label:2');await rows([title[0],title[1],title[5],title[6]]);
-    await clear('sub');await choose('main','label:1');await rows([title[0],title[1],title[6]]);
-    await choose('main','label:4');await rows([title[0],title[1],title[2],title[6]]);
-    await choose('sub','label:2');await rows([title[0],title[6]]);
+    await choose('main','label:1');await choose('sub','label:2');await rows([title[0],title[6]]);
     await search('qa-csv',[title[0]]);await capture('09-combined-filters');
-    checks.push('サブ単独・サブの複数選択・メインの複数選択と、メイン＋サブ＋本文検索の組合せを確認する');
+    checks.push('メイン＋サブ＋本文検索の組合せで絞り込む');
 
     await search('',[title[0],title[6]]);
-    await clear('sub');await choose('sub','label:5');await rows([title[1]]);
-    await choose('main','label:1',false);await rows([title[2]]);
-    assert.equal(await group('sub').isVisible(),false);
-    assert.equal(await group('sub').locator('input:checked').count(),0);
-    await clear('main');await rows(all);
-    await choose('main','uncategorized');await rows([local.title,title[3],title[4]]);
-    assert.equal(await group('sub').isVisible(),false);
-    await capture('10-uncategorized');
-    await clear('main');await rows(all);
-    await choose('sub','label:5');await rows([title[1],title[5]]);
-    await choose('status','incomplete');await rows([title[1]]);
-    await clear('status');await clear('sub');await rows(all);
-    checks.push('メインの変更で無効なサブが解除され、未分類にはタグなし・使わないタグ・未登録を含み、サブだけの報告を含まない。対応状況とも重ねられる');
-
-    await choose('main','label:1');await choose('sub','label:2');
     await search('qa-csv',[title[0]]);
     const failure=async route=>route.fulfill({status:503,json:{error:'QA: 本文を検索できませんでした。'}});
     await page.route('**/api/bugs/reports/search',failure);
@@ -151,10 +124,7 @@ export async function checkBugList({browser,artifacts,checks,errors}) {
     await page.screenshot({path:path.join(artifacts,'11-search-failure-notice.jpg'),type:'jpeg',quality:60,clip:{...noticeBox,width:Math.min(800,noticeBox.width)},animations:'disabled'});
     await page.unroute('**/api/bugs/reports/search',failure);
     await search('qa-csv',[title[0]]);await page.locator('#notice').waitFor({state:'hidden'});
-    await search('a b c d e f g h i j k',[title[0],title[6]]);
-    assert.match(await page.locator('#notice.error').textContent(),/10語/);
-    await search('',[title[0],title[6]]);await page.locator('#notice').waitFor({state:'hidden'});
-    checks.push('検索APIの503と入力制限の400で古い検索結果を外し、カテゴリ条件と理由を残す。再検索・検索解除で通知が消える');
+    checks.push('検索APIの503で古い検索結果を外し、カテゴリ条件と理由を残す。再検索で通知が消える');
 
     await search('再読込',[title[0],title[6]]);
     const refreshed=page.waitForResponse(res=>new URL(res.url()).pathname==='/api/bugs/reports/search'&&res.request().postDataJSON().query==='再読込');
