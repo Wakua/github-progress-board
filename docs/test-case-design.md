@@ -171,11 +171,11 @@
 | [Test-case quality – understanding practitioners' perspectives](https://arxiv.org/html/2309.16801v1)（Tran ほか） | 実務者は理解しやすさを最も重視し、明確な目的、明確な手順と期待結果を良いケースの条件とした。単純さ、手順のまとまり、情報のそろい、再現性、仕様とのたどりやすさを品質の属性に挙げた |
 | [Quality attributes of test cases and test suites](https://arxiv.org/html/2507.06343v1)（Tran ほか） | 354件の回答で、不具合を見つける力が最も重視された。単純さと効率は、状況によって評価が分かれた |
 | [Interactions involved in software failures](https://csrc.nist.gov/projects/automated-combinatorial-testing-for-software/combinatorial-methods-in-testing/interactions-involved-in-software-failures)（NIST） | 多くの不具合は1〜2因子の組み合わせで起き、確認された不具合は6因子以下の組み合わせで起きている |
-| [テストレベル](https://www.oreilly.com/library/view/che-di-gong-lue-jstqb-foundationjiao-ke-shu-wen-ti-ji/9784295017677/chapter-25.html)（徹底攻略 JSTQB Foundation 教科書） | テストレベルは、コンポーネント、統合、システム、受け入れの4つである。設計工程との対応は資料によって異なるため、確かめる仕様をこの文書で決める |
+| [テストレベル](https://www.oreilly.com/library/view/che-di-gong-lue-jstqb-foundationjiao-ke-shu-wen-ti-ji/9784295017677/chapter-25.html)（徹底攻略 JSTQB Foundation 教科書） | テストレベルは、コンポーネント、統合、システム、受け入れの4つで、統合テストは結合テストとも呼ぶ |
+| [システム開発におけるテスト工程](https://shiftasia.com/community/test-process-in-system-development/)（SHIFT ASIA） | 結合テストで、基本設計書どおりに部品やシステムの間のやりとりが動くかを確かめる |
+| [V字モデルの全体像と実践的な活用方法](https://zenn.dev/hayato/articles/3e5728f17c3592)（Zenn） | 結合テストを詳細設計に対応させている。上の資料と対応が異なるため、この文書でテストレベルごとに確かめる仕様を決める |
 | [Test case quality criteria](https://trustedinstitute.com/concept/istqb-ctal-ta/test-analyst-in-the-test-process/test-case-quality-criteria-content/)（ISTQB Advanced Test Analyst の解説） | 各ケースを、テスト条件とテストベースに両方向で対応させる |
-| [オールペア法、直交表の基本](https://atmarkit.itmedia.co.jp/ait/articles/1506/11/news013_3.html)（@IT） | 不具合は無効な値に多く現れ、因子と水準が多いと組み合わせの表の網羅率が下がる |
-| [VSTePによるテスト観点のモデリング](https://speakerdeck.com/sansanbuildersbox/modeling-for-test-points-of-view-with-vstep) | 細部から考えると抜け漏れが起きるため、観点の全体図を作ってからケースに具体化する |
-| [テスト観点の導出の失敗例](https://speakerdeck.com/shimashima35/failure-case-of-test-viewpoint-derivation) | テストの目的と怪しい箇所を決めないと、観点がありきたりになる |
+| [組み合わせテストを開発現場で使いこなすには？](https://atmarkit.itmedia.co.jp/ait/articles/1504/22/news073_3.html)（@IT） | 不具合は無効な値（無効系の水準）に多く現れる。ブラックボックスのテストでも、ソースコードの実装を想像して因子と水準を見つける |
 
 ## 未決定事項
 
