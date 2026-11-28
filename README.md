@@ -51,12 +51,13 @@ npm run check
 | [操作の説明](docs/usage.md) | 画面の構成と詳しい操作 |
 | [GitHub snapshotの取得](docs/github-integration.md) | 自動取得の設定、JSONでの再取得と取込 |
 | [利用場面](docs/use-cases.md) | ツールが助ける場面と画面の対応 |
-| [開発と検証](docs/development.md) | 内部構造、ビルドと検証、実装状況、バージョン、公開対象 |
+| [開発と検証](docs/development.md) | 内部構造、試験の分担、ビルドと検証、実装状況、バージョン、公開対象 |
 | [開発手順と実施記録](docs/development-workflow.md) | 着手から受入までの工程、証拠、提出前の照合 |
 | [クラウド共有保存](docs/cloud-workspace.md) | 認証、端末間の共有、移行と障害時の操作 |
 | [クラウドの本番確認](docs/cloud-release-verification.md#本番で残る確認) | 公開前に必要な確認と未確認事項 |
 | [テスト計画の作成・変更](docs/test-plan-editor.md) | 対象版・実施条件とケースの選択、担当、完了・再開・履歴 |
 | [テストケースの登録・編集](docs/test-case-editor.md) | ローカルDBへのケース保存、カテゴリ絞込み、競合時の操作 |
+| [テストケース作成の方針](docs/test-case-design.md) | テストレベルごとの対象、良いケースの基準、観点から組み合わせを絞ってケースを導く手順 |
 | [バグ報告](docs/bug-reporting.md) | 報告の初期設定、GitHub登録、修正版の確認 |
 
 ## ライセンス
