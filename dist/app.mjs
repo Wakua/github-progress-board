@@ -48,6 +48,7 @@ const validOwnerFilter = value => value && typeof value === 'object' && (value.a
 const githubDisclosures = new Map();
 // 「次にすること」の区分での絞り込み。開いているページ内でプロジェクトごとに保持する。
 const nextActionFilters = new Map();
+const todayCandidateProjects = new Set();
 const githubOwnerFilters = new Map(Object.entries(readView().githubOwners || {}).filter(([, value]) => validOwnerFilter(value)));
 const ownerFilters = new Map(Object.entries(readView().owners || {}).filter(([, value]) => validOwnerFilter(value)));
 const sameOwnerFilter = (a, b) => a.all === true ? b.all === true : b.all !== true && a.owner === b.owner;
@@ -278,7 +279,12 @@ function renderMyWork(project) {
   const snapshot = project.githubSnapshot;
   if (!snapshot && !localRepositoryKey(project.repositoryUrl)) return renderManualMyWork(project);
   const filter = githubFilterOf(project);
-  return `<section class="github-work"><div class="snapshot-heading"><h2>GitHubの作業 <small>読み取り専用</small></h2>${snapshot ? snapshotAgeMarkup(snapshot) : ''}</div><div data-local-github>${localGithubMarkup(project)}</div>${renderGithubWork(snapshot, filter, undefined, { nextActions: project.nextActions ?? {}, nextFilter: nextActionFilters.get(project.id) ?? null })}</section><details class="manual-work" ${state.tasks.length && !githubPlan(snapshot) ? 'open' : ''}><summary>手動の作業 ${state.tasks.length}件${githubPlan(snapshot) ? '（GitHubで計画しているため畳んで表示）' : ''}</summary>${renderManualMyWork(project)}</details>`;
+  const work = renderGithubWork(snapshot, filter, undefined, {
+    nextActions: project.nextActions ?? {},
+    nextFilter: nextActionFilters.get(project.id) ?? null,
+    todayOnly: todayCandidateProjects.has(project.id),
+  });
+  return `<section class="github-work"><div class="snapshot-heading"><h2>GitHubの作業 <small>読み取り専用</small></h2>${snapshot ? snapshotAgeMarkup(snapshot) : ''}</div><div data-local-github>${localGithubMarkup(project)}</div>${work}</section><details class="manual-work" ${state.tasks.length && !githubPlan(snapshot) ? 'open' : ''}><summary>手動の作業 ${state.tasks.length}件${githubPlan(snapshot) ? '（GitHubで計画しているため畳んで表示）' : ''}</summary>${renderManualMyWork(project)}</details>`;
 }
 // 古いsnapshotの件数だけでは、Readyにできると断定しない。上限に達していた事実は取得時点のものとして示す。
 function approvalStatus(project) {
@@ -1118,7 +1124,8 @@ $('#attention-panel').addEventListener('click', event => {
 // 絞り込んだ作業を、番号・題名・状態・根拠つきでコピーする。クリップボードを使えない環境では、一時的な入力欄で選んでコピーする。
 async function copyNextAction(actionId) {
   const project = findProject(workspace, workspace.selectedProjectId);
-  const text = githubNextActionText(project.githubSnapshot, githubFilterOf(project), undefined, project.nextActions ?? {}, actionId);
+  const text = githubNextActionText(project.githubSnapshot, githubFilterOf(project), undefined, project.nextActions ?? {}, actionId,
+    { todayOnly: todayCandidateProjects.has(project.id) });
   const status = message => { const element = $('.next-action-copy-status'); if (element) element.textContent = message; };
   if (!text) { status('コピーする作業がありません'); return; }
   try { await navigator.clipboard.writeText(text); status('コピーしました'); return; } catch { /* 下の方法で試す */ }
@@ -1143,6 +1150,13 @@ $('#my-work-panel').addEventListener('change', async event => {
 });
 $('#my-work-panel').addEventListener('click', event => {
   if (busy || !state) return;
+  if (event.target.closest('[data-today-candidates]')) {
+    const id = workspace.selectedProjectId;
+    if (!todayCandidateProjects.delete(id)) todayCandidateProjects.add(id);
+    render();
+    $('#my-work-panel [data-today-candidates]')?.focus();
+    return;
+  }
   const nextChoice = event.target.closest('[data-next-action-filter]');
   if (nextChoice) {
     const id = nextChoice.dataset.nextActionFilter || null;
@@ -1186,7 +1200,12 @@ setInterval(() => document.querySelectorAll('.snapshot-age[data-fetched-at]').fo
 }), 60000);
 
 // Recalculate when the Tokyo date changes, also after a sleeping tab becomes visible.
-let ganttDate = todayInTokyo();
-function refreshGanttDate() { const next = todayInTokyo(); if (next !== ganttDate) { ganttDate = next; if (state && viewTab === 'release') render(); } }
-setInterval(refreshGanttDate, 60000);
-document.addEventListener('visibilitychange', () => { if(document.visibilityState === 'visible') refreshGanttDate(); });
+let viewDate = todayInTokyo();
+function refreshViewDate() {
+  const next = todayInTokyo();
+  if (next === viewDate) return;
+  viewDate = next;
+  if (state && (viewTab === 'release' || viewTab === 'my-work')) render();
+}
+setInterval(refreshViewDate, 60000);
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') refreshViewDate(); });
