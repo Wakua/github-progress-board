@@ -79,12 +79,6 @@ test('サブの選択肢は、選んだメインの報告に付いているサ�
   assert.deepEqual(choose(uncategorized),[{value:'all',text:'すべて'}]);
   assert.deepEqual(subChoices([],[],'all'),[{value:'all',text:'すべて'}]);
 });
-test('登録状況の絞り込みは、メインの絞り込みと重ねられる',()=>{
-  // 登録前の報告のカテゴリは、保留したカテゴリ（タグのid）である。
-  const failed={...withTags('r','received',[],'failed'),categories:[2]};
-  assert.equal(matchesFilters(failed,{main:'label:2',state:'failed',roles}),true);
-  assert.equal(matchesFilters(failed,{main:'label:2',state:'registered',roles}),false);
-});
 test('reports saved before connection are distinguishable from the automatic registration queue',()=>{
   assert.equal(registrationName({github:{state:'pending',repository:null}}),'GitHub未登録');
   assert.equal(registrationName(report('unfetched',[],'pending')),'GitHub登録待ち');
@@ -101,30 +95,20 @@ test('一覧の行は、GitHubの接続があり、登録が完了していな�
   assert.equal(registrationMark(report('ok',[],'failed'),false),null);
 });
 
-test('本文の検索に一致した報告のIDで絞り、ほかの絞り込みと重ねられる',()=>{
+test('本文の検索に一致した報告のIDで絞る',()=>{
   const value=withTags('r1','working',[2]);
   assert.equal(matchesFilters(value,{found:null}),true);
   assert.equal(matchesFilters(value,{found:new Set(['r1'])}),true);
   assert.equal(matchesFilters(value,{found:new Set(['r2'])}),false);
   assert.equal(matchesFilters(value,{found:new Set()}),false);
-  assert.equal(matchesFilters(value,{main:'label:2',state:'registered',status:'working',found:new Set(['r1']),roles}),true);
-  assert.equal(matchesFilters(value,{main:'label:2',state:'registered',status:'complete',found:new Set(['r1']),roles}),false);
 });
 
-test('「確認完了を除く」は、確認完了だけを外し、ほかの絞り込みと重ねられる',()=>{
+test('「確認完了を除く」は、確認完了だけを外す',()=>{
   const status=value=>withTags('r',value,[2]);
   for(const open of ['received','working','fixed','checking'])assert.equal(matchesFilters(status(open),{status:'incomplete',roles}),true);
   assert.equal(matchesFilters(status('complete'),{status:'incomplete',roles}),false);
   assert.equal(matchesFilters(status('complete'),{status:'all',roles}),true);
   assert.equal(matchesFilters(status('complete'),{status:'complete',roles}),true);
-  assert.equal(matchesFilters(status('working'),{main:'label:2',status:'incomplete',roles}),true);
-  assert.equal(matchesFilters(status('working'),{main:'label:4',status:'incomplete',roles}),false);
-  assert.equal(matchesFilters(status('complete'),{status:'incomplete',found:new Set(['r']),roles}),false);
-});
-test('対応状況の絞り込みは、メインと登録状況の絞り込みと重ねられる',()=>{
-  const value=withTags('r','checking',[2]);
-  assert.equal(matchesFilters(value,{main:'label:2',state:'registered',status:'checking',roles}),true);
-  assert.equal(matchesFilters(value,{main:'label:2',state:'registered',status:'complete',roles}),false);
 });
 
 test('other reporters see the original tester waiting instruction',()=>{

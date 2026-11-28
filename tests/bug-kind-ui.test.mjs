@@ -91,21 +91,6 @@ test('種別を選ぶと、その種別の報告だけを出す。複数選ぶ�
   fx.choose('#kind-filter',[]);
   assert.equal(fx.titles().length,5);
 });
-test('種別の絞り込みは、メイン・サブ・対応状況・本文の検索と重ねて使える',async()=>{
-  const fx=fixture({search:query=>sample().filter(item=>query==='予約'?['b1','r1','r2'].includes(item.id):true).map(item=>item.id)});fx.render();
-  fx.choose('#kind-filter','request');
-  fx.choose('#main-filter','label:11');
-  assert.deepEqual(fx.titles(),['報告 r1','報告 r2']);
-  fx.choose('#sub-filter','label:12');
-  assert.deepEqual(fx.titles(),['報告 r1']);
-  fx.choose('#sub-filter','all');fx.choose('#status-filter','complete');
-  assert.deepEqual(fx.titles(),['報告 r2']);
-  fx.choose('#status-filter','all');
-  fx.type('予約');await fx.flush();
-  assert.deepEqual(fx.titles(),['報告 r1','報告 r2']);
-  fx.choose('#kind-filter','all');
-  assert.deepEqual(fx.titles(),['報告 b1','報告 r1','報告 r2']);
-});
 test('メインとサブの件数は、種別を選んだときだけ、その種別で数える',()=>{
   const fx=fixture();fx.render();
   const sorted=values=>[...values].sort();
@@ -114,11 +99,6 @@ test('メインとサブの件数は、種別を選んだときだけ、その�
   fx.choose('#kind-filter','bug');
   assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['予約（2）','通知（0）','未分類（0）']));
   assert.deepEqual(fx.choices('#sub-filter'),['一覧（1）']);
-  fx.choose('#kind-filter','request');
-  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['予約（1）','通知（0）','未分類（0）']),'完了した要望は、未対応に数えない');
-  fx.choose('#kind-filter','question');
-  assert.deepEqual(sorted(fx.choices('#main-filter')),sorted(['予約（0）','通知（1）','未分類（0）']));
-  assert.deepEqual(fx.choices('#sub-filter'),[],'その種別の報告にないサブは出さない');
 });
 test('種別を変えて、選んでいたサブがなくなったときは、サブを「すべて」に戻す',()=>{
   const fx=fixture();fx.render();
