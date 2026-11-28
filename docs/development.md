@@ -104,6 +104,14 @@ lcovの `BRDA:<行>,<ブロック>,<分岐>,<通った回数>` のうち、通�
 全体の網羅率を目標にせず、網羅率を上げるためだけの試験は足さない。
 網羅率では、書かれたコードを通ったかだけが分かり、仕様にあるのに実装されていない動作は見つからないためである。
 
+### 根拠
+
+| 資料 | この節で使った内容 |
+| --- | --- |
+| [The Practical Test Pyramid](https://martinfowler.com/articles/practical-test-pyramid.html)（Ham Vocke、「Avoid Test Duplication」の節） | 上の層の試験で誤りが見つかり、下の層の試験が失敗しないときは、下の層の試験を書く。試験はできるだけ下の層で書く。上の層の試験は、下の層で確かめられない部分に絞り、下の層で確かめた試験は消す |
+| [Test case quality criteria](https://trustedinstitute.com/concept/istqb-ctal-ta/test-analyst-in-the-test-process/test-case-quality-criteria-content/)（ISTQB Advanced Test Analyst の解説） | 重複した試験は、情報を増やさずに費用を増やすため、消すかまとめる |
+| [Code Coverage Best Practices](https://testing.googleblog.com/2020/08/code-coverage-best-practices.html)（Google Testing Blog） | すべての製品に当てはまる理想の網羅率はない。網羅されている部分より、網羅されていない部分に意味がある。網羅率を満たすためだけの価値の低い試験を足さない |
+
 ## 検証手順
 
 ローカル起動と基本の検証コマンドは[READMEの起動と検証](../README.md#起動と検証)に従う。
