@@ -1162,10 +1162,18 @@ $('#my-work-panel').addEventListener('change', async event => {
   if (store.status().readOnly) { render(); error(store.status().problem); return; }
   await commitWorkspace(draft => setNextAction(draft, projectId, number, value), '', null, false);
   const rowSelect = $(`.next-action-select[data-id="${number}"]`);
-  const selectedFilter = $('#my-work-panel [data-next-action-filter]:enabled');
-  const selectedOwner = $('#my-work-panel [data-github-owner-filter][aria-pressed="true"]');
-  const focusTarget = rowSelect?.getClientRects().length && !rowSelect.disabled ? rowSelect : selectedFilter || selectedOwner;
-  focusTarget?.focus();
+  if (!rowSelect?.getClientRects().length || rowSelect.disabled) {
+    const selectedFilter = $('#my-work-panel [data-next-action-filter]:enabled');
+    const selectedOwner = $('#my-work-panel [data-github-owner-filter][aria-pressed="true"]');
+    (selectedFilter || selectedOwner)?.focus();
+    return;
+  }
+  rowSelect.focus({ preventScroll: true });
+  const { top, bottom } = rowSelect.getBoundingClientRect();
+  const toolbar = $('#my-work-panel .next-action-filter');
+  const visibleTop = Math.max(0, toolbar?.getBoundingClientRect().bottom ?? 0);
+  if (top < visibleTop) window.scrollBy(0, Math.floor(top - visibleTop));
+  else if (bottom > window.innerHeight) window.scrollBy(0, Math.ceil(bottom - window.innerHeight));
 });
 $('#my-work-panel').addEventListener('click', event => {
   if (busy || !state) return;

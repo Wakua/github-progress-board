@@ -141,6 +141,19 @@ try {
     const toolbar = work.locator('.next-action-filter');
     const review = work.getByRole('button', { name: '区分付き13件を確認', exact: true });
     await work.locator('[data-my-work-section="waiting"] > summary').click();
+    const rowCategory = nextAction(9);
+    await rowCategory.evaluate(select => window.scrollBy(0, select.getBoundingClientRect().top - 260));
+    const toolbarBottom = await toolbar.evaluate(element => element.getBoundingClientRect().bottom);
+    await rowCategory.evaluate((select, top) => window.scrollBy(0, select.getBoundingClientRect().top - top), toolbarBottom + 6);
+    const rowTop = await rowCategory.evaluate(select => select.getBoundingClientRect().top);
+    assert.ok(rowTop >= toolbarBottom && rowTop < 120, `選択欄が操作欄のすぐ下に見える（行 ${rowTop}px、操作欄 ${toolbarBottom}px）`);
+    const nearTopScroll = await page.evaluate(() => window.scrollY);
+    await rowCategory.selectOption('spec');
+    await saved();
+    assert.equal(await rowCategory.evaluate(select => select === document.activeElement), true);
+    assert.equal(await page.evaluate(() => window.scrollY), nearTopScroll, '表示済みの選択欄ではスクロールを保つ');
+    await rowCategory.selectOption('verify');
+    await saved();
     await nextAction(15).evaluate(select => window.scrollBy(0, select.getBoundingClientRect().top - 260));
     const initialScroll = await page.evaluate(() => window.scrollY);
     assert.ok(initialScroll > 400, '一覧の途中までスクロールしている');
@@ -150,11 +163,13 @@ try {
     await nextAction(9).selectOption('later');
     await saved();
     assert.equal(await nextAction(9).evaluate(select => select === document.activeElement), true);
-    assert.ok(await nextAction(9).evaluate(select => {
+    const movedRow = await nextAction(9).evaluate(select => {
       const row = select.getBoundingClientRect();
       const toolbar = document.querySelector('#my-work-panel .next-action-filter').getBoundingClientRect();
-      return row.top >= toolbar.bottom && row.bottom <= window.innerHeight;
-    }), '移動した行の選択欄が操作欄と重ならず画面内にある');
+      return { top: row.top, bottom: row.bottom, visibleTop: toolbar.bottom, visibleBottom: window.innerHeight };
+    });
+    assert.ok(movedRow.top >= movedRow.visibleTop && movedRow.bottom <= movedRow.visibleBottom,
+      `移動した行の選択欄が操作欄と重ならず画面内にある（${JSON.stringify(movedRow)}）`);
     await nextFilter.selectOption('');
     assert.ok(Math.abs(await page.evaluate(() => window.scrollY) - initialScroll) < 3, '同じ担当者の一覧では元の位置に戻る');
     await review.press('Enter');
@@ -165,7 +180,7 @@ try {
       const maximum = document.documentElement.scrollHeight - window.innerHeight;
       return Math.abs(window.scrollY - Math.min(sectionTop, maximum)) < 3;
     }), '担当者を変えると絞り込み解除後は新しい一覧の先頭を表示する');
-    checks.push(`${width}px: 一覧の上部固定、行の移動後のフォーカス、絞り込み解除と担当者切替後の表示位置を確認した`);
+    checks.push(`${width}px: 上部固定、表示内と移動後のフォーカス、絞り込み解除と担当者切替後の表示位置を確認した`);
     await context.close();
   }
   assert.deepEqual(errors, []);
