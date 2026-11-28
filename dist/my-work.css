@@ -36,9 +36,16 @@
   .my-work-meta { justify-content: flex-start; max-width: 100%; }
   .view-tab { flex: 1; padding: 9px 8px; }
 }
-.next-action-filter { margin-top: 8px; align-items: center; }
-.next-action-copy { min-height: 32px; padding: 3px 12px; font-size: 13px; }
+.next-action-filter { position: sticky; top: 0; z-index: 1; display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; padding: 8px 0; margin-top: 4px; background: var(--bg); border-bottom: 1px solid var(--line); }
+.next-action-filter label { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; font-size: 13px; color: var(--muted); }
+.next-action-filter select { width: auto; max-width: 100%; min-height: 36px; padding: 4px 8px; font-size: 13px; }
+.next-action-copy { min-height: 36px; padding: 4px 12px; font-size: 13px; }
 .next-action-copy-status { font-size: 12px; color: var(--muted); }
+.next-action-copy-status:empty { position: absolute; }
 .next-action-select { flex: 0 0 150px; width: 150px; align-self: center; min-height: 30px; padding: 3px 8px; font-size: 12px; color: var(--muted); }
 .next-action-select.set { color: #e1e7f3; border-color: #6178b3; }
-@media (max-width: 640px) { .next-action-select { flex: 0 0 auto; align-self: flex-start; } }
+@media (max-width: 640px) {
+  .next-action-select { flex: 0 0 auto; align-self: flex-start; }
+  .next-action-filter select, .next-action-copy { min-height: 44px; }
+}
+.github-work .my-work-list :is(button, select) { scroll-margin-top: 120px; }

@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { bookingSampleWorkspace } from '../scripts/make-booking-sample.mjs';
 import { NEXT_ACTIONS, isNextActions, nextActionCopyText } from '../dist/next-action.mjs';
 import { validateWorkspace, setNextAction, findProject } from '../dist/workspace.mjs';
-import { renderGithubWork, githubNextActionCounts, githubNextActionText } from '../dist/github-planning-view.mjs';
+import { renderGithubWork, githubNextActionCounts, githubNextActionText, NEXT_ACTION_ASSIGNED } from '../dist/github-planning-view.mjs';
 import { githubMyWork } from '../dist/github-work.mjs';
 
 const TODAY = '2026-10-13';
@@ -91,7 +91,7 @@ test('区分で絞った作業を、番号・題名・状態・根拠つきで�
 test('今日の候補を選ぶと、区分で表示・コピーする作業と件数も候補に絞る', () => {
   const { githubSnapshot: snapshot } = sample().projects[0];
   const today = '2026-10-22';
-  const nextActions = { 3: 'ai', 14: 'ai', 15: 'ai' };
+  const nextActions = { 3: 'ai', 8: 'verify', 14: 'ai', 15: 'ai' };
   const options = { todayOnly: true, nextActions, nextFilter: 'ai' };
   const html = renderGithubWork(snapshot, everyone, today, options);
   assert.match(html, /今日の候補 2件/);
@@ -100,6 +100,11 @@ test('今日の候補を選ぶと、区分で表示・コピーする作業と�
   assert.deepEqual([...html.matchAll(/data-github-task="(\d+)"/g)].map(match => match[1]), ['14']);
   const copied = githubNextActionText(snapshot, everyone, today, nextActions, 'ai', options);
   assert.deepEqual([...copied.matchAll(/^- #(\d+)/gm)].map(match => match[1]), ['14']);
+  const all = renderGithubWork(snapshot, everyone, today, { ...options, nextFilter: NEXT_ACTION_ASSIGNED });
+  assert.match(all, /data-next-action-copy="assigned">2件をコピー/);
+  const allCopied = githubNextActionText(snapshot, everyone, today, nextActions, NEXT_ACTION_ASSIGNED, options);
+  assert.deepEqual([...all.matchAll(/data-github-task="(\d+)"/g)].map(match => match[1]), ['8', '14']);
+  assert.deepEqual([...allCopied.matchAll(/^- #(\d+)/gm)].map(match => match[1]), ['8', '14']);
 });
 
 test('今日の候補が0件でも、担当者の未完了件数として0件を表示しない', () => {
@@ -117,10 +122,14 @@ test('今日の候補と選んだ区分の両方に当たる作業が0件でも�
   const today = '2026-10-22', nextActions = { 3: 'spec' };
   const html = renderGithubWork(snapshot, everyone, today, { todayOnly: true, nextActions, nextFilter: 'spec' });
   assert.match(html, /今日の候補 2件/);
-  assert.match(html, /data-next-action-filter="spec" aria-pressed="true">仕様を決める 0件/);
+  assert.match(html, /<option value="spec" selected>仕様を決める 0件/);
   assert.match(html, /選んだ区分に今日の候補はありません/);
   assert.doesNotMatch(html, /data-next-action-copy=|data-github-task=/);
   assert.equal(githubNextActionText(snapshot, everyone, today, nextActions, 'spec', { todayOnly: true }), null);
+  const all = renderGithubWork(snapshot, everyone, today, { todayOnly: true, nextActions, nextFilter: NEXT_ACTION_ASSIGNED });
+  assert.match(all, /<option value="assigned" selected>区分付きすべて 0件/);
+  assert.doesNotMatch(all, /data-next-action-copy=|data-github-task=/);
+  assert.equal(githubNextActionText(snapshot, everyone, today, nextActions, NEXT_ACTION_ASSIGNED, { todayOnly: true }), null);
 });
 
 test('担当者の絞り込みの外にある作業はコピーしない', () => {
@@ -137,10 +146,11 @@ test('コピー文は区分の次にすることを先頭に置き、作業の�
   assert.equal(nextActionCopyText(null, NEXT_ACTIONS[0], []), '次にすること：Issueを閉じる（区分：終わっている、0件）');
 });
 
-test('区分が一つもなければ絞り込みを出さず、通常の完了・Closedには区分の選択を出さない', () => {
+test('区分付きが0件なら確認と絞り込みを無効にし、通常の完了・Closedには区分の選択を出さない', () => {
   const { githubSnapshot: snapshot } = sample().projects[0];
   const html = renderGithubWork(snapshot, everyone, TODAY);
-  assert.doesNotMatch(html, /next-action-filter/);
+  assert.match(html, /<select data-next-action-filter disabled>/);
+  assert.match(html, /data-next-action-review disabled>区分付き0件を確認/);
   assert.equal(html.match(/class="next-action-select/g).length, 14);
   assert.doesNotMatch(html, /data-id="2" aria-label="#2の次にすること"/);
   assert.match(html, /<option value="">区分<\/option>/);
@@ -152,10 +162,11 @@ test('区分を付けた作業があれば絞り込みを出し、選んだ区�
   const { githubSnapshot: snapshot } = sample().projects[0];
   const nextActions = { 9: 'spec', 15: 'spec', 3: 'ai' };
   const all = renderGithubWork(snapshot, everyone, TODAY, { nextActions });
-  assert.match(all, /data-next-action-filter="" aria-pressed="true">すべて 14件/);
-  assert.match(all, /data-next-action-filter="spec" aria-pressed="false">仕様を決める 2件/);
-  assert.match(all, /data-next-action-filter="none" aria-pressed="false">区分なし 11件/);
-  assert.doesNotMatch(all, /data-next-action-copy/, '「すべて」ではコピーを出さない');
+  assert.match(all, /<option value="" selected>すべて 14件/);
+  assert.match(all, /<option value="spec">仕様を決める 2件/);
+  assert.match(all, /<option value="none">区分なし 11件/);
+  assert.match(all, /data-next-action-review>区分付き3件を確認/);
+  assert.doesNotMatch(all, /data-next-action-copy/, '「すべて」では対象確認から始める');
   const spec = renderGithubWork(snapshot, everyone, TODAY, { nextActions, nextFilter: 'spec' });
   assert.deepEqual([...spec.matchAll(/data-github-task="(\d+)"/g)].map(m => m[1]).sort(), ['15', '9']);
   assert.match(spec, /data-next-action-copy="spec"/);
@@ -163,6 +174,7 @@ test('区分を付けた作業があれば絞り込みを出し、選んだ区�
   const none = renderGithubWork(snapshot, everyone, TODAY, { nextActions, nextFilter: 'none' });
   assert.equal([...none.matchAll(/data-github-task="/g)].length, 11, '区分なしの未完了11件だけで、完了・Closedは出さない');
   assert.doesNotMatch(none, /data-next-action-copy/);
+  assert.match(none, /<details[^>]*data-my-work-section="ready-later"/);
 });
 
 test('完了・Closedでも受入待ちの記録があれば区分を付けてコピーできる', () => {
@@ -177,13 +189,14 @@ test('完了・Closedでも受入待ちの記録があれば区分を付けて�
 
   const unclassified = renderGithubWork(snapshot, everyone, TODAY);
   assert.match(unclassified, /未完了 13件/);
-  assert.doesNotMatch(unclassified, /next-action-filter/);
+  assert.match(unclassified, /data-next-action-filter disabled/);
   const all = renderGithubWork(snapshot, everyone, TODAY, { nextActions });
   assert.match(all, /未完了 13件/);
   assert.match(all, /<details[^>]*data-my-work-section="done"[^>]*>.*完了・Closed.*<li[^>]*data-github-task="11".*受入待ち/);
   const filtered = renderGithubWork(snapshot, everyone, TODAY, { nextActions, nextFilter: 'accept' });
   assert.match(filtered, /未完了 0件/);
   assert.match(filtered, /<section[^>]*data-my-work-section="done"[^>]*>.*受入待ち .*<li[^>]*data-github-task="11"/);
+  assert.equal([...filtered.matchAll(/受入待ち/g)].length, 1, '単独区分では見出しだけに表示する');
   assert.match(filtered, /data-next-action-copy="accept">1件をコピー/);
   assert.match(all, /data-id="11" aria-label="#11の次にすること"/);
   assert.doesNotMatch(all, /data-id="2" aria-label="#2の次にすること"/);
@@ -216,7 +229,33 @@ test('選んだ区分の作業がなくなったら「すべて」に戻す', ()
   const { githubSnapshot: snapshot } = sample().projects[0];
   const html = renderGithubWork(snapshot, everyone, TODAY, { nextActions: { 3: 'ai' }, nextFilter: 'spec' });
   assert.equal([...html.matchAll(/data-github-task="/g)].length, 15);
-  assert.match(html, /data-next-action-filter="" aria-pressed="true"/);
+  assert.match(html, /<option value="" selected>すべて 14件/);
+});
+
+test('区分付きすべての一覧とコピー文は、区分なしと対象外を除いて同じ全件を区分順に並べる', () => {
+  const { githubSnapshot: snapshot } = sample().projects[0];
+  snapshot.items.find(item => item.kind === 'issue' && item.number === 2).acceptancePending = true;
+  const nextActions = { 2: 'accept', 3: 'ai', 8: 'verify', 15: 'verify', 999: 'ai' };
+  const html = renderGithubWork(snapshot, everyone, TODAY, { nextActions, nextFilter: NEXT_ACTION_ASSIGNED });
+  const text = githubNextActionText(snapshot, everyone, TODAY, nextActions, NEXT_ACTION_ASSIGNED);
+  assert.match(html, /<option value="assigned" selected>区分付きすべて 4件/);
+  assert.match(html, /data-next-action-copy="assigned">4件をコピー/);
+  assert.match(html, /やったはず <span class="my-work-count">2件/);
+  assert.match(html, /受入確認する <span class="my-work-count">1件/);
+  assert.match(html, /data-github-task="2".*<span class="my-work-more">受入待ち<\/span>/);
+  assert.match(html, /AIに渡す <span class="my-work-count">1件/);
+  assert.doesNotMatch(html, /<details/);
+  assert.deepEqual([...html.matchAll(/data-github-task="(\d+)"/g)].map(match => Number(match[1])), [8, 15, 2, 3]);
+  assert.deepEqual([...text.matchAll(/^- #(\d+) /gm)].map(match => Number(match[1])), [8, 15, 2, 3]);
+  assert.match(text, /終わっているか確かめる（区分：やったはず、2件）/);
+  assert.match(text, /区分：受入確認する、1件.*\n- #2 .*根拠：受入待ち/);
+  assert.equal([...text.matchAll(/^repository：example\/booking-app$/gm)].length, 1);
+  assert.equal(githubNextActionText(snapshot, everyone, TODAY, {}, NEXT_ACTION_ASSIGNED), null);
+
+  const owner = { owner: 'Claude' };
+  const ownerActions = { 9: 'verify', 14: 'ai' };
+  const ownerText = githubNextActionText(snapshot, owner, TODAY, ownerActions, NEXT_ACTION_ASSIGNED);
+  assert.deepEqual([...ownerText.matchAll(/^- #(\d+) /gm)].map(match => Number(match[1])), [14]);
 });
 
 test('区分は要対応・緊急などのまとまりの判定を変えない', () => {
