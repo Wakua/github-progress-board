@@ -117,6 +117,7 @@ node --test --experimental-test-coverage --test-coverage-include='dist/bugs/view
 | 資料 | この節で使った内容 |
 | --- | --- |
 | [The Practical Test Pyramid](https://martinfowler.com/articles/practical-test-pyramid.html)（Ham Vocke、「Avoid Test Duplication」の節） | 上の層の試験で誤りが見つかり、下の層の試験が失敗しないときは、下の層の試験を書く。試験はできるだけ下の層で書く。上の層の試験は、下の層で確かめられない部分に絞る。下の層で確かめていて、上の層で追加の確認が得られない試験は消す |
+| [テスト技術者資格制度 Foundation Level シラバス V4.0](https://jstqb.jp/dl/JSTQB-SyllabusFoundation_VersionV40.J02.pdf)（JSTQB、2.1.2節、5.1.6節） | 異なるテストレベルには、冗長性を避けつつ包括的にテストするための、それぞれの目的がある。テストピラミッドの下のレイヤーは小さく速い試験を多く持ち、上のレイヤーは少数の試験で大きな機能を確かめる |
 | [Test case quality criteria](https://trustedinstitute.com/concept/istqb-ctal-ta/test-analyst-in-the-test-process/test-case-quality-criteria-content/)（ISTQB Advanced Test Analyst の解説） | 重複した試験は、情報を増やさずに費用を増やすため、消すかまとめる |
 | [Code Coverage Best Practices](https://testing.googleblog.com/2020/08/code-coverage-best-practices.html)（Google Testing Blog） | すべての製品に当てはまる理想の網羅率はない。網羅されている部分より、網羅されていない部分に意味がある。網羅率を満たすためだけの価値の低い試験を足さない。この記事は変更ごとの網羅率に数値の目安も示しているが、このプロジェクトでは数値の目標を置かないと決めた |
 
