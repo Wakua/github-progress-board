@@ -77,6 +77,9 @@
 .release-task-counts .issue-name { white-space:normal; text-align:left; overflow-wrap:anywhere; }
 .gantt .forecast-details { margin-block:8px; font-size:14px; }
 .gantt .forecast-details summary { cursor:pointer; color:#a6d3ff; }
+.gantt .summary .hint { display:inline-block; max-width:100%; overflow-wrap:anywhere; }
+.gantt .summary .warn { white-space:nowrap; }
+.gantt .completion-facts > div { grid-template-columns:min(7em, 48%) minmax(0, 1fr); overflow-wrap:anywhere; }
 
 .gantt .chart[data-fit] { --axis-width:0px; overflow:clip; }
 .gantt .chart[data-fit] .dates { min-height:2em; }

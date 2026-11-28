@@ -104,7 +104,7 @@ try {
   assert.equal(await b.count(),0);
   await shot('release-closed');
   await button(a,'リリースAの計算根拠').click();
-  assert.match(await a.locator('dialog[open]').innerText(),/完了見込み/);
+  assert.match(await a.locator('dialog[open]').innerText(),/完了までの下限/);
   await page.keyboard.press('Escape');
   await showB();
   assert.deepEqual(await visibleTasks(b),otherRows);

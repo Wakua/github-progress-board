@@ -1,4 +1,5 @@
 import { decimalMath, dateDay, nextWeekday, startCoordinate, endCoordinate, dayString, position } from './milestone-schedule-math.mjs';
+import { POINTS_PER_WORKDAY } from './capacity.mjs';
 
 const sorted = values => [...values].sort();
 const unique = values => sorted(new Set(values));
@@ -12,6 +13,53 @@ const record = value => value !== null && typeof value === 'object' && !Array.is
 const issueKeyOK = key => typeof key === 'string' && /^https:\/\/[^/]+\/[^/]+\/[^/]+\/issues\/\d+$/.test(key);
 const max = values => values.reduce((a, b) => a > b ? a : b, 0n);
 const min = values => values.reduce((a, b) => a < b ? a : b);
+
+function ownerPlanningGaps(planning, selectedProjectId) {
+  const reasons = [];
+  if (planning.sourceProblem || !planning.sourceProjectId) reasons.push('source-unavailable');
+  else if (planning.sourceProjectId !== selectedProjectId) reasons.push('outside-project');
+  if (!readOK(planning.owner) || typeof planning.owner.value !== 'string' || !planning.owner.value.trim()) reasons.push('owner-unknown');
+  return reasons;
+}
+
+function completionBounds(active, finish, due, selectedProjectId, math) {
+  const totals = new Map(), gaps = [];
+  for (const node of active) {
+    if (node.duration === 0n) continue;
+    const planning = node.issue.planning;
+    const reasons = ownerPlanningGaps(planning, selectedProjectId);
+    if (node.issue.completion.value === 'unknown') reasons.push('completion-unknown');
+    if (node.duration === null) reasons.push('remaining-work-unknown');
+    if (reasons.length) gaps.push({ key: node.key, reasons });
+    else {
+      const owner = planning.owner.value;
+      totals.set(owner, (totals.get(owner) ?? 0n) + node.duration);
+    }
+  }
+  const maxPoints = max([...totals.values()]);
+  const workloadPartial = finish === null || gaps.length > 0;
+  const workload = workloadPartial && maxPoints === 0n ? null : maxPoints / BigInt(POINTS_PER_WORKDAY);
+  const bound = finish === null ? workload : workload !== null && workload > finish ? workload : finish;
+  const hundredth = math.unit / 100n;
+  const describe = value => {
+    if (value === null) return null;
+    const roundedDown = value / hundredth * hundredth;
+    return {
+      days: math.number(value),
+      display: value > 0n && roundedDown === 0n ? '0.01平日未満' : math.display(roundedDown).replace('日', '平日'),
+    };
+  };
+  return {
+    dependencies: describe(finish),
+    workload: describe(workload),
+    workloadPartial,
+    bound: describe(bound),
+    factor: workload === null ? null : workload === finish ? 'both' : finish === null || workload > finish ? 'workload' : 'dependencies',
+    overdue: due !== null && bound !== null && bound > due ? describe(bound - due) : null,
+    owners: workload === null || maxPoints === 0n ? [] : sorted([...totals.keys()].filter(owner => totals.get(owner) === maxPoints)),
+    gaps: gaps.sort((a, b) => a.key.localeCompare(b.key)),
+  };
+}
 
 // Input contract errors are separate from unavailable or invalid planning data.
 function prepare(input, diagnose) {
@@ -282,17 +330,19 @@ export function calculateMilestoneSchedule(input) {
       key: milestone.key, state,
       targetTaskKeys: sorted(work.targets), taskKeys: sorted(reachable), diagnosticIds: sorted(work.causes),
       remainingPoints: remainingKnown ? number(active.reduce((sum, k) => sum + nodes.get(k).duration, 0n)) : null,
-      finish: null, dueDate: milestone.dueDate, dueDifference: null,
+      finish: null, dueDate: milestone.dueDate, dueDifference: null, completionBounds: null,
       tasks: [], criticalTaskKeys: [], criticalEdgeIds: [],
     };
     const dueDay = dateDay(milestone.dueDate);
+    const due = dueDay === null ? null : BigInt(endCoordinate(origin, dueDay)) * math.unit;
     if (milestone.dueDate !== null && dueDay === null) output.diagnosticIds.push(diagnose(milestone.key, 'dueDate', 'invalid-date'));
     if (state === 'calculated') {
       const finish = max([...work.targets].map(k => nodes.get(k)).filter(n => !n.done).map(n => n.ef));
       const finishDuration = [...work.targets].map(k => nodes.get(k)).some(n => n.ef === finish && n.duration > 0n) ? 1n : 0n;
       output.finish = at(finish, true, finishDuration);
-      if (dueDay !== null) {
-        const difference = BigInt(endCoordinate(origin, dueDay)) * math.unit - finish;
+      output.completionBounds = completionBounds(active.map(key => nodes.get(key)), finish, due, input.selectedProjectId, math);
+      if (due !== null) {
+        const difference = due - finish;
         output.dueDifference = { days: number(difference), relation: difference < 0n ? 'late' : difference > 0n ? 'early' : 'on-time', display: math.display(difference) };
       }
       const latest = new Map();
@@ -321,6 +371,9 @@ export function calculateMilestoneSchedule(input) {
         if (critical) output.criticalEdgeIds.push(edge.id);
       }
     } else {
+      if (state === 'incomplete') {
+        output.completionBounds = completionBounds(active.map(key => nodes.get(key)), null, due, input.selectedProjectId, math);
+      }
       output.tasks = sorted(reachable).map(key => ({ key, latestStart: null, latestFinish: null, slackDays: null, slackDisplay: null, critical: null, diagnosticIds: sorted(work.causes) }));
       for (const edge of edges.values()) if (reachable.has(edge.from) && reachable.has(edge.to)) edge.criticalByMilestone[milestone.key] = state === 'incomplete' ? null : false;
     }
@@ -343,10 +396,7 @@ export function calculateMilestoneSchedule(input) {
       diagnosticIds: sorted(node.causes), directDiagnosticIds: sorted(node.directCauses), viaEdgeIds: sorted(node.viaEdges),
     });
     if (node.done) continue;
-    const reasons = [];
-    if (p.sourceProblem || !p.sourceProjectId) reasons.push('source-unavailable');
-    else if (p.sourceProjectId !== input.selectedProjectId) reasons.push('outside-project');
-    if (!readOK(p.owner) || typeof p.owner.value !== 'string' || !p.owner.value.trim()) reasons.push('owner-unknown');
+    const reasons = ownerPlanningGaps(p, input.selectedProjectId);
     if (node.es === null) reasons.push('schedule-unknown');
     if (reasons.length) result.overlapUnchecked.push({ key, reasons });
     else if (node.duration > 0n) {
